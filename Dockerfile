@@ -15,7 +15,10 @@ RUN apt-get update && apt-get upgrade -y && apt-get install -y \
     gnupg \
     python3 \
     python3-pip \
-    libgl1-mesa-glx && \
+    libgl1-mesa-glx \
+    libraqm-dev \
+    libfribidi-dev \
+    libharfbuzz-dev && \
     # Clean up the package cache
     rm -rf /var/lib/apt/lists/*
 

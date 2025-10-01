@@ -63,7 +63,7 @@ def rotate_image(image, bboxes):
 
 def blur_image(image):
     """Applies a Gaussian blur to a Pillow image."""
-    return image.filter(ImageFilter.GaussianBlur(radius=random.uniform(0, 1.2)))
+    return image.filter(ImageFilter.GaussianBlur(radius=random.uniform(0.1, 1.2)))
 
 # --- Advanced Augmentations ---
 

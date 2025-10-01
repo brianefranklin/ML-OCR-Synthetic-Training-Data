@@ -100,7 +100,7 @@ def test_blur_image(base_image):
     
     blurred_img = blur_image(img)
     # A simple check: a blurred image should have more unique colors (gray pixels)
-    assert len(blurred_img.getcolors()) > len(img.getcolors())
+    assert len(blurred_img.getcolors(maxcolors=256*256*256)) > len(img.getcolors(maxcolors=256*256*256))
 
 
 def test_perspective_transform_no_bboxes(base_image):

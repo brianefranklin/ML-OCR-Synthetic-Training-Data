@@ -7,6 +7,7 @@ import sys
 import time
 from PIL import Image, ImageDraw, ImageFont
 from tqdm import tqdm
+import bidi.algorithm
 
 # Import the new augmentation pipeline
 from augmentations import apply_augmentations
@@ -28,8 +29,10 @@ def main():
     parser.add_argument('--max-execution-time', type=float, default=config.get('max_execution_time'), help='Optional: Maximum execution time in seconds.')
     parser.add_argument('--min-text-length', type=int, default=config.get('min_text_length', 1), help='Minimum length of text to generate.')
     parser.add_argument('--max-text-length', type=int, default=config.get('max_text_length', 100), help='Maximum length of text to generate.')
+    parser.add_argument('--text-direction', type=str, default=config.get('text_direction', 'left_to_right'), choices=['left_to_right', 'top_to_bottom', 'right_to_left', 'bottom_to_top'], help='Direction of the text.')
     parser.add_argument('--clear-output', action='store_true', help='If set, clears the output directory before generating new images.')
     parser.add_argument('--force', action='store_true', help='If set, bypasses the confirmation prompt when clearing the output directory.')
+    parser.add_argument('--font-name', type=str, default=None, help='Name of the font file to use.')
 
     args = parser.parse_args()
 
@@ -113,10 +116,18 @@ def main():
                     break
 
                 # Select random elements
-                text_length = random.randint(args.min_text_length, args.max_text_length)
-                start_index = random.randint(0, len(corpus) - text_length -1)
-                text_line = corpus[start_index:start_index + text_length].replace('\n', ' ').strip()
-                font_path = random.choice(font_files)
+                text_line = ""
+                while len(text_line) < args.min_text_length:
+                    text_length = random.randint(args.min_text_length, args.max_text_length)
+                    start_index = random.randint(0, len(corpus) - text_length)
+                    text_line = corpus[start_index:start_index + text_length].replace('\n', ' ').strip()
+                if args.font_name:
+                    font_path = os.path.join(args.fonts_dir, args.font_name)
+                    if not os.path.exists(font_path):
+                        print(f"Error: Font file {args.font_name} not found in {args.fonts_dir}")
+                        continue
+                else:
+                    font_path = random.choice(font_files)
 
                 try:
                     font = ImageFont.truetype(font_path, size=random.randint(28, 40))
@@ -129,25 +140,84 @@ def main():
                 x_offset = 20
                 y_offset = 15
 
-                # Estimate image size first
                 transparent_img = Image.new('RGBA', (1, 1))
                 draw = ImageDraw.Draw(transparent_img)
-                total_text_bbox = draw.textbbox((0, 0), text_line, font=font)
-                img_width = (total_text_bbox[2] - total_text_bbox[0]) + 40
-                img_height = (total_text_bbox[3] - total_text_bbox[1]) + 30
 
-                image = Image.new('RGB', (img_width, img_height), color='white')
-                draw = ImageDraw.Draw(image)
+                if args.text_direction == 'left_to_right':
+                    # Estimate image size first
+                    total_text_bbox = draw.textbbox((0, 0), text_line, font=font)
+                    img_width = (total_text_bbox[2] - total_text_bbox[0]) + 40
+                    img_height = (total_text_bbox[3] - total_text_bbox[1]) + 30
 
-                for char in text_line:
-                    char_bbox = draw.textbbox((x_offset, y_offset), char, font=font)
-                    draw.text((x_offset, y_offset), char, font=font, fill='black')
-                    
-                    # Store absolute bbox coordinates
-                    char_bboxes.append(list(char_bbox))
-                    
-                    # Update x_offset for the next character
-                    x_offset += draw.textlength(char, font=font)
+                    image = Image.new('RGB', (img_width, img_height), color='white')
+                    draw = ImageDraw.Draw(image)
+
+                    for char in text_line:
+                        char_bbox = draw.textbbox((x_offset, y_offset), char, font=font)
+                        draw.text((x_offset, y_offset), char, font=font, fill='black')
+                        
+                        # Store absolute bbox coordinates
+                        char_bboxes.append(list(char_bbox))
+                        
+                        # Update x_offset for the next character
+                        x_offset += draw.textlength(char, font=font)
+                elif args.text_direction == 'right_to_left':
+                    # Right-to-left-specific logic
+                    right_to_left_text = bidi.algorithm.get_display(text_line)
+                    total_text_bbox = draw.textbbox((0, 0), right_to_left_text, font=font)
+                    img_width = (total_text_bbox[2] - total_text_bbox[0]) + 40
+                    img_height = (total_text_bbox[3] - total_text_bbox[1]) + 30
+
+                    image = Image.new('RGB', (img_width, img_height), color='white')
+                    draw = ImageDraw.Draw(image)
+
+                    x_offset = img_width - 20 # Start from the right
+                    for char in right_to_left_text:
+                        char_width = draw.textlength(char, font=font)
+                        x_offset -= char_width
+                        
+                        char_bbox = draw.textbbox((x_offset, y_offset), char, font=font)
+                        draw.text((x_offset, y_offset), char, font=font, fill='black')
+                        
+                        char_bboxes.append(list(char_bbox))
+                elif args.text_direction == 'bottom_to_top':
+                    # Estimate image size for bottom-to-top text
+                    char_heights = [draw.textbbox((0,0), char, font=font)[3] - draw.textbbox((0,0), char, font=font)[1] for char in text_line]
+                    char_widths = [draw.textbbox((0,0), char, font=font)[2] - draw.textbbox((0,0), char, font=font)[0] for char in text_line]
+                    img_width = max(char_widths) + 40
+                    img_height = sum(char_heights) + 30
+
+                    image = Image.new('RGB', (img_width, img_height), color='white')
+                    draw = ImageDraw.Draw(image)
+
+                    y_offset = img_height - 15
+                    for i, char in enumerate(reversed(text_line)):
+                        char_height = char_heights[len(text_line) - 1 - i]
+                        y_offset -= char_height
+                        char_bbox = draw.textbbox((x_offset, y_offset), char, font=font)
+                        draw.text((x_offset, y_offset), char, font=font, fill='black')
+                        
+                        # Store absolute bbox coordinates
+                        char_bboxes.append(list(char_bbox))
+                else: # top_to_bottom
+                    # Estimate image size for top-to-bottom text
+                    char_heights = [draw.textbbox((0,0), char, font=font)[3] - draw.textbbox((0,0), char, font=font)[1] for char in text_line]
+                    char_widths = [draw.textbbox((0,0), char, font=font)[2] - draw.textbbox((0,0), char, font=font)[0] for char in text_line]
+                    img_width = max(char_widths) + 40
+                    img_height = sum(char_heights) + 30
+
+                    image = Image.new('RGB', (img_width, img_height), color='white')
+                    draw = ImageDraw.Draw(image)
+
+                    for i, char in enumerate(text_line):
+                        char_bbox = draw.textbbox((x_offset, y_offset), char, font=font)
+                        draw.text((x_offset, y_offset), char, font=font, fill='black')
+                        
+                        # Store absolute bbox coordinates
+                        char_bboxes.append(list(char_bbox))
+                        
+                        # Update y_offset for the next character
+                        y_offset = char_bbox[3]
 
 
                 # --- Augmentation Step ---

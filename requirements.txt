@@ -3,3 +3,9 @@ numpy
 opencv-python
 pytest
 tqdm
+python-bidi
+
+# For optimal complex script and RTL rendering, it is highly recommended to install pyfribidi
+# and its underlying dependencies (e.g., fribidi, harfbuzz). On Debian/Ubuntu, you can install them with:
+# sudo apt-get install libfribidi-dev libharfbuzz-dev
+# pip install pyfribidi

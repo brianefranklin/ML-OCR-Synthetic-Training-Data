@@ -22,8 +22,7 @@ def test_environment(tmp_path):
     # Create a dummy corpus file
     corpus_path = text_dir / "corpus.txt"
     with open(corpus_path, "w") as f:
-        f.write("hello world\n")
-        f.write("testing script\n")
+        f.write("a\nb\nc\nd\ne\nf\ng\nh\ni\nj\nk\nl\nm\nn\no\np\nq\nr\ns\nt\nu\nv\nw\nx\ny\nz\n")
 
     # Copy a real font file into the test environment
     # This makes the test more realistic
@@ -59,11 +58,9 @@ def test_main_script_execution(test_environment):
         "--num-images", str(num_images_to_generate)
     ]
 
-    # Execute the script
-    result = subprocess.run(command, capture_output=True, text=True, check=False) 
+    result = subprocess.run(command, text=True, check=False, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
     
-    # Assert that the script ran successfully
-    assert result.returncode == 0, f"Script failed with error:\n{result.stderr}"
+    assert result.returncode == 0, f"Script failed with error:\n{result.stdout}"
 
     # --- Verify the output ---
     output_dir = Path(test_environment["output_dir"])
@@ -187,6 +184,46 @@ def test_clear_output_functionality(test_environment):
     assert len(image_files_after_clear) == 0, "Generated image was not deleted."
     assert not labels_file.exists(), "labels.csv was not deleted."
 
+def test_top_to_bottom_text_generation(test_environment):
+    """Tests that the --text-direction top_to_bottom flag works."""
+    project_root = Path(__file__).resolve().parent.parent
+    script_path = project_root / "src" / "main.py"
+
+    command = [
+        "python3",
+        str(script_path),
+        "--text-file", test_environment["text_file"],
+        "--fonts-dir", test_environment["fonts_dir"],
+        "--output-dir", test_environment["output_dir"],
+        "--num-images", "1",
+        "--text-direction", "top_to_bottom"
+    ]
+
+    result = subprocess.run(command, capture_output=True, text=True, check=False)
+    assert result.returncode == 0, f"Script failed with error:\n{result.stderr}"
+
+    output_dir = Path(test_environment["output_dir"])
+    labels_file = output_dir / "labels.csv"
+    assert labels_file.exists(), "labels.csv was not created."
+
+    with open(labels_file, 'r') as f:
+        lines = f.readlines()
+    
+    import json
+    filename, json_data = lines[1].strip().split(',', 1)
+    label_data = json.loads(json_data)
+    bboxes = label_data["bboxes"]
+
+    # Check that bboxes are stacked top to bottom
+    for i in range(len(bboxes) - 1):
+        assert bboxes[i][1] < bboxes[i+1][1]
+
+    # Check image dimensions
+    from PIL import Image
+    image_path = output_dir / filename
+    img = Image.open(image_path)
+    assert img.height > img.width
+
 def test_variable_text_length(test_environment):
     """Tests that the --min-text-length and --max-text-length flags work."""
     project_root = Path(__file__).resolve().parent.parent
@@ -284,3 +321,97 @@ def test_empty_text_file(test_environment):
     result = subprocess.run(command, capture_output=True, text=True, check=False)
     assert result.returncode != 0 # The script should not crash
     assert f"No text found in {str(empty_text_file)}" in result.stdout
+
+
+def test_right_to_left_text_generation(test_environment):
+    """Tests that the --text-direction right_to_left flag works."""
+    project_root = Path(__file__).resolve().parent.parent
+    script_path = project_root / "src" / "main.py"
+
+    # Create a dummy corpus file with Arabic text
+    right_to_left_text_file = Path(test_environment["output_dir"]) / "right_to_left_corpus.txt"
+    with open(right_to_left_text_file, "w", encoding="utf-8") as f:
+        f.write("أهلاً بالعالم\n")
+
+    # Copy an Arabic font to the test environment
+    source_font_dir = Path(__file__).resolve().parent.parent / "data" / "fonts"
+    font_file_to_copy = source_font_dir / "NotoSansArabic[wdth,wght].ttf"
+    
+    if not font_file_to_copy.exists():
+        pytest.skip(f"Font file not found at {font_file_to_copy}, skipping right_to_left test.")
+
+    shutil.copy(font_file_to_copy, test_environment["fonts_dir"])
+
+    command = [
+        "python3",
+        str(script_path),
+        "--text-file", str(right_to_left_text_file),
+        "--fonts-dir", test_environment["fonts_dir"],
+        "--output-dir", test_environment["output_dir"],
+        "--num-images", "1",
+        "--text-direction", "right_to_left"
+    ]
+
+    result = subprocess.run(command, capture_output=True, text=True, check=False)
+    assert result.returncode == 0, f"Script failed with error:\n{result.stderr}"
+
+    output_dir = Path(test_environment["output_dir"])
+    labels_file = output_dir / "labels.csv"
+    assert labels_file.exists(), "labels.csv was not created."
+
+    with open(labels_file, 'r', encoding="utf-8") as f:
+        lines = f.readlines()
+    
+    import json
+    filename, json_data = lines[1].strip().split(',', 1)
+    label_data = json.loads(json_data)
+    bboxes = label_data["bboxes"]
+
+    # Check that bboxes are ordered from right to left
+    for i in range(len(bboxes) - 1):
+        assert bboxes[i][0] > bboxes[i+1][0]
+
+def test_bottom_to_top_text_generation(test_environment):
+    """Tests that the --text-direction bottom_to_top flag works."""
+    project_root = Path(__file__).resolve().parent.parent
+    script_path = project_root / "src" / "main.py"
+
+    # Create a dummy corpus file with long text
+    long_text_file = Path(test_environment["output_dir"]) / "long_corpus.txt"
+    with open(long_text_file, "w", encoding="utf-8") as f:
+        f.write("abcdefghijklmnopqrstuvwxyz")
+
+    command = [
+        "python3",
+        str(script_path),
+        "--text-file", str(long_text_file),
+        "--fonts-dir", test_environment["fonts_dir"],
+        "--output-dir", test_environment["output_dir"],
+        "--num-images", "1",
+        "--text-direction", "bottom_to_top"
+    ]
+
+    result = subprocess.run(command, capture_output=True, text=True, check=False)
+    assert result.returncode == 0, f"Script failed with error:\n{result.stderr}"
+
+    output_dir = Path(test_environment["output_dir"])
+    labels_file = output_dir / "labels.csv"
+    assert labels_file.exists(), "labels.csv was not created."
+
+    with open(labels_file, 'r') as f:
+        lines = f.readlines()
+    
+    import json
+    filename, json_data = lines[1].strip().split(',', 1)
+    label_data = json.loads(json_data)
+    bboxes = label_data["bboxes"]
+
+    # Check that bboxes are stacked bottom to top
+    for i in range(len(bboxes) - 1):
+        assert bboxes[i][1] > bboxes[i+1][1]
+
+    # Check image dimensions
+    from PIL import Image
+    image_path = output_dir / filename
+    img = Image.open(image_path)
+    assert img.height > img.width
