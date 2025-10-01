@@ -1,0 +1,8 @@
+{
+    "text_file": "data/raw_text/corpus.txt",
+    "fonts_dir": "data/fonts/",
+    "output_dir": "output/",
+    "backgrounds_dir": null,
+    "num_images": 2000,
+    "max_execution_time": null
+}

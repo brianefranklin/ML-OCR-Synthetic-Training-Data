@@ -1,0 +1,172 @@
+
+import argparse
+import os
+import json
+import random
+import sys
+import time
+from PIL import Image, ImageDraw, ImageFont
+from tqdm import tqdm
+
+# Import the new augmentation pipeline
+from augmentations import apply_augmentations
+
+def main():
+    # --- Configuration Loading ---
+    config = {}
+    if os.path.exists('config.json'):
+        with open('config.json', 'r') as f:
+            config = json.load(f)
+
+    # --- Argument Parsing ---
+    parser = argparse.ArgumentParser(description='Synthetic Data Foundry for OCR')
+    parser.add_argument('--text-file', type=str, default=config.get('text_file'), help='Path to the text corpus file.')
+    parser.add_argument('--fonts-dir', type=str, default=config.get('fonts_dir'), help='Path to the directory containing font files.')
+    parser.add_argument('--output-dir', type=str, default=config.get('output_dir'), help='Path to the directory to save the generated images and labels.')
+    parser.add_argument('--backgrounds-dir', type=str, default=config.get('backgrounds_dir'), help='Optional: Path to a directory of background images.')
+    parser.add_argument('--num-images', type=int, default=config.get('num_images', 1000), help='Number of images to generate.')
+    parser.add_argument('--max-execution-time', type=float, default=config.get('max_execution_time'), help='Optional: Maximum execution time in seconds.')
+    parser.add_argument('--min-text-length', type=int, default=config.get('min_text_length', 1), help='Minimum length of text to generate.')
+    parser.add_argument('--max-text-length', type=int, default=config.get('max_text_length', 100), help='Maximum length of text to generate.')
+    parser.add_argument('--clear-output', action='store_true', help='If set, clears the output directory before generating new images.')
+    parser.add_argument('--force', action='store_true', help='If set, bypasses the confirmation prompt when clearing the output directory.')
+
+    args = parser.parse_args()
+
+    # --- Clear Output Directory (if requested) ---
+    if args.clear_output:
+        if os.path.exists(args.output_dir):
+            if not args.force:
+                response = input(f"Are you sure you want to clear the output directory at {args.output_dir}? [y/N] ")
+                if response.lower() != 'y':
+                    print("Aborting.")
+                    return
+            
+            print(f"Clearing output directory: {args.output_dir}")
+            for filename in os.listdir(args.output_dir):
+                file_path = os.path.join(args.output_dir, filename)
+                try:
+                    if os.path.isfile(file_path) or os.path.islink(file_path):
+                        os.unlink(file_path)
+                    elif os.path.isdir(file_path):
+                        # You might want to handle subdirectories differently if they exist
+                        # For now, this will not delete them.
+                        pass
+                except Exception as e:
+                    print(f'Failed to delete {file_path}. Reason: {e}')
+        else:
+            print(f"Output directory {args.output_dir} does not exist. Nothing to clear.")
+
+
+    # --- Validate Essential Arguments ---
+    if not args.text_file:
+        print("Error: Text file not specified in config.json or command line.")
+        sys.exit(1)
+    if not args.fonts_dir or not os.path.isdir(args.fonts_dir):
+        print("Error: Fonts directory not specified or is not a valid directory.")
+        sys.exit(1)
+    if not args.output_dir:
+        print("Error: Output directory not specified in config.json or command line.")
+        sys.exit(1)
+
+    # Create output directory if it doesn't exist
+    if not os.path.exists(args.output_dir):
+        os.makedirs(args.output_dir)
+
+    # --- Load Assets ---
+    # Load fonts
+    font_files = [os.path.join(args.fonts_dir, f) for f in os.listdir(args.fonts_dir) if f.endswith(('.ttf', '.otf'))]
+    if not font_files:
+        print(f"No font files found in {args.fonts_dir}")
+        sys.exit(1)
+
+    # Load background images
+    background_images = []
+    if args.backgrounds_dir and os.path.exists(args.backgrounds_dir):
+        background_images = [os.path.join(args.backgrounds_dir, f) for f in os.listdir(args.backgrounds_dir) if f.endswith(('.png', '.jpg', '.jpeg'))]
+        print(f"Found {len(background_images)} background images.")
+
+    # Load text corpus
+    with open(args.text_file, 'r') as text_file:
+        corpus = text_file.read()
+    if not corpus:
+        print(f"No text found in {args.text_file}")
+        sys.exit(1)
+
+    if args.max_text_length > len(corpus):
+        args.max_text_length = len(corpus)
+
+
+    # --- Generation Loop ---
+    if args.num_images > 0:
+        start_time = time.time()
+        image_counter = 0
+        labels_file = os.path.join(args.output_dir, 'labels.csv')
+        with open(labels_file, 'w') as f:
+            f.write('filename,text\n')
+
+            print(f"Generating up to {args.num_images} images...")
+            for i in tqdm(range(args.num_images)):
+                # --- Time Limit Check ---
+                if args.max_execution_time and (time.time() - start_time) > args.max_execution_time:
+                    print(f"\nTime limit of {args.max_execution_time} seconds reached. Stopping generation.")
+                    break
+
+                # Select random elements
+                text_length = random.randint(args.min_text_length, args.max_text_length)
+                start_index = random.randint(0, len(corpus) - text_length -1)
+                text_line = corpus[start_index:start_index + text_length].replace('\n', ' ').strip()
+                font_path = random.choice(font_files)
+
+                try:
+                    font = ImageFont.truetype(font_path, size=random.randint(28, 40))
+                except Exception as e:
+                    print(f"Could not load font {font_path}: {e}")
+                    continue
+
+                # --- Create Base Image & Capture BBoxes ---
+                char_bboxes = []
+                x_offset = 20
+                y_offset = 15
+
+                # Estimate image size first
+                transparent_img = Image.new('RGBA', (1, 1))
+                draw = ImageDraw.Draw(transparent_img)
+                total_text_bbox = draw.textbbox((0, 0), text_line, font=font)
+                img_width = (total_text_bbox[2] - total_text_bbox[0]) + 40
+                img_height = (total_text_bbox[3] - total_text_bbox[1]) + 30
+
+                image = Image.new('RGB', (img_width, img_height), color='white')
+                draw = ImageDraw.Draw(image)
+
+                for char in text_line:
+                    char_bbox = draw.textbbox((x_offset, y_offset), char, font=font)
+                    draw.text((x_offset, y_offset), char, font=font, fill='black')
+                    
+                    # Store absolute bbox coordinates
+                    char_bboxes.append(list(char_bbox))
+                    
+                    # Update x_offset for the next character
+                    x_offset += draw.textlength(char, font=font)
+
+
+                # --- Augmentation Step ---
+                augmented_image, augmented_bboxes = apply_augmentations(image, char_bboxes, background_images)
+
+                # --- Save Image and Label ---
+                image_filename = f'image_{i:05d}.png'
+                image_path = os.path.join(args.output_dir, image_filename)
+                augmented_image.save(image_path)
+
+                # Create the JSON structure for the label
+                label_data = {
+                    "text": text_line,
+                    "bboxes": [[float(coord) for coord in bbox] for bbox in augmented_bboxes]
+                }
+                f.write(f'{image_filename},{json.dumps(label_data)}\n')
+                image_counter += 1
+
+        print(f"Successfully generated {image_counter} images and a labels.csv file in {args.output_dir}")
+
+if __name__ == '__main__':
+    main()
