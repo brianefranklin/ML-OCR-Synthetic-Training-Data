@@ -202,39 +202,51 @@ def main():
                         char_bboxes.append(list(char_bbox))
                 elif args.text_direction == 'bottom_to_top':
                     # Estimate image size for bottom-to-top text
-                    char_widths = [draw.textbbox((0,0), char, font=font)[2] for char in text_line]
-                    img_width = max(char_widths) + 40
-                    img_height = sum(draw.textbbox((0,0), char, font=font)[3] for char in text_line) + 30
+                    char_widths = [draw.textbbox((0,0), char, font=font)[2] - draw.textbbox((0,0), char, font=font)[0] for char in text_line]
+                    max_char_width = max(char_widths) if char_widths else 0
+                    
+                    _, _, _, total_height = draw.textbbox((0,0), '\n'.join(text_line), font=font)
+
+                    img_width = max_char_width + 40
+                    img_height = total_height + 30
 
                     image = Image.new('RGB', (img_width, img_height), color='white')
                     draw = ImageDraw.Draw(image)
 
                     y_cursor = img_height - 15
                     for char in reversed(text_line):
-                        char_width = draw.textbbox((0,0), char, font=font)[2]
-                        char_height = draw.textbbox((0,0), char, font=font)[3]
+                        char_width = draw.textbbox((0,0), char, font=font)[2] - draw.textbbox((0,0), char, font=font)[0]
+                        char_height = draw.textbbox((0,0), char, font=font)[3] - draw.textbbox((0,0), char, font=font)[1]
                         x_cursor = (img_width - char_width) / 2
                         y_cursor -= char_height
                         draw.text((x_cursor, y_cursor), char, font=font, fill='black')
-                        char_bboxes.append(list(draw.textbbox((x_cursor, y_cursor), char, font=font)))
+                        bbox = list(draw.textbbox((x_cursor, y_cursor), char, font=font))
+                        char_bboxes.append(bbox)
+                        logging.debug(f"char: {char}, bbox: {bbox}")
                     char_bboxes.reverse()
 
                 else: # top_to_bottom
                     # Estimate image size for top-to-bottom text
-                    char_widths = [draw.textbbox((0,0), char, font=font)[2] for char in text_line]
-                    img_width = max(char_widths) + 40
-                    img_height = sum(draw.textbbox((0,0), char, font=font)[3] for char in text_line) + 30
+                    char_widths = [draw.textbbox((0,0), char, font=font)[2] - draw.textbbox((0,0), char, font=font)[0] for char in text_line]
+                    max_char_width = max(char_widths) if char_widths else 0
+
+                    _, _, _, total_height = draw.textbbox((0,0), '\n'.join(text_line), font=font)
+
+                    img_width = max_char_width + 40
+                    img_height = total_height + 30
 
                     image = Image.new('RGB', (img_width, img_height), color='white')
                     draw = ImageDraw.Draw(image)
 
                     y_cursor = 15
                     for char in text_line:
-                        char_width = draw.textbbox((0,0), char, font=font)[2]
-                        char_height = draw.textbbox((0,0), char, font=font)[3]
+                        char_width = draw.textbbox((0,0), char, font=font)[2] - draw.textbbox((0,0), char, font=font)[0]
+                        char_height = draw.textbbox((0,0), char, font=font)[3] - draw.textbbox((0,0), char, font=font)[1]
                         x_cursor = (img_width - char_width) / 2
                         draw.text((x_cursor, y_cursor), char, font=font, fill='black')
-                        char_bboxes.append(list(draw.textbbox((x_cursor, y_cursor), char, font=font)))
+                        bbox = list(draw.textbbox((x_cursor, y_cursor), char, font=font))
+                        char_bboxes.append(bbox)
+                        logging.debug(f"char: {char}, bbox: {bbox}")
                         y_cursor += char_height
 
 
