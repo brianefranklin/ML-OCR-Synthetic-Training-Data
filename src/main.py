@@ -4,8 +4,8 @@ import json
 import random
 import sys
 import time
+import logging
 from PIL import Image, ImageDraw, ImageFont
-from tqdm import tqdm
 import bidi.algorithm
 
 # Import the new augmentation pipeline
@@ -29,11 +29,27 @@ def main():
     parser.add_argument('--min-text-length', type=int, default=config.get('min_text_length', 1), help='Minimum length of text to generate.')
     parser.add_argument('--max-text-length', type=int, default=config.get('max_text_length', 100), help='Maximum length of text to generate.')
     parser.add_argument('--text-direction', type=str, default=config.get('text_direction', 'left_to_right'), choices=['left_to_right', 'top_to_bottom', 'right_to_left', 'bottom_to_top'], help='Direction of the text.')
+    parser.add_argument('--log-level', type=str, default=config.get('log_level', 'INFO'), choices=['DEBUG', 'INFO', 'WARNING', 'ERROR'], help='Set the logging level.')
+    parser.add_argument('--log-file', type=str, default=config.get('log_file', 'generation.log'), help='Path to the log file.')
     parser.add_argument('--clear-output', action='store_true', help='If set, clears the output directory before generating new images.')
     parser.add_argument('--force', action='store_true', help='If set, bypasses the confirmation prompt when clearing the output directory.')
     parser.add_argument('--font-name', type=str, default=None, help='Name of the font file to use.')
 
     args = parser.parse_args()
+
+    # --- Configure Logging ---
+    logging.basicConfig(level=getattr(logging, args.log_level.upper()),
+                        format='%(asctime)s - %(levelname)s - %(message)s',
+                        filename=args.log_file,
+                        filemode='w')
+    # Add a handler to print to console as well
+    console = logging.StreamHandler()
+    console.setLevel(getattr(logging, args.log_level.upper()))
+    formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
+    console.setFormatter(formatter)
+    logging.getLogger('').addHandler(console)
+
+    logging.info("Script started.")
 
     # --- Clear Output Directory (if requested) ---
     if args.clear_output:
@@ -41,10 +57,10 @@ def main():
             if not args.force:
                 response = input(f"Are you sure you want to clear the output directory at {args.output_dir}? [y/N] ")
                 if response.lower() != 'y':
-                    print("Aborting.")
+                    logging.info("Aborting.")
                     return
             
-            print(f"Clearing output directory: {args.output_dir}")
+            logging.info(f"Clearing output directory: {args.output_dir}")
             for filename in os.listdir(args.output_dir):
                 file_path = os.path.join(args.output_dir, filename)
                 try:
@@ -55,20 +71,20 @@ def main():
                         # For now, this will not delete them.
                         pass
                 except Exception as e:
-                    print(f'Failed to delete {file_path}. Reason: {e}')
+                    logging.error(f'Failed to delete {file_path}. Reason: {e}')
         else:
-            print(f"Output directory {args.output_dir} does not exist. Nothing to clear.")
+            logging.info(f"Output directory {args.output_dir} does not exist. Nothing to clear.")
 
 
     # --- Validate Essential Arguments ---
     if not args.text_file:
-        print("Error: Text file not specified in config.json or command line.")
+        logging.error("Error: Text file not specified in config.json or command line.")
         sys.exit(1)
     if not args.fonts_dir or not os.path.isdir(args.fonts_dir):
-        print("Error: Fonts directory not specified or is not a valid directory.")
+        logging.error("Error: Fonts directory not specified or is not a valid directory.")
         sys.exit(1)
     if not args.output_dir:
-        print("Error: Output directory not specified in config.json or command line.")
+        logging.error("Error: Output directory not specified in config.json or command line.")
         sys.exit(1)
 
     # Create output directory if it doesn't exist
@@ -76,24 +92,27 @@ def main():
         os.makedirs(args.output_dir)
 
     # --- Load Assets ---
+    logging.info("Loading assets...")
     # Load fonts
     font_files = [os.path.join(args.fonts_dir, f) for f in os.listdir(args.fonts_dir) if f.endswith(('.ttf', '.otf'))]
     if not font_files:
-        print(f"No font files found in {args.fonts_dir}")
+        logging.error(f"No font files found in {args.fonts_dir}")
         sys.exit(1)
+    logging.debug(f"Found {len(font_files)} font files.")
 
     # Load background images
     background_images = []
     if args.backgrounds_dir and os.path.exists(args.backgrounds_dir):
         background_images = [os.path.join(args.backgrounds_dir, f) for f in os.listdir(args.backgrounds_dir) if f.endswith(('.png', '.jpg', '.jpeg'))]
-        print(f"Found {len(background_images)} background images.")
+        logging.info(f"Found {len(background_images)} background images.")
 
     # Load text corpus
     with open(args.text_file, 'r') as text_file:
         corpus = text_file.read()
     if not corpus:
-        print(f"No text found in {args.text_file}")
+        logging.error(f"No text found in {args.text_file}")
         sys.exit(1)
+    logging.debug(f"Corpus length: {len(corpus)}")
 
     if args.max_text_length > len(corpus):
         args.max_text_length = len(corpus)
@@ -107,11 +126,11 @@ def main():
         with open(labels_file, 'w') as f:
             f.write('filename,text\n')
 
-            print(f"Generating up to {args.num_images} images...")
-            for i in tqdm(range(args.num_images)):
+            logging.info(f"Generating up to {args.num_images} images...")
+            for i in range(args.num_images):
                 # --- Time Limit Check ---
                 if args.max_execution_time and (time.time() - start_time) > args.max_execution_time:
-                    print(f"\nTime limit of {args.max_execution_time} seconds reached. Stopping generation.")
+                    logging.info(f"\nTime limit of {args.max_execution_time} seconds reached. Stopping generation.")
                     break
 
                 # Select random elements
@@ -120,18 +139,20 @@ def main():
                     text_length = random.randint(args.min_text_length, args.max_text_length)
                     start_index = random.randint(0, len(corpus) - text_length)
                     text_line = corpus[start_index:start_index + text_length].replace('\n', ' ').strip()
+                logging.debug(f"Selected text: {text_line}")
                 if args.font_name:
                     font_path = os.path.join(args.fonts_dir, args.font_name)
                     if not os.path.exists(font_path):
-                        print(f"Error: Font file {args.font_name} not found in {args.fonts_dir}")
+                        logging.error(f"Error: Font file {args.font_name} not found in {args.fonts_dir}")
                         continue
                 else:
                     font_path = random.choice(font_files)
+                logging.debug(f"Selected font: {font_path}")
 
                 try:
                     font = ImageFont.truetype(font_path, size=random.randint(28, 40))
                 except Exception as e:
-                    print(f"Could not load font {font_path}: {e}")
+                    logging.error(f"Could not load font {font_path}: {e}")
                     continue
 
                 # --- Create Base Image & Capture BBoxes ---
@@ -218,12 +239,14 @@ def main():
 
 
                 # --- Augmentation Step ---
+                logging.debug("Applying augmentations...")
                 augmented_image, augmented_bboxes = apply_augmentations(image, char_bboxes, background_images)
 
                 # --- Save Image and Label ---
                 image_filename = f'image_{i:05d}.png'
                 image_path = os.path.join(args.output_dir, image_filename)
                 augmented_image.save(image_path)
+                logging.debug(f"Saved image to {image_path}")
 
                 # Create the JSON structure for the label
                 label_data = {
@@ -233,7 +256,8 @@ def main():
                 f.write(f'{image_filename},{json.dumps(label_data)}\n')
                 image_counter += 1
 
-        print(f"Successfully generated {image_counter} images and a labels.csv file in {args.output_dir}")
+        logging.info(f"Successfully generated {image_counter} images and a labels.csv file in {args.output_dir}")
 
 if __name__ == '__main__':
     main()
+    logging.info("Script finished.")
