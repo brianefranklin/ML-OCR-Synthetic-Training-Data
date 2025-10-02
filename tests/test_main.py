@@ -58,9 +58,10 @@ def test_main_script_execution(test_environment):
         "--num-images", str(num_images_to_generate)
     ]
 
-    result = subprocess.run(command, text=True, check=False, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+    result = subprocess.run(command, text=True, check=False, capture_output=True)
     
-    assert result.returncode == 0, f"Script failed with error:\n{result.stdout}"
+    assert result.returncode == 0, f"Script failed with error:\n{result.stderr}"
+    assert "INFO - Script finished." in result.stderr
 
     # --- Verify the output ---
     output_dir = Path(test_environment["output_dir"])
@@ -146,7 +147,7 @@ def test_clear_output_functionality(test_environment):
         "--num-images", "0" # Don't generate images, just clear
     ]
 
-    result = subprocess.run(command, capture_output=True, text=True, check=False)
+    result = subprocess.run(command, text=True, check=False)
     assert result.returncode == 0, f"Script failed with error:\n{result.stderr}"
     assert not dummy_file.exists(), "Dummy file was not deleted by --clear-output."
 
@@ -178,6 +179,7 @@ def test_clear_output_functionality(test_environment):
     ]
     result = subprocess.run(clear_command, capture_output=True, text=True, check=False)
     assert result.returncode == 0, f"Script failed with error:\n{result.stderr}"
+    assert f"INFO - Clearing output directory: {output_dir}" in result.stderr
 
     # Check that the generated files are gone
     image_files_after_clear = list(output_dir.glob("image_*.png"))
@@ -276,7 +278,7 @@ def test_invalid_font_dir(test_environment):
 
     result = subprocess.run(command, capture_output=True, text=True, check=False)
     assert result.returncode != 0
-    assert "Error: Fonts directory not specified or is not a valid directory." in result.stdout
+    assert "ERROR - Error: Fonts directory not specified or is not a valid directory." in result.stderr
 
 def test_max_execution_time(test_environment):
     """Tests that the --max-execution-time flag stops execution."""
@@ -298,7 +300,7 @@ def test_max_execution_time(test_environment):
     end_time = time.time()
     
     assert result.returncode == 0
-    assert "Time limit of 0.01 seconds reached" in result.stdout
+    assert "INFO - \nTime limit of 0.01 seconds reached. Stopping generation." in result.stderr
     assert (end_time - start_time) < 5 # Check that it didn't run for too long
 
 def test_empty_text_file(test_environment):
@@ -320,7 +322,7 @@ def test_empty_text_file(test_environment):
 
     result = subprocess.run(command, capture_output=True, text=True, check=False)
     assert result.returncode != 0 # The script should not crash
-    assert f"No text found in {str(empty_text_file)}" in result.stdout
+    assert f"ERROR - No text found in {str(empty_text_file)}" in result.stderr
 
 
 def test_right_to_left_text_generation(test_environment):

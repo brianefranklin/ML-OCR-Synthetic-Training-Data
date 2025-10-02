@@ -12,7 +12,8 @@ def test_environment(tmp_path):
     output_dir = tmp_path / "output"
     fonts_dir = input_dir / "fonts"
     text_dir = input_dir / "text"
-    
+    log_file = tmp_path / "generation.log"
+
     fonts_dir.mkdir(parents=True)
     text_dir.mkdir(parents=True)
     output_dir.mkdir()
@@ -20,148 +21,50 @@ def test_environment(tmp_path):
     return {
         "text_dir": str(text_dir),
         "fonts_dir": str(fonts_dir),
-        "output_dir": str(output_dir)
+        "output_dir": str(output_dir),
+        "log_file": str(log_file)
     }
 
-def test_top_to_bottom_text_generation_korean(test_environment):
-    """Tests that the --text-direction top_to_bottom flag works for Korean."""
+@pytest.mark.parametrize("language, corpus, font_name", [
+    ("korean", "안녕하세요\n안녕하세요\n안녕하세요\n안녕하세요\n안녕하세요\n", "NanumGothic.ttf"),
+    ("japanese", "こんにちは\nこんにちは\nこんにちは\nこんにちは\nこんにちは\n", "NotoSerifCJKjp-Regular.otf"),
+    ("chinese", "你好世界你好世界你好世界你好世界你好世界你好世界你好世界你好世界你好世界你好世界\n", "NotoSansCJKtc-VF.otf"),
+])
+def test_top_to_bottom_text_generation(test_environment, language, corpus, font_name):
+    """Tests that the --text-direction top_to_bottom flag works for different languages."""
     project_root = Path(__file__).resolve().parent.parent
     script_path = project_root / "src" / "main.py"
 
-    # Create a dummy corpus file with Korean text
-    korean_text_file = Path(test_environment["text_dir"]) / "korean_corpus.txt"
-    with open(korean_text_file, "w", encoding="utf-8") as f:
-        f.write("안녕하세요\n안녕하세요\n안녕하세요\n안녕하세요\n안녕하세요\n")
+    # Create a dummy corpus file
+    text_file = Path(test_environment["text_dir"]) / f"{language}_corpus.txt"
+    with open(text_file, "w", encoding="utf-8") as f:
+        f.write(corpus)
 
-    # Copy a Korean font to the test environment
+    # Copy a font to the test environment
     source_font_dir = Path(__file__).resolve().parent.parent / "data" / "fonts"
-    font_file_to_copy = source_font_dir / "NanumGothic.ttf"
+    font_file_to_copy = source_font_dir / font_name
     
     if not font_file_to_copy.exists():
-        pytest.skip(f"Font file not found at {font_file_to_copy}, skipping Korean top_to_bottom test.")
+        pytest.skip(f"Font file not found at {font_file_to_copy}, skipping {language} top_to_bottom test.")
 
     shutil.copy(font_file_to_copy, test_environment["fonts_dir"])
 
     command = [
         "python3",
         str(script_path),
-        "--text-file", str(korean_text_file),
+        "--text-file", str(text_file),
         "--fonts-dir", test_environment["fonts_dir"],
         "--output-dir", test_environment["output_dir"],
         "--num-images", "1",
-        "--text-direction", "top_to_bottom"
+        "--text-direction", "top_to_bottom",
+        "--log-file", test_environment["log_file"]
     ]
 
     result = subprocess.run(command, capture_output=True, text=True, check=False)
-    assert result.returncode == 0, f"Script failed with error:\n{result.stderr}"
-
-    output_dir = Path(test_environment["output_dir"])
-    labels_file = output_dir / "labels.csv"
-    assert labels_file.exists(), "labels.csv was not created."
-
-    with open(labels_file, 'r', encoding="utf-8") as f:
-        lines = f.readlines()
-    
-    import json
-    filename, json_data = lines[1].strip().split(',', 1)
-    label_data = json.loads(json_data)
-    bboxes = label_data["bboxes"]
-
-    # Check that bboxes are stacked top to bottom
-    for i in range(len(bboxes) - 1):
-        assert bboxes[i][1] < bboxes[i+1][1]
-
-    # Check image dimensions
-    from PIL import Image
-    image_path = output_dir / filename
-    img = Image.open(image_path)
-    assert img.height > img.width
-
-def test_top_to_bottom_text_generation_japanese(test_environment):
-    """Tests that the --text-direction top_to_bottom flag works for Japanese."""
-    project_root = Path(__file__).resolve().parent.parent
-    script_path = project_root / "src" / "main.py"
-
-    # Create a dummy corpus file with Japanese text
-    japanese_text_file = Path(test_environment["text_dir"]) / "japanese_corpus.txt"
-    with open(japanese_text_file, "w", encoding="utf-8") as f:
-        f.write("こんにちは\nこんにちは\nこんにちは\nこんにちは\nこんにちは\n")
-
-    # Copy a Japanese font to the test environment
-    source_font_dir = Path(__file__).resolve().parent.parent / "data" / "fonts"
-    font_file_to_copy = source_font_dir / "NotoSerifCJKjp-Regular.otf"
-    
-    if not font_file_to_copy.exists():
-        pytest.skip(f"Font file not found at {font_file_to_copy}, skipping Japanese top_to_bottom test.")
-
-    shutil.copy(font_file_to_copy, test_environment["fonts_dir"])
-
-    command = [
-        "python3",
-        str(script_path),
-        "--text-file", str(japanese_text_file),
-        "--fonts-dir", test_environment["fonts_dir"],
-        "--output-dir", test_environment["output_dir"],
-        "--num-images", "1",
-        "--text-direction", "top_to_bottom"
-    ]
-
-    result = subprocess.run(command, capture_output=True, text=True, check=False)
-    assert result.returncode == 0, f"Script failed with error:\n{result.stderr}"
-
-    output_dir = Path(test_environment["output_dir"])
-    labels_file = output_dir / "labels.csv"
-    assert labels_file.exists(), "labels.csv was not created."
-
-    with open(labels_file, 'r', encoding="utf-8") as f:
-        lines = f.readlines()
-    
-    import json
-    filename, json_data = lines[1].strip().split(',', 1)
-    label_data = json.loads(json_data)
-    bboxes = label_data["bboxes"]
-
-    # Check that bboxes are stacked top to bottom
-    for i in range(len(bboxes) - 1):
-        assert bboxes[i][1] < bboxes[i+1][1]
-
-    # Check image dimensions
-    from PIL import Image
-    image_path = output_dir / filename
-    img = Image.open(image_path)
-    assert img.height > img.width
-
-def test_top_to_bottom_text_generation_chinese(test_environment):
-    """Tests that the --text-direction top_to_bottom flag works for Chinese."""
-    project_root = Path(__file__).resolve().parent.parent
-    script_path = project_root / "src" / "main.py"
-
-    # Create a dummy corpus file with Chinese text
-    chinese_text_file = Path(test_environment["text_dir"]) / "chinese_corpus.txt"
-    with open(chinese_text_file, "w", encoding="utf-8") as f:
-        f.write("你好世界你好世界你好世界你好世界你好世界你好世界你好世界你好世界你好世界你好世界\n")
-
-    # Copy a Chinese font to the test environment
-    source_font_dir = Path(__file__).resolve().parent.parent / "data" / "fonts"
-    font_file_to_copy = source_font_dir / "NotoSansCJKtc-VF.otf"
-    
-    if not font_file_to_copy.exists():
-        pytest.skip(f"Font file not found at {font_file_to_copy}, skipping Chinese top_to_bottom test.")
-
-    shutil.copy(font_file_to_copy, test_environment["fonts_dir"])
-
-    command = [
-        "python3",
-        str(script_path),
-        "--text-file", str(chinese_text_file),
-        "--fonts-dir", test_environment["fonts_dir"],
-        "--output-dir", test_environment["output_dir"],
-        "--num-images", "1",
-        "--text-direction", "top_to_bottom"
-    ]
-
-    result = subprocess.run(command, capture_output=True, text=True, check=False)
-    assert result.returncode == 0, f"Script failed with error:\n{result.stderr}"
+    if result.returncode != 0:
+        with open(test_environment["log_file"], "r") as f:
+            log_contents = f.read()
+        assert result.returncode == 0, f"Script failed with error:\n{log_contents}"
 
     output_dir = Path(test_environment["output_dir"])
     labels_file = output_dir / "labels.csv"
@@ -211,11 +114,15 @@ def test_bottom_to_top_text_generation(test_environment):
         "--fonts-dir", test_environment["fonts_dir"],
         "--output-dir", test_environment["output_dir"],
         "--num-images", "1",
-        "--text-direction", "bottom_to_top"
+        "--text-direction", "bottom_to_top",
+        "--log-file", test_environment["log_file"]
     ]
 
     result = subprocess.run(command, capture_output=True, text=True, check=False)
-    assert result.returncode == 0, f"Script failed with error:\n{result.stderr}"
+    if result.returncode != 0:
+        with open(test_environment["log_file"], "r") as f:
+            log_contents = f.read()
+        assert result.returncode == 0, f"Script failed with error:\n{log_contents}"
 
     output_dir = Path(test_environment["output_dir"])
     labels_file = output_dir / "labels.csv"
@@ -231,7 +138,7 @@ def test_bottom_to_top_text_generation(test_environment):
 
     # Check that bboxes are stacked bottom to top
     for i in range(len(bboxes) - 1):
-        assert bboxes[i][1] > bboxes[i+1][1]
+        assert bboxes[i][3] > bboxes[i+1][3]
 
     # Check image dimensions
     from PIL import Image

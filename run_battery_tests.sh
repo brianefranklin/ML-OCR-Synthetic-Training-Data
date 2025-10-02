@@ -1,31 +1,44 @@
 #!/bin/bash
 
-# Combination 1
-python3 src/main.py --text-file requirements.txt --fonts-dir data/fonts --output-dir output --num-images 5 --text-direction left_to_right --font-name AlegreyaSans-BlackItalic.ttf --clear-output --force
+# This script runs a battery of tests for the synthetic data generation script.
+# It generates images with different text directions and fonts.
 
-# Combination 2
-python3 src/main.py --text-file requirements.txt --fonts-dir data/fonts --output-dir output --num-images 10 --text-direction left_to_right --font-name Lato-Regular.ttf --clear-output --force
+# Clear the output directory once at the beginning
+python3 src/main.py --output-dir output --clear-output --force --num-images 0
 
-# Combination 3
-python3 src/main.py --text-file requirements.txt --fonts-dir data/fonts --output-dir output --num-images 15 --text-direction right_to_left --font-name 'NotoSansArabic[wdth,wght].ttf' --clear-output --force
+# Define the test combinations
+declare -a combinations=(
+    "left_to_right:AlegreyaSans-BlackItalic.ttf:5"
+    "left_to_right:Lato-Regular.ttf:10"
+    "right_to_left:NotoSansArabic[wdth,wght].ttf:15"
+    "right_to_left:IBMPlexSansArabic-Regular.ttf:20"
+    "top_to_bottom:NotoSerifCJKjp-Regular.otf:5"
+    "top_to_bottom:NanumGothic.ttf:10"
+    "top_to_bottom:NotoSansCJKtc-VF.otf:15"
+    "bottom_to_top:NotoSerifCJKjp-Regular.otf:5"
+    "left_to_right::20"
+    "right_to_left::5"
+    "top_to_bottom::10"
+    "bottom_to_top::10"
+)
 
-# Combination 4
-python3 src/main.py --text-file requirements.txt --fonts-dir data/fonts --output-dir output --num-images 20 --text-direction right_to_left --font-name IBMPlexSansArabic-Regular.ttf --clear-output --force
+# Loop through the combinations and run the script
+for combo in "${combinations[@]}"
+do
+    IFS=':' read -r -a params <<< "$combo"
+    direction="${params[0]}"
+    font="${params[1]}"
+    num_images="${params[2]}"
 
-# Combination 5
-python3 src/main.py --text-file requirements.txt --fonts-dir data/fonts --output-dir output --num-images 5 --text-direction top_to_bottom --font-name NotoSerifCJKjp-Regular.otf --clear-output --force
+    echo "Running with text direction: $direction, font: $font, num_images: $num_images"
 
-# Combination 6
-python3 src/main.py --text-file requirements.txt --fonts-dir data/fonts --output-dir output --num-images 10 --text-direction top_to_bottom --font-name NanumGothic.ttf --clear-output --force
+    command="python3 src/main.py --text-file requirements.txt --fonts-dir data/fonts --output-dir output --num-images $num_images --text-direction $direction"
 
-# Combination 7
-python3 src/main.py --text-file requirements.txt --fonts-dir data/fonts --output-dir output --num-images 15 --text-direction top_to_bottom --font-name NotoSansCJKtc-VF.otf --clear-output --force
+    if [ -n "$font" ]; then
+        command="$command --font-name '$font'"
+    fi
 
-# Combination 8
-python3 src/main.py --text-file requirements.txt --fonts-dir data/fonts --output-dir output --num-images 20 --text-direction left_to_right --clear-output --force
+    eval $command
+done
 
-# Combination 9
-python3 src/main.py --text-file requirements.txt --fonts-dir data/fonts --output-dir output --num-images 5 --text-direction right_to_left --clear-output --force
-
-# Combination 10
-python3 src/main.py --text-file requirements.txt --fonts-dir data/fonts --output-dir output --num-images 10 --text-direction top_to_bottom --clear-output --force
+echo "Battery test finished. Check the output directory for the generated images."

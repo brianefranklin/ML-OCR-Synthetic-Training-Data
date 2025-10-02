@@ -201,7 +201,6 @@ def main():
                         draw.text((x_offset, y_offset), char, font=font, fill='black')
                         
                         char_bboxes.append(list(char_bbox))
-                    char_bboxes.reverse()
                 elif args.text_direction == 'bottom_to_top':
                     # Estimate image size for bottom-to-top text
                     char_widths = [draw.textbbox((0,0), char, font=font)[2] - draw.textbbox((0,0), char, font=font)[0] for char in text_line]
@@ -225,6 +224,7 @@ def main():
                         bbox = list(draw.textbbox((x_cursor, y_cursor), char, font=font))
                         char_bboxes.append(bbox)
                         logging.debug(f"char: {char}, bbox: {bbox}")
+                    char_bboxes.reverse()
 
                 else: # top_to_bottom
                     # Estimate image size for top-to-bottom text
@@ -242,12 +242,13 @@ def main():
                     y_cursor = 15
                     for char in text_line:
                         char_width = draw.textbbox((0,0), char, font=font)[2] - draw.textbbox((0,0), char, font=font)[0]
+                        char_height = draw.textbbox((0,0), char, font=font)[3] - draw.textbbox((0,0), char, font=font)[1]
                         x_cursor = (img_width - char_width) / 2
-                        bbox = draw.textbbox((x_cursor, y_cursor), char, font=font)
                         draw.text((x_cursor, y_cursor), char, font=font, fill='black')
-                        char_bboxes.append(list(bbox))
+                        bbox = list(draw.textbbox((x_cursor, y_cursor), char, font=font))
+                        char_bboxes.append(bbox)
                         logging.debug(f"char: {char}, bbox: {bbox}")
-                        y_cursor = bbox[3]
+                        y_cursor += char_height
 
 
                 # --- Augmentation Step ---

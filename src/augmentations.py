@@ -34,17 +34,20 @@ def add_noise(image):
 
 
 def rotate_image(image, bboxes):
-    """Rotates a Pillow image by a random small angle and adjusts bboxes."""
+    """Rotates a Pillow image by a random small angle, adjusts bboxes, and crops the image."""
     logging.debug("Applying rotate_image augmentation")
     angle = random.uniform(-3, 3)
     w, h = image.size
     center_x, center_y = w / 2, h / 2
 
-    # Get rotation matrix
-    M = cv2.getRotationMatrix2D((center_x, center_y), angle, 1.0)
+    # Rotate image with expand=True to prevent cutoff
+    rotated_image = image.rotate(angle, expand=True, fillcolor='white')
+    new_w, new_h = rotated_image.size
 
-    # Rotate image
-    rotated_image = image.rotate(angle, expand=False, fillcolor='white')
+    # Adjust the rotation matrix to account for the new dimensions and center
+    M = cv2.getRotationMatrix2D((center_x, center_y), angle, 1.0)
+    M[0, 2] += (new_w - w) / 2
+    M[1, 2] += (new_h - h) / 2
 
     # Rotate bounding boxes
     new_bboxes = []
@@ -61,7 +64,29 @@ def rotate_image(image, bboxes):
         y_max = max(transformed_points[:, 1])
         new_bboxes.append([x_min, y_min, x_max, y_max])
 
-    return rotated_image, new_bboxes
+    # Add padding to the image to ensure the bounding box is within the image
+    overall_bbox = [min(b[0] for b in new_bboxes), min(b[1] for b in new_bboxes), max(b[2] for b in new_bboxes), max(b[3] for b in new_bboxes)]
+    padding_x = max(0, -overall_bbox[0])
+    padding_y = max(0, -overall_bbox[1])
+
+    padded_image = Image.new('RGB', (new_w + int(padding_x), new_h + int(padding_y)), color='white')
+    padded_image.paste(rotated_image, (int(padding_x), int(padding_y)))
+
+    # Adjust bounding boxes for the padded image
+    padded_bboxes = []
+    for bbox in new_bboxes:
+        padded_bboxes.append([bbox[0] + padding_x, bbox[1] + padding_y, bbox[2] + padding_x, bbox[3] + padding_y])
+
+    # Crop the padded image
+    overall_padded_bbox = [min(b[0] for b in padded_bboxes), min(b[1] for b in padded_bboxes), max(b[2] for b in padded_bboxes), max(b[3] for b in padded_bboxes)]
+    cropped_image = padded_image.crop(overall_padded_bbox)
+
+    # Adjust bounding boxes to be relative to the cropped image
+    final_bboxes = []
+    for bbox in padded_bboxes:
+        final_bboxes.append([bbox[0] - overall_padded_bbox[0], bbox[1] - overall_padded_bbox[1], bbox[2] - overall_padded_bbox[0], bbox[3] - overall_padded_bbox[1]])
+
+    return cropped_image, final_bboxes
 
 def blur_image(image):
     """Applies a Gaussian blur to a Pillow image."""
