@@ -7,8 +7,8 @@
 # Build artifacts
 build/
 dist/
-/__pycache__
-/tests/__pycache__
+__pycache__
+tests/__pycache__
 
 # Dependencies
 node_modules/
