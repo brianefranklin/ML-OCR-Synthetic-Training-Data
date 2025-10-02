@@ -7,6 +7,8 @@
 # Build artifacts
 build/
 dist/
+/__pycache__
+/tests/__pycache__
 
 # Dependencies
 node_modules/
@@ -38,3 +40,4 @@ output/
 
 # Sensitive stuff
 gemini_persistent_history/
+
