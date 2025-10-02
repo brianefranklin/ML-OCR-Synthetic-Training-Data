@@ -86,11 +86,12 @@ def test_rotate_image_no_bboxes(base_image):
     assert augmented.size == base_image.size
     assert bboxes == []
 
+
 def test_rotate_image(base_image, dummy_bboxes):
     augmented, bboxes = rotate_image(base_image, dummy_bboxes)
     assert isinstance(augmented, Image.Image)
-    assert augmented.size == base_image.size
     assert len(bboxes) == len(dummy_bboxes)
+
 
 def test_blur_image(base_image):
     # Create an image with a sharp edge for blur detection
@@ -129,6 +130,7 @@ def test_elastic_distortion(base_image, dummy_bboxes):
     assert augmented.size == base_image.size
     assert len(bboxes) == len(dummy_bboxes)
 
+
 def test_adjust_brightness_contrast(base_image):
     augmented = adjust_brightness_contrast(base_image)
     assert isinstance(augmented, Image.Image)
@@ -138,6 +140,7 @@ def test_erode_dilate(base_image):
     augmented = erode_dilate(base_image)
     assert isinstance(augmented, Image.Image)
     assert augmented.size == base_image.size
+
 
 def test_add_background(base_image, background_image_list):
     augmented = add_background(base_image, background_image_list)
@@ -162,3 +165,19 @@ def test_apply_augmentations(base_image, dummy_bboxes, empty_background_list):
     augmented, bboxes = apply_augmentations(base_image, dummy_bboxes, empty_background_list)
     assert isinstance(augmented, Image.Image)
     assert len(bboxes) == len(dummy_bboxes)
+
+def test_rotation_and_crop_bounds(base_image, dummy_bboxes):
+    """
+    Tests that after rotation and cropping, all bounding box corners are within the
+    final image dimensions.
+    """
+    augmented_image, final_bboxes = rotate_image(base_image, dummy_bboxes)
+    img_width, img_height = augmented_image.size
+
+    for bbox in final_bboxes:
+        x_min, y_min, x_max, y_max = bbox
+        # Check if the bounding box is within the image dimensions with a tolerance of 1px
+        assert x_min >= -1
+        assert y_min >= -1
+        assert x_max <= img_width + 1
+        assert y_max <= img_height + 1

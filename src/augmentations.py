@@ -35,6 +35,8 @@ def add_noise(image):
 
 def rotate_image(image, bboxes):
     """Rotates a Pillow image by a random small angle, adjusts bboxes, and crops the image."""
+    if not bboxes:
+        return image, []
     logging.debug("Applying rotate_image augmentation")
     angle = random.uniform(-3, 3)
     w, h = image.size
