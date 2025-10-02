@@ -1,5 +1,5 @@
-
 import random
+import logging
 import numpy as np
 import cv2
 from PIL import Image, ImageDraw, ImageFont, ImageFilter, ImageEnhance
@@ -18,6 +18,7 @@ def cv2_to_pil(cv2_image):
 
 def add_noise(image):
     """Adds random 'salt and pepper' noise to a Pillow image."""
+    logging.debug("Applying add_noise augmentation")
     img_np = pil_to_cv2(image.convert('L')) # Convert to grayscale
     h, w = img_np.shape
     noise = np.zeros((h, w), np.uint8)
@@ -34,6 +35,7 @@ def add_noise(image):
 
 def rotate_image(image, bboxes):
     """Rotates a Pillow image by a random small angle and adjusts bboxes."""
+    logging.debug("Applying rotate_image augmentation")
     angle = random.uniform(-3, 3)
     w, h = image.size
     center_x, center_y = w / 2, h / 2
@@ -63,12 +65,14 @@ def rotate_image(image, bboxes):
 
 def blur_image(image):
     """Applies a Gaussian blur to a Pillow image."""
+    logging.debug("Applying blur_image augmentation")
     return image.filter(ImageFilter.GaussianBlur(radius=random.uniform(0.1, 1.2)))
 
 # --- Advanced Augmentations ---
 
 def perspective_transform(image, bboxes):
     """Applies a random perspective warp to a Pillow image and its bounding boxes."""
+    logging.debug("Applying perspective_transform augmentation")
     img_cv = pil_to_cv2(image)
     h, w, _ = img_cv.shape
     
@@ -102,6 +106,7 @@ def perspective_transform(image, bboxes):
 
 def elastic_distortion(image, bboxes):
     """Applies elastic distortion to a Pillow image and its bounding boxes."""
+    logging.debug("Applying elastic_distortion augmentation")
     img_cv = pil_to_cv2(image)
     alpha = random.uniform(15, 25) # Distortion intensity
     sigma = random.uniform(4, 5)   # Distortion scale
@@ -141,6 +146,7 @@ def elastic_distortion(image, bboxes):
 
 def adjust_brightness_contrast(image):
     """Randomly adjusts brightness and contrast of a Pillow image."""
+    logging.debug("Applying adjust_brightness_contrast augmentation")
     enhancer = ImageEnhance.Brightness(image)
     image = enhancer.enhance(random.uniform(0.7, 1.3))
     
@@ -151,6 +157,7 @@ def adjust_brightness_contrast(image):
 
 def erode_dilate(image):
     """Applies erosion or dilation to a Pillow image."""
+    logging.debug("Applying erode_dilate augmentation")
     img_cv = pil_to_cv2(image.convert('L'))
     kernel = np.ones((2, 2), np.uint8)
     
@@ -165,6 +172,7 @@ def erode_dilate(image):
 
 def add_background(image, background_images):
     """Adds a random background from a list of images."""
+    logging.debug("Applying add_background augmentation")
     if not background_images:
         return image
         
@@ -180,12 +188,13 @@ def add_background(image, background_images):
         bg_image.paste(image, (0, 0), mask)
         return bg_image
     except Exception as e:
-        print(f"Could not apply background {bg_path}: {e}")
+        logging.error(f"Could not apply background {bg_path}: {e}")
         return image
 
 
 def add_shadow(image):
     """Adds a soft shadow effect to the text."""
+    logging.debug("Applying add_shadow augmentation")
     img_cv = pil_to_cv2(image)
     h, w, _ = img_cv.shape
     
@@ -209,6 +218,7 @@ def add_shadow(image):
 
 def cutout(image):
     """Randomly erases a rectangular region in a Pillow image."""
+    logging.debug("Applying cutout augmentation")
     draw = ImageDraw.Draw(image)
     width, height = image.size
     

@@ -1,4 +1,3 @@
-
 import argparse
 import os
 import json
@@ -182,42 +181,40 @@ def main():
                         char_bboxes.append(list(char_bbox))
                 elif args.text_direction == 'bottom_to_top':
                     # Estimate image size for bottom-to-top text
-                    char_heights = [draw.textbbox((0,0), char, font=font)[3] - draw.textbbox((0,0), char, font=font)[1] for char in text_line]
-                    char_widths = [draw.textbbox((0,0), char, font=font)[2] - draw.textbbox((0,0), char, font=font)[0] for char in text_line]
+                    char_widths = [draw.textbbox((0,0), char, font=font)[2] for char in text_line]
                     img_width = max(char_widths) + 40
-                    img_height = sum(char_heights) + 30
+                    img_height = sum(draw.textbbox((0,0), char, font=font)[3] for char in text_line) + 30
 
                     image = Image.new('RGB', (img_width, img_height), color='white')
                     draw = ImageDraw.Draw(image)
 
-                    y_offset = img_height - 15
-                    for i, char in enumerate(reversed(text_line)):
-                        char_height = char_heights[len(text_line) - 1 - i]
-                        y_offset -= char_height
-                        char_bbox = draw.textbbox((x_offset, y_offset), char, font=font)
-                        draw.text((x_offset, y_offset), char, font=font, fill='black')
-                        
-                        # Store absolute bbox coordinates
-                        char_bboxes.append(list(char_bbox))
+                    y_cursor = img_height - 15
+                    for char in reversed(text_line):
+                        char_width = draw.textbbox((0,0), char, font=font)[2]
+                        char_height = draw.textbbox((0,0), char, font=font)[3]
+                        x_cursor = (img_width - char_width) / 2
+                        y_cursor -= char_height
+                        draw.text((x_cursor, y_cursor), char, font=font, fill='black')
+                        char_bboxes.append(list(draw.textbbox((x_cursor, y_cursor), char, font=font)))
+                    char_bboxes.reverse()
+
                 else: # top_to_bottom
                     # Estimate image size for top-to-bottom text
-                    char_heights = [draw.textbbox((0,0), char, font=font)[3] - draw.textbbox((0,0), char, font=font)[1] for char in text_line]
-                    char_widths = [draw.textbbox((0,0), char, font=font)[2] - draw.textbbox((0,0), char, font=font)[0] for char in text_line]
+                    char_widths = [draw.textbbox((0,0), char, font=font)[2] for char in text_line]
                     img_width = max(char_widths) + 40
-                    img_height = sum(char_heights) + 30
+                    img_height = sum(draw.textbbox((0,0), char, font=font)[3] for char in text_line) + 30
 
                     image = Image.new('RGB', (img_width, img_height), color='white')
                     draw = ImageDraw.Draw(image)
 
-                    for i, char in enumerate(text_line):
-                        char_bbox = draw.textbbox((x_offset, y_offset), char, font=font)
-                        draw.text((x_offset, y_offset), char, font=font, fill='black')
-                        
-                        # Store absolute bbox coordinates
-                        char_bboxes.append(list(char_bbox))
-                        
-                        # Update y_offset for the next character
-                        y_offset = char_bbox[3]
+                    y_cursor = 15
+                    for char in text_line:
+                        char_width = draw.textbbox((0,0), char, font=font)[2]
+                        char_height = draw.textbbox((0,0), char, font=font)[3]
+                        x_cursor = (img_width - char_width) / 2
+                        draw.text((x_cursor, y_cursor), char, font=font, fill='black')
+                        char_bboxes.append(list(draw.textbbox((x_cursor, y_cursor), char, font=font)))
+                        y_cursor += char_height
 
 
                 # --- Augmentation Step ---

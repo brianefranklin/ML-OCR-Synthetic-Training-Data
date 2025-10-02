@@ -13,8 +13,8 @@ PROFILE_NAME="default"
 
 # --- Set Colima resource allocation ---
 # Default: 4 CPUs, 8 GiB Memory
-COLIMA_CPU=4
-COLIMA_MEMORY=8
+COLIMA_CPU=6
+COLIMA_MEMORY=12
 
 # Set the name of your development container
 DEV_CONTAINER_NAME="vscode-dev-container"
@@ -84,9 +84,7 @@ fi
 
 # 1. Ensure Colima is running
 echo "Checking status of Colima profile: '$PROFILE_NAME'..."
-# --- MODIFIED LINE ---
-# This check is more robust and works with newer Colima versions.
-if colima status --profile "$PROFILE_NAME" | grep -q "colima is running"; then
+if colima status --profile "$PROFILE_NAME" | grep -q "Running: true"; then
     echo "✅ Colima is already running."
 else
     echo "🟡 Colima is not running. Starting it now with $COLIMA_CPU CPUs and ${COLIMA_MEMORY}GB Memory..."
@@ -128,5 +126,6 @@ else
 fi
 
 echo "✅ Script finished."
+
 
 
