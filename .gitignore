@@ -40,4 +40,4 @@ output/
 
 # Sensitive stuff
 gemini_persistent_history/
-
+claude_persistent_history/

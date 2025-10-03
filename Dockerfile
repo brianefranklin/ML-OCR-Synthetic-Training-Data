@@ -18,7 +18,8 @@ RUN apt-get update && apt-get upgrade -y && apt-get install -y \
     libgl1-mesa-glx \
     libraqm-dev \
     libfribidi-dev \
-    libharfbuzz-dev && \
+    libharfbuzz-dev \
+    python3-psutil && \
     # Clean up the package cache
     rm -rf /var/lib/apt/lists/*
 
@@ -35,6 +36,9 @@ RUN apt-get install -y nodejs
 
 # Get gemini-cli up and running
 RUN npm install -g @google/gemini-cli --no-interactive --quiet
+
+# Get claude-cli up and running
+RUN npm install -g @anthropic-ai/claude-code --no-interactive --quiet
 
 # --- START: PYTHON DEPENDENCY INSTALLATION ---
 # Copy the requirements file
@@ -58,6 +62,13 @@ WORKDIR /home/vscode
 RUN rm -rf /home/vscode/.gemini && \
     ln -s /home/vscode/workspace/gemini_persistent_history/.gemini/ /home/vscode/
 # --- END: PERSIST GEMINI HISTORY ---
+
+# --- START: PERSIST CLAUDE HISTORY ---
+# Remove the default directory and link it to the persistent workspace location
+RUN rm -rf /home/vscode/.claude && \
+    ln -s /home/vscode/workspace/claude_persistent_history/.claude/ /home/vscode/
+# --- END: PERSIST CLAUDE HISTORY ---
+    
 
 RUN mkdir -p /home/vscode/.ssh
 COPY --chown=vscode:vscode id_rsa.pub /home/vscode/.ssh/authorized_keys
