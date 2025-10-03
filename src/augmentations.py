@@ -93,6 +93,12 @@ def rotate_image(image, bboxes):
 def blur_image(image):
     """Applies a Gaussian blur to a Pillow image."""
     logging.debug("Applying blur_image augmentation")
+
+    # Check if image is valid
+    if image.size[0] == 0 or image.size[1] == 0:
+        logging.warning("blur_image received empty image, skipping")
+        return image
+
     return image.filter(ImageFilter.GaussianBlur(radius=random.uniform(0.1, 1.2)))
 
 # --- Advanced Augmentations ---
@@ -185,16 +191,28 @@ def adjust_brightness_contrast(image):
 def erode_dilate(image):
     """Applies erosion or dilation to a Pillow image."""
     logging.debug("Applying erode_dilate augmentation")
+
+    # Check if image is valid
+    if image.size[0] == 0 or image.size[1] == 0:
+        logging.warning("erode_dilate received empty image, skipping")
+        return image
+
     img_cv = pil_to_cv2(image.convert('L'))
+
+    # Double-check OpenCV image is valid
+    if img_cv.size == 0:
+        logging.warning("erode_dilate: OpenCV image is empty, skipping")
+        return image
+
     kernel = np.ones((2, 2), np.uint8)
-    
+
     if random.random() > 0.5:
         # Erode
         result_cv = cv2.erode(img_cv, kernel, iterations=1)
     else:
         # Dilate
         result_cv = cv2.dilate(img_cv, kernel, iterations=1)
-        
+
     return cv2_to_pil(result_cv).convert('RGB')
 
 def add_background(image, background_images):
@@ -202,15 +220,21 @@ def add_background(image, background_images):
     logging.debug("Applying add_background augmentation")
     if not background_images:
         return image
-        
+
+    # Check if image is valid
+    if image.size[0] == 0 or image.size[1] == 0:
+        logging.warning("add_background received empty image, skipping")
+        return image
+
     bg_path = random.choice(background_images)
     try:
         bg_image = Image.open(bg_path).convert('RGB')
         bg_image = bg_image.resize(image.size)
-        
-        # Create a mask from the text
-        mask = image.convert('L').point(lambda x: 0 if x < 200 else 255, '1')
-        
+
+        # Create a mask from the text (dark pixels = text, light pixels = background)
+        # Mask should be 255 where text is (to show original text) and 0 where background is
+        mask = image.convert('L').point(lambda x: 255 if x < 200 else 0, '1')
+
         # Composite the text onto the background
         bg_image.paste(image, (0, 0), mask)
         return bg_image
@@ -222,6 +246,12 @@ def add_background(image, background_images):
 def add_shadow(image):
     """Adds a soft shadow effect to the text."""
     logging.debug("Applying add_shadow augmentation")
+
+    # Check if image is valid
+    if image.size[0] == 0 or image.size[1] == 0:
+        logging.warning("add_shadow received empty image, skipping")
+        return image
+
     img_cv = pil_to_cv2(image)
     h, w, _ = img_cv.shape
     

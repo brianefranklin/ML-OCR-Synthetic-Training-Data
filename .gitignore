@@ -41,3 +41,7 @@ output/
 # Sensitive stuff
 gemini_persistent_history/
 claude_persistent_history/
+.claude/settings.local.json
+/src/__pycache__
+/test_output
+/tests/__pycache__
