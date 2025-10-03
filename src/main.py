@@ -483,6 +483,109 @@ def can_font_render_text(font_path: str, sample_text: str, min_coverage: float =
         return False, 0.0
 
 
+def generate_with_batches(batch_config, font_files, background_images, args):
+    """
+    Generate images using batch configuration.
+
+    Args:
+        batch_config: BatchConfig object with specifications
+        font_files: List of validated font paths
+        background_images: List of background image paths
+        args: Command line arguments
+    """
+    from batch_config import BatchManager
+
+    # Initialize batch manager
+    batch_manager = BatchManager(batch_config, font_files)
+
+    # Prepare output
+    existing_images = [f for f in os.listdir(args.output_dir)
+                      if f.startswith('image_') and f.endswith('.png')]
+    image_counter = len(existing_images)
+
+    labels_file = os.path.join(args.output_dir, 'labels.csv')
+    file_mode = 'a' if os.path.exists(labels_file) else 'w'
+
+    # Track corpora per batch
+    batch_corpora = {}
+
+    logging.info(f"Starting batch generation of {batch_config.total_images} images")
+
+    with open(labels_file, file_mode) as f:
+        if file_mode == 'w':
+            f.write('filename,text\n')
+
+        # Interleaved generation
+        while True:
+            task = batch_manager.get_next_task()
+            if task is None:
+                break
+
+            # Load corpus for this batch if not already loaded
+            batch_name = task['batch_name']
+            if batch_name not in batch_corpora:
+                corpus_file = task['corpus_file'] or args.text_file
+                with open(corpus_file, 'r') as cf:
+                    batch_corpora[batch_name] = cf.read().strip()
+
+            corpus = batch_corpora[batch_name]
+
+            # Validate corpus for this batch's fonts
+            sample_chars = extract_sample_characters(corpus, max_samples=100)
+            font_path = task['font_path']
+
+            # Check if font can render this corpus
+            can_render, coverage = can_font_render_text(font_path, sample_chars, min_coverage=0.9)
+            if not can_render:
+                logging.warning(f"Skipping task {task['progress']} for batch '{batch_name}': "
+                              f"font {os.path.basename(font_path)} has {coverage*100:.1f}% coverage")
+                continue
+
+            # Initialize generator with task-specific background images
+            generator = OCRDataGenerator([font_path], background_images)
+
+            # Extract text
+            text_line = generator.extract_text_segment(
+                corpus, task['min_text_length'], task['max_text_length']
+            )
+
+            if not text_line:
+                logging.warning(f"Could not generate text for batch '{batch_name}'. Skipping.")
+                continue
+
+            # Generate font size
+            font_size = random.randint(28, 40)
+
+            try:
+                # Generate image with augmentations
+                augmented_image, augmented_bboxes, text = generator.generate_image(
+                    text_line, font_path, font_size, task['text_direction']
+                )
+
+                # Save image
+                image_filename = f'image_{image_counter:05d}.png'
+                image_path = os.path.join(args.output_dir, image_filename)
+                augmented_image.save(image_path)
+
+                # Create label with text, bboxes, and metadata
+                label_data = {
+                    "text": text,
+                    "bboxes": [[float(coord) for coord in bbox] for bbox in augmented_bboxes]
+                }
+                f.write(f'{image_filename},{json.dumps(label_data)}\n')
+                image_counter += 1
+
+                logging.debug(f"Batch '{batch_name}' ({task['progress']}): "
+                            f"{os.path.basename(font_path)}, direction={task['text_direction']}")
+
+            except Exception as e:
+                logging.error(f"Failed to generate image for batch '{batch_name}': {e}")
+                continue
+
+    logging.info(f"\n{batch_manager.get_progress_summary()}")
+    logging.info(f"Successfully generated {image_counter} images in {args.output_dir}")
+
+
 def main():
     """Main entry point for OCR data generation."""
 
@@ -524,6 +627,8 @@ def main():
                        help='If set, bypasses the confirmation prompt when clearing the output directory.')
     parser.add_argument('--font-name', type=str, default=None,
                        help='Name of the font file to use.')
+    parser.add_argument('--batch-config', type=str, default=None,
+                       help='Path to YAML batch configuration file for proportional generation.')
 
     args = parser.parse_args()
 
@@ -627,6 +732,17 @@ def main():
         logging.info(f"Found {len(font_files)} fonts compatible with corpus characters")
 
     logging.info("Script finished.")
+
+    # --- Check for Batch Configuration ---
+    if args.batch_config:
+        from batch_config import BatchConfig, BatchManager
+
+        logging.info(f"Loading batch configuration from {args.batch_config}")
+        batch_config = BatchConfig.from_yaml(args.batch_config)
+
+        # Use batch manager for generation
+        generate_with_batches(batch_config, font_files, background_images, args)
+        return
 
     # --- Initialize Generator ---
     generator = OCRDataGenerator(font_files, background_images)

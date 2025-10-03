@@ -1,0 +1,52 @@
+# Multilingual Batch Configuration
+# Generates 1000 images with balanced representation across scripts and directions
+
+total_images: 1000
+seed: 12345
+
+batches:
+  - name: english_horizontal
+    proportion: 0.35
+    text_direction: left_to_right
+    corpus_file: data/raw_text/corpus.txt
+    font_filter: "*.ttf"
+    min_text_length: 10
+    max_text_length: 30
+
+  - name: arabic_rtl
+    proportion: 0.25
+    text_direction: right_to_left
+    corpus_file: data/raw_text/arabic_corpus.txt
+    font_filter: "*{arabic,amiri,naskh,kufi,scheherazade,noto*arab}*.ttf"
+    min_text_length: 8
+    max_text_length: 25
+    # Weight certain fonts more heavily
+    font_weights:
+      "*amiri*": 2.0
+      "*naskh*": 1.5
+
+  - name: japanese_vertical_ttb
+    proportion: 0.20
+    text_direction: top_to_bottom
+    corpus_file: data/raw_text/japanese_corpus.txt
+    font_filter: "*{cjk,noto*jp,mincho,gothic}*.{ttf,otf}"
+    min_text_length: 5
+    max_text_length: 20
+    font_weights:
+      "*noto*cjk*": 2.0
+
+  - name: japanese_vertical_btt
+    proportion: 0.10
+    text_direction: bottom_to_top
+    corpus_file: data/raw_text/japanese_corpus.txt
+    font_filter: "*{cjk,noto*jp,mincho,gothic}*.{ttf,otf}"
+    min_text_length: 5
+    max_text_length: 15
+
+  - name: mixed_random
+    proportion: 0.10
+    text_direction: random  # Randomly selects direction for each image
+    corpus_file: data/raw_text/corpus.txt
+    font_filter: "*.{ttf,otf}"
+    min_text_length: 3
+    max_text_length: 40
