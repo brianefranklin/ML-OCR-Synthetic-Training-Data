@@ -47,3 +47,4 @@ gemini_persistent_history/
 claude_persistent_history/
 .claude/settings.local.json
 
+*.pyc
