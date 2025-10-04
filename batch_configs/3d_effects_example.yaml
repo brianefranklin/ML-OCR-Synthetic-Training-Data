@@ -1,0 +1,49 @@
+# 3D Text Effects Example Configuration
+# Demonstrates raised, embossed, and engraved text effects
+# Total: 100 images across 4 effect types
+
+total_images: 100
+seed: 42  # For reproducibility
+
+batches:
+  # Batch 1: Standard flat text (no 3D effect) - 25%
+  - name: flat_text
+    proportion: 0.25
+    text_direction: left_to_right
+    min_text_length: 8
+    max_text_length: 20
+    effect_type: none  # No 3D effect (default)
+    effect_depth: 0.0
+
+  # Batch 2: Raised text (drop shadow) - 25%
+  - name: raised_text
+    proportion: 0.25
+    text_direction: left_to_right
+    min_text_length: 8
+    max_text_length: 20
+    effect_type: raised
+    effect_depth: 0.6        # Moderate shadow depth
+    light_azimuth: 135.0     # Light from top-right
+    light_elevation: 45.0    # Moderate shadow length
+
+  # Batch 3: Embossed text (raised with highlights) - 25%
+  - name: embossed_text
+    proportion: 0.25
+    text_direction: left_to_right
+    min_text_length: 8
+    max_text_length: 20
+    effect_type: embossed
+    effect_depth: 0.5        # Moderate emboss depth
+    light_azimuth: 90.0      # Light from right
+    light_elevation: 60.0    # Higher angle (shorter shadows)
+
+  # Batch 4: Engraved text (carved into surface) - 25%
+  - name: engraved_text
+    proportion: 0.25
+    text_direction: left_to_right
+    min_text_length: 8
+    max_text_length: 20
+    effect_type: engraved
+    effect_depth: 0.7        # Strong engraving effect
+    light_azimuth: 135.0     # Light from top-right
+    light_elevation: 45.0    # Moderate angle

@@ -1,0 +1,44 @@
+# Ancient Manuscript Simulation - Glyph Overlap Example
+#
+# This configuration demonstrates overlap and ink bleed effects
+# for simulating ancient handwritten manuscripts and dense text.
+
+total_images: 100
+seed: 42
+
+batches:
+  # Modern printed text (baseline)
+  - name: modern_printed
+    proportion: 0.25
+    text_direction: left_to_right
+    min_text_length: 10
+    max_text_length: 30
+    overlap_intensity: 0.0
+    ink_bleed_intensity: 0.0
+
+  # Handwritten style (subtle overlap)
+  - name: handwritten_style
+    proportion: 0.25
+    text_direction: left_to_right
+    min_text_length: 8
+    max_text_length: 25
+    overlap_intensity: 0.3      # 24% overlap
+    ink_bleed_intensity: 0.2    # Subtle ink bleed
+
+  # Ancient manuscript (moderate overlap + bleed)
+  - name: ancient_manuscript
+    proportion: 0.25
+    text_direction: left_to_right
+    min_text_length: 15
+    max_text_length: 40
+    overlap_intensity: 0.5      # 40% overlap
+    ink_bleed_intensity: 0.5    # Moderate bleed
+
+  # Calligraphic/cursive (heavy overlap)
+  - name: calligraphic
+    proportion: 0.25
+    text_direction: left_to_right
+    min_text_length: 6
+    max_text_length: 20
+    overlap_intensity: 0.75     # 60% overlap
+    ink_bleed_intensity: 0.6    # Heavy bleed effect

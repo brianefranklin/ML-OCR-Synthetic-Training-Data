@@ -31,6 +31,12 @@ class BatchSpecification:
     max_text_length: int = 25
     curve_type: str = "none"  # 'none', 'arc', 'sine', 'random'
     curve_intensity: float = 0.0  # 0.0-1.0
+    overlap_intensity: float = 0.0  # 0.0-1.0, character overlap amount
+    ink_bleed_intensity: float = 0.0  # 0.0-1.0, ink bleed effect strength
+    effect_type: str = "none"  # 'none', 'raised', 'embossed', 'engraved'
+    effect_depth: float = 0.5  # 0.0-1.0, 3D effect depth intensity
+    light_azimuth: float = 135.0  # 0-360 degrees, light direction angle
+    light_elevation: float = 45.0  # 0-90 degrees, light elevation angle
     augmentation_params: Dict[str, Any] = field(default_factory=dict)
 
     def __post_init__(self):
@@ -105,6 +111,12 @@ class BatchConfig:
                 max_text_length=batch_data.get('max_text_length', 25),
                 curve_type=batch_data.get('curve_type', 'none'),
                 curve_intensity=batch_data.get('curve_intensity', 0.0),
+                overlap_intensity=batch_data.get('overlap_intensity', 0.0),
+                ink_bleed_intensity=batch_data.get('ink_bleed_intensity', 0.0),
+                effect_type=batch_data.get('effect_type', 'none'),
+                effect_depth=batch_data.get('effect_depth', 0.5),
+                light_azimuth=batch_data.get('light_azimuth', 135.0),
+                light_elevation=batch_data.get('light_elevation', 45.0),
                 augmentation_params=batch_data.get('augmentation_params', {})
             )
             batches.append(batch)
@@ -225,6 +237,12 @@ class BatchManager:
             'max_text_length': batch.max_text_length,
             'curve_type': curve_type,
             'curve_intensity': curve_intensity,
+            'overlap_intensity': batch.overlap_intensity,
+            'ink_bleed_intensity': batch.ink_bleed_intensity,
+            'effect_type': batch.effect_type,
+            'effect_depth': batch.effect_depth,
+            'light_azimuth': batch.light_azimuth,
+            'light_elevation': batch.light_elevation,
             'augmentation_params': batch.augmentation_params,
             'progress': f"{alloc['generated_count']+1}/{alloc['target_count']}"
         }

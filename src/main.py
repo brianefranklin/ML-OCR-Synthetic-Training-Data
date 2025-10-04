@@ -62,7 +62,13 @@ class OCRDataGenerator:
                           text: str,
                           font: ImageFont.FreeTypeFont,
                           curve_type: str = 'arc',
-                          curve_intensity: float = 0.3) -> Tuple[Image.Image, List[CharacterBox]]:
+                          curve_intensity: float = 0.3,
+                          overlap_intensity: float = 0.0,
+                          ink_bleed_intensity: float = 0.0,
+                          effect_type: str = 'none',
+                          effect_depth: float = 0.5,
+                          light_azimuth: float = 135.0,
+                          light_elevation: float = 45.0) -> Tuple[Image.Image, List[CharacterBox]]:
         """
         Render text along a curve (arc or sine wave).
 
@@ -71,11 +77,18 @@ class OCRDataGenerator:
             font: Font to use
             curve_type: 'arc' for circular arc, 'sine' for wave
             curve_intensity: Strength of curve (0.0-1.0)
+            overlap_intensity: Character overlap amount (0.0-1.0)
+            ink_bleed_intensity: Ink bleed effect strength (0.0-1.0)
+            effect_type: 3D effect type ('none', 'raised', 'embossed', 'engraved')
+            effect_depth: 3D effect depth (0.0-1.0)
+            light_azimuth: Light direction angle (0-360 degrees)
+            light_elevation: Light elevation angle (0-90 degrees)
 
         Returns:
             Tuple of (image, character_boxes)
         """
         import math
+        from glyph_overlap import OverlapRenderer
 
         # Handle empty text
         if not text:
@@ -84,7 +97,7 @@ class OCRDataGenerator:
 
         # Handle zero or negative intensity - fall back to straight rendering
         if curve_intensity <= 0.0:
-            return self.render_left_to_right(text, font)
+            return self.render_left_to_right(text, font, overlap_intensity, ink_bleed_intensity)
 
         # Measure characters
         temp_img = Image.new('RGBA', (1, 1))
@@ -97,7 +110,17 @@ class OCRDataGenerator:
             height = bbox[3] - bbox[1]
             char_info.append({'char': char, 'width': width, 'height': height})
 
-        total_width = sum(c['width'] for c in char_info)
+        # Calculate total width with overlap
+        total_width = 0
+        for i, c in enumerate(char_info):
+            if i == 0:
+                total_width += c['width']
+            else:
+                spacing = OverlapRenderer.calculate_overlap_spacing(
+                    c['width'], overlap_intensity, enable_variation=False
+                )
+                total_width += spacing
+
         max_height = max(c['height'] for c in char_info) if char_info else 20
 
         # Prevent division by zero
@@ -213,13 +236,228 @@ class OCRDataGenerator:
                        x_draw + char_width, y_draw + char_height/2]
 
             char_boxes.append(CharacterBox(char, bbox))
-            x_pos += char_width
+
+            # Apply overlap to spacing
+            spacing = OverlapRenderer.calculate_overlap_spacing(
+                char_width, overlap_intensity, enable_variation=True
+            )
+            x_pos += spacing
 
         # Convert back to RGB if needed
         if image.mode == 'RGBA':
             rgb_image = Image.new('RGB', image.size, 'white')
             rgb_image.paste(image, mask=image.split()[3])
             image = rgb_image
+
+        # Apply ink bleed effect if enabled
+        if OverlapRenderer.should_apply_ink_bleed(ink_bleed_intensity):
+            image = OverlapRenderer.apply_ink_bleed(image, ink_bleed_intensity)
+
+        # Apply 3D effect if enabled
+        from text_3d_effects import Text3DEffects
+        if Text3DEffects.should_apply_effect(effect_type, effect_depth):
+            image = Text3DEffects.apply_effect(image, effect_type, effect_depth,
+                                              light_azimuth, light_elevation)
+
+        return image, char_boxes
+
+    def render_right_to_left_curved(self,
+                                    text: str,
+                                    font: ImageFont.FreeTypeFont,
+                                    curve_type: str = 'arc',
+                                    curve_intensity: float = 0.3,
+                                    overlap_intensity: float = 0.0,
+                                    ink_bleed_intensity: float = 0.0,
+                                    effect_type: str = 'none',
+                                    effect_depth: float = 0.5,
+                                    light_azimuth: float = 135.0,
+                                    light_elevation: float = 45.0) -> Tuple[Image.Image, List[CharacterBox]]:
+        """
+        Render RTL text along a curve (arc or sine wave).
+
+        Args:
+            text: Text to render (RTL)
+            font: Font to use
+            curve_type: 'arc' for circular arc, 'sine' for wave
+            curve_intensity: Strength of curve (0.0-1.0)
+            overlap_intensity: Character overlap amount (0.0-1.0)
+            ink_bleed_intensity: Ink bleed effect strength (0.0-1.0)
+            effect_type: 3D effect type ('none', 'raised', 'embossed', 'engraved')
+            effect_depth: 3D effect depth (0.0-1.0)
+            light_azimuth: Light direction angle (0-360 degrees)
+            light_elevation: Light elevation angle (0-90 degrees)
+
+        Returns:
+            Tuple of (image, character_boxes)
+        """
+        import math
+        from glyph_overlap import OverlapRenderer
+
+        # Handle empty text
+        if not text:
+            empty_img = Image.new('RGB', (10, 10), color='white')
+            return empty_img, []
+
+        # Handle zero or negative intensity - fall back to straight rendering
+        if curve_intensity <= 0.0:
+            return self.render_right_to_left(text, font, overlap_intensity, ink_bleed_intensity)
+
+        # Measure characters
+        temp_img = Image.new('RGBA', (1, 1))
+        temp_draw = ImageDraw.Draw(temp_img)
+
+        char_info = []
+        for char in text:
+            bbox = temp_draw.textbbox((0, 0), char, font=font)
+            width = bbox[2] - bbox[0]
+            height = bbox[3] - bbox[1]
+            char_info.append({'char': char, 'width': width, 'height': height})
+
+        # Calculate total width with overlap
+        total_width = 0
+        for i, c in enumerate(char_info):
+            if i == 0:
+                total_width += c['width']
+            else:
+                spacing = OverlapRenderer.calculate_overlap_spacing(
+                    c['width'], overlap_intensity, enable_variation=False
+                )
+                total_width += spacing
+
+        max_height = max(c['height'] for c in char_info) if char_info else 20
+
+        # Prevent division by zero
+        if total_width == 0:
+            empty_img = Image.new('RGB', (10, 10), color='white')
+            return empty_img, []
+
+        # Clamp intensity to reasonable range
+        curve_intensity = max(0.01, min(curve_intensity, 1.0))
+
+        # Calculate curve parameters
+        if curve_type == 'arc':
+            # Circular arc
+            base_radius = total_width / (2 * curve_intensity)
+            radius = max(base_radius, total_width)
+            arc_height = (total_width ** 2) / (8 * radius)
+            curve_height = int(arc_height * 2 + max_height + 80)
+        else:  # sine wave
+            wavelength = total_width
+            amplitude = max_height * curve_intensity * 1.5
+            curve_height = int(max_height + amplitude * 2 + 80)
+
+        # Create oversized canvas
+        img_width = int(total_width + 100)
+        img_height = curve_height
+        image = Image.new('RGB', (img_width, img_height), color='white')
+        draw = ImageDraw.Draw(image)
+
+        # Render characters along curve (RTL: start from right)
+        char_boxes = []
+        x_pos = img_width - 50  # Start from right edge
+
+        for info in char_info:
+            char = info['char']
+            char_width = info['width']
+            char_height = info['height']
+
+            # Calculate position and rotation (RTL: mirror curve horizontally)
+            if curve_type == 'arc':
+                # Position on arc (mirrored)
+                theta = -((x_pos - total_width/2 - 50) / radius)  # Negative for RTL
+                y_offset = radius * (1 - math.cos(theta)) if radius > 0 else 0
+                rotation_angle = math.degrees(theta)
+                x_draw = int(x_pos - char_width)  # Draw from right
+                y_draw = int(img_height / 2 - y_offset)
+            else:  # sine
+                # Sine wave (mirrored phase)
+                phase = ((img_width - x_pos) / total_width) * 2 * math.pi * (1 + curve_intensity)
+                y_offset = amplitude * math.sin(phase)
+                # Tangent angle for rotation
+                rotation_angle = -math.degrees(math.atan(
+                    amplitude * 2 * math.pi * (1 + curve_intensity) / total_width * math.cos(phase)
+                ))
+                x_draw = int(x_pos - char_width)
+                y_draw = int(img_height / 2 + y_offset)
+
+            # Render character
+            if abs(rotation_angle) > 0.5:
+                # Get original character bbox before rotation
+                temp_char_img = Image.new('RGBA', (char_width + 20, char_height + 20), (255, 255, 255, 0))
+                temp_char_draw = ImageDraw.Draw(temp_char_img)
+                temp_char_draw.text((10, 10), char, font=font, fill='black')
+                original_bbox = temp_char_draw.textbbox((10, 10), char, font=font)
+
+                # Create rotated character image
+                char_img = Image.new('RGBA', (char_width + 60, char_height + 60), (255, 255, 255, 0))
+                char_draw = ImageDraw.Draw(char_img)
+                char_center_x = 30
+                char_center_y = 30
+                char_draw.text((char_center_x, char_center_y), char, font=font, fill='black')
+                rotated = char_img.rotate(-rotation_angle, expand=True, fillcolor=(255, 255, 255, 0))
+
+                # Paste with transparency
+                paste_x = int(x_draw + char_width/2 - rotated.width / 2)
+                paste_y = int(y_draw - rotated.height / 2)
+                if image.mode != 'RGBA':
+                    image = image.convert('RGBA')
+                image.paste(rotated, (paste_x, paste_y), rotated)
+
+                # Calculate accurate bbox using rotation matrix
+                orig_x0, orig_y0, orig_x1, orig_y1 = original_bbox
+                cx, cy = 10 + (orig_x1 - orig_x0) / 2, 10 + (orig_y1 - orig_y0) / 2
+
+                corners = [
+                    (orig_x0 - 10, orig_y0 - 10),
+                    (orig_x1 - 10, orig_y0 - 10),
+                    (orig_x1 - 10, orig_y1 - 10),
+                    (orig_x0 - 10, orig_y1 - 10),
+                ]
+
+                # Apply rotation matrix
+                angle_rad = math.radians(-rotation_angle)
+                cos_a = math.cos(angle_rad)
+                sin_a = math.sin(angle_rad)
+
+                rotated_corners = []
+                for x, y in corners:
+                    new_x = x * cos_a - y * sin_a
+                    new_y = x * sin_a + y * cos_a
+                    rotated_corners.append((new_x + x_draw + char_width/2, new_y + y_draw))
+
+                # Find bounding box
+                xs = [corner[0] for corner in rotated_corners]
+                ys = [corner[1] for corner in rotated_corners]
+                bbox = [min(xs), min(ys), max(xs), max(ys)]
+            else:
+                # Straight character
+                draw.text((x_draw, y_draw - char_height/2), char, font=font, fill='black')
+                bbox = [x_draw, y_draw - char_height/2,
+                       x_draw + char_width, y_draw + char_height/2]
+
+            char_boxes.append(CharacterBox(char, bbox))
+
+            # Apply overlap to spacing (move left for RTL)
+            spacing = OverlapRenderer.calculate_overlap_spacing(
+                char_width, overlap_intensity, enable_variation=True
+            )
+            x_pos -= spacing
+
+        # Convert back to RGB if needed
+        if image.mode == 'RGBA':
+            rgb_image = Image.new('RGB', image.size, 'white')
+            rgb_image.paste(image, mask=image.split()[3])
+            image = rgb_image
+
+        # Apply ink bleed effect if enabled
+        if OverlapRenderer.should_apply_ink_bleed(ink_bleed_intensity):
+            image = OverlapRenderer.apply_ink_bleed(image, ink_bleed_intensity)
+
+        # Apply 3D effect if enabled
+        from text_3d_effects import Text3DEffects
+        if Text3DEffects.should_apply_effect(effect_type, effect_depth):
+            image = Text3DEffects.apply_effect(image, effect_type, effect_depth,
+                                              light_azimuth, light_elevation)
 
         return image, char_boxes
 
@@ -266,26 +504,51 @@ class OCRDataGenerator:
 
     def render_left_to_right(self,
                             text: str,
-                            font: ImageFont.FreeTypeFont) -> Tuple[Image.Image, List[CharacterBox]]:
+                            font: ImageFont.FreeTypeFont,
+                            overlap_intensity: float = 0.0,
+                            ink_bleed_intensity: float = 0.0,
+                            effect_type: str = 'none',
+                            effect_depth: float = 0.5,
+                            light_azimuth: float = 135.0,
+                            light_elevation: float = 45.0) -> Tuple[Image.Image, List[CharacterBox]]:
         """
         Render left-to-right horizontal text with character bboxes.
 
         Args:
             text: Text to render
             font: Font to use
+            overlap_intensity: Character overlap amount (0.0-1.0)
+            ink_bleed_intensity: Ink bleed effect strength (0.0-1.0)
+            effect_type: 3D effect type ('none', 'raised', 'embossed', 'engraved')
+            effect_depth: 3D effect depth (0.0-1.0)
+            light_azimuth: Light direction angle (0-360 degrees)
+            light_elevation: Light elevation angle (0-90 degrees)
 
         Returns:
             Tuple of (image, character_boxes)
         """
-        # Calculate image dimensions
+        from glyph_overlap import OverlapRenderer
+
+        # Measure characters and calculate width with overlap
         temp_img = Image.new('RGBA', (1, 1))
         temp_draw = ImageDraw.Draw(temp_img)
+
+        total_width = 40  # Margins
+        for i, char in enumerate(text):
+            char_width = temp_draw.textlength(char, font=font)
+            if i == 0:
+                total_width += char_width
+            else:
+                spacing = OverlapRenderer.calculate_overlap_spacing(
+                    char_width, overlap_intensity, enable_variation=False  # No variation for measurement
+                )
+                total_width += spacing
+
         total_text_bbox = temp_draw.textbbox((0, 0), text, font=font)
-        img_width = (total_text_bbox[2] - total_text_bbox[0]) + 40
         img_height = (total_text_bbox[3] - total_text_bbox[1]) + 30
 
         # Create actual image
-        image = Image.new('RGB', (img_width, img_height), color='white')
+        image = Image.new('RGB', (int(total_width), img_height), color='white')
         draw = ImageDraw.Draw(image)
 
         # Render characters and collect bboxes
@@ -297,40 +560,82 @@ class OCRDataGenerator:
             char_bbox = draw.textbbox((x_offset, y_offset), char, font=font)
             draw.text((x_offset, y_offset), char, font=font, fill='black')
             char_boxes.append(CharacterBox(char, list(char_bbox)))
-            x_offset += draw.textlength(char, font=font)
+
+            # Apply overlap to spacing
+            char_width = draw.textlength(char, font=font)
+            spacing = OverlapRenderer.calculate_overlap_spacing(
+                char_width, overlap_intensity, enable_variation=True
+            )
+            x_offset += spacing
+
+        # Apply ink bleed effect if enabled
+        if OverlapRenderer.should_apply_ink_bleed(ink_bleed_intensity):
+            image = OverlapRenderer.apply_ink_bleed(image, ink_bleed_intensity)
+
+        # Apply 3D effect if enabled
+        from text_3d_effects import Text3DEffects
+        if Text3DEffects.should_apply_effect(effect_type, effect_depth):
+            image = Text3DEffects.apply_effect(image, effect_type, effect_depth,
+                                              light_azimuth, light_elevation)
 
         return image, char_boxes
 
     def render_right_to_left(self,
                            text: str,
-                           font: ImageFont.FreeTypeFont) -> Tuple[Image.Image, List[CharacterBox]]:
+                           font: ImageFont.FreeTypeFont,
+                           overlap_intensity: float = 0.0,
+                           ink_bleed_intensity: float = 0.0,
+                           effect_type: str = 'none',
+                           effect_depth: float = 0.5,
+                           light_azimuth: float = 135.0,
+                           light_elevation: float = 45.0) -> Tuple[Image.Image, List[CharacterBox]]:
         """
         Render right-to-left horizontal text with proper BiDi handling.
 
         Args:
             text: Text to render
             font: Font to use
+            overlap_intensity: Character overlap amount (0.0-1.0)
+            ink_bleed_intensity: Ink bleed effect strength (0.0-1.0)
+            effect_type: 3D effect type ('none', 'raised', 'embossed', 'engraved')
+            effect_depth: 3D effect depth (0.0-1.0)
+            light_azimuth: Light direction angle (0-360 degrees)
+            light_elevation: Light elevation angle (0-90 degrees)
 
         Returns:
             Tuple of (image, character_boxes)
         """
+        from glyph_overlap import OverlapRenderer
+
         # Use BiDi algorithm for proper RTL display
         display_text = bidi.algorithm.get_display(text)
 
-        # Calculate image dimensions
+        # Measure characters and calculate width with overlap
         temp_img = Image.new('RGBA', (1, 1))
         temp_draw = ImageDraw.Draw(temp_img)
+
+        total_width = 40  # Margins
+        for i, char in enumerate(display_text):
+            char_width = temp_draw.textlength(char, font=font)
+            if i == 0:
+                total_width += char_width
+            else:
+                base_spacing = 1
+                spacing = OverlapRenderer.calculate_overlap_spacing(
+                    char_width, overlap_intensity, enable_variation=False
+                )
+                total_width += max(base_spacing, spacing * 0.1)
+
         total_text_bbox = temp_draw.textbbox((0, 0), display_text, font=font)
-        img_width = (total_text_bbox[2] - total_text_bbox[0]) + 40
         img_height = (total_text_bbox[3] - total_text_bbox[1]) + 30
 
         # Create actual image
-        image = Image.new('RGB', (img_width, img_height), color='white')
+        image = Image.new('RGB', (int(total_width), img_height), color='white')
         draw = ImageDraw.Draw(image)
 
         # Render characters from right to left
         char_boxes = []
-        x_offset = img_width - 20
+        x_offset = int(total_width) - 20
         y_offset = 15
 
         for char in display_text:
@@ -341,24 +646,53 @@ class OCRDataGenerator:
             char_bbox = draw.textbbox((x_offset, y_offset), char, font=font)
             char_boxes.append(CharacterBox(char, list(char_bbox)))
 
-            x_offset -= 1  # Small spacing
+            # Apply overlap to spacing (small base spacing + overlap reduction)
+            base_spacing = 1
+            spacing = OverlapRenderer.calculate_overlap_spacing(
+                char_width, overlap_intensity, enable_variation=True
+            )
+            x_offset -= max(base_spacing, spacing * 0.1)  # Ensure some spacing
+
+        # Apply ink bleed effect if enabled
+        if OverlapRenderer.should_apply_ink_bleed(ink_bleed_intensity):
+            image = OverlapRenderer.apply_ink_bleed(image, ink_bleed_intensity)
+
+        # Apply 3D effect if enabled
+        from text_3d_effects import Text3DEffects
+        if Text3DEffects.should_apply_effect(effect_type, effect_depth):
+            image = Text3DEffects.apply_effect(image, effect_type, effect_depth,
+                                              light_azimuth, light_elevation)
 
         return image, char_boxes
 
     def render_top_to_bottom(self,
                            text: str,
-                           font: ImageFont.FreeTypeFont) -> Tuple[Image.Image, List[CharacterBox]]:
+                           font: ImageFont.FreeTypeFont,
+                           overlap_intensity: float = 0.0,
+                           ink_bleed_intensity: float = 0.0,
+                           effect_type: str = 'none',
+                           effect_depth: float = 0.5,
+                           light_azimuth: float = 135.0,
+                           light_elevation: float = 45.0) -> Tuple[Image.Image, List[CharacterBox]]:
         """
         Render top-to-bottom vertical text (traditional CJK style).
 
         Args:
             text: Text to render
             font: Font to use
+            overlap_intensity: Character overlap amount (0.0-1.0)
+            ink_bleed_intensity: Ink bleed effect strength (0.0-1.0)
+            effect_type: 3D effect type ('none', 'raised', 'embossed', 'engraved')
+            effect_depth: 3D effect depth (0.0-1.0)
+            light_azimuth: Light direction angle (0-360 degrees)
+            light_elevation: Light elevation angle (0-90 degrees)
 
         Returns:
             Tuple of (image, character_boxes)
         """
-        # Calculate image dimensions
+        from glyph_overlap import OverlapRenderer
+
+        # Measure characters
         temp_img = Image.new('RGBA', (1, 1))
         temp_draw = ImageDraw.Draw(temp_img)
 
@@ -370,10 +704,18 @@ class OCRDataGenerator:
             char_heights.append(bbox[3] - bbox[1])
 
         max_char_width = max(char_widths) if char_widths else 0
-        total_height = sum(char_heights) + (len(char_heights) - 1) * 5 + 30
+
+        # Calculate height with overlap
+        total_height = 30  # Margins
+        base_spacing = 5
+        for i, char_height in enumerate(char_heights):
+            total_height += char_height
+            if i < len(char_heights) - 1:  # Not last character
+                reduced_spacing = max(0, base_spacing - (base_spacing * overlap_intensity * 0.8))
+                total_height += reduced_spacing
 
         img_width = max_char_width + 40
-        img_height = total_height
+        img_height = int(total_height)
 
         # Create actual image
         image = Image.new('RGB', (img_width, img_height), color='white')
@@ -394,24 +736,49 @@ class OCRDataGenerator:
             char_boxes.append(CharacterBox(char, list(char_bbox)))
             logging.debug(f"char: {char}, bbox: {char_bbox}")
 
-            y_cursor += char_height + 5
+            # Apply vertical overlap to spacing
+            y_cursor += char_height + max(0, base_spacing - (base_spacing * overlap_intensity * 0.8))
+
+        # Apply ink bleed effect if enabled
+        if OverlapRenderer.should_apply_ink_bleed(ink_bleed_intensity):
+            image = OverlapRenderer.apply_ink_bleed(image, ink_bleed_intensity)
+
+        # Apply 3D effect if enabled
+        from text_3d_effects import Text3DEffects
+        if Text3DEffects.should_apply_effect(effect_type, effect_depth):
+            image = Text3DEffects.apply_effect(image, effect_type, effect_depth,
+                                              light_azimuth, light_elevation)
 
         return image, char_boxes
 
     def render_bottom_to_top(self,
                            text: str,
-                           font: ImageFont.FreeTypeFont) -> Tuple[Image.Image, List[CharacterBox]]:
+                           font: ImageFont.FreeTypeFont,
+                           overlap_intensity: float = 0.0,
+                           ink_bleed_intensity: float = 0.0,
+                           effect_type: str = 'none',
+                           effect_depth: float = 0.5,
+                           light_azimuth: float = 135.0,
+                           light_elevation: float = 45.0) -> Tuple[Image.Image, List[CharacterBox]]:
         """
         Render bottom-to-top vertical text.
 
         Args:
             text: Text to render
             font: Font to use
+            overlap_intensity: Character overlap amount (0.0-1.0)
+            ink_bleed_intensity: Ink bleed effect strength (0.0-1.0)
+            effect_type: 3D effect type ('none', 'raised', 'embossed', 'engraved')
+            effect_depth: 3D effect depth (0.0-1.0)
+            light_azimuth: Light direction angle (0-360 degrees)
+            light_elevation: Light elevation angle (0-90 degrees)
 
         Returns:
             Tuple of (image, character_boxes)
         """
-        # Calculate image dimensions
+        from glyph_overlap import OverlapRenderer
+
+        # Measure characters
         temp_img = Image.new('RGBA', (1, 1))
         temp_draw = ImageDraw.Draw(temp_img)
 
@@ -423,10 +790,18 @@ class OCRDataGenerator:
             char_heights.append(bbox[3] - bbox[1])
 
         max_char_width = max(char_widths) if char_widths else 0
-        total_height = sum(char_heights) + (len(char_heights) - 1) * 5 + 30
+
+        # Calculate height with overlap
+        total_height = 30  # Margins
+        base_spacing = 5
+        for i, char_height in enumerate(char_heights):
+            total_height += char_height
+            if i < len(char_heights) - 1:  # Not last character
+                reduced_spacing = max(0, base_spacing - (base_spacing * overlap_intensity * 0.8))
+                total_height += reduced_spacing
 
         img_width = max_char_width + 40
-        img_height = total_height
+        img_height = int(total_height)
 
         # Create actual image
         image = Image.new('RGB', (img_width, img_height), color='white')
@@ -448,7 +823,18 @@ class OCRDataGenerator:
             char_boxes.append(CharacterBox(char, list(char_bbox)))
             logging.debug(f"char: {char}, bbox: {char_bbox}")
 
-            y_cursor -= 5  # Spacing
+            # Apply vertical overlap to spacing
+            y_cursor -= max(0, base_spacing - (base_spacing * overlap_intensity * 0.8))
+
+        # Apply ink bleed effect if enabled
+        if OverlapRenderer.should_apply_ink_bleed(ink_bleed_intensity):
+            image = OverlapRenderer.apply_ink_bleed(image, ink_bleed_intensity)
+
+        # Apply 3D effect if enabled
+        from text_3d_effects import Text3DEffects
+        if Text3DEffects.should_apply_effect(effect_type, effect_depth):
+            image = Text3DEffects.apply_effect(image, effect_type, effect_depth,
+                                              light_azimuth, light_elevation)
 
         return image, char_boxes
 
@@ -456,7 +842,13 @@ class OCRDataGenerator:
                                     text: str,
                                     font: ImageFont.FreeTypeFont,
                                     curve_type: str = 'arc',
-                                    curve_intensity: float = 0.3) -> Tuple[Image.Image, List[CharacterBox]]:
+                                    curve_intensity: float = 0.3,
+                                    overlap_intensity: float = 0.0,
+                                    ink_bleed_intensity: float = 0.0,
+                                    effect_type: str = 'none',
+                                    effect_depth: float = 0.5,
+                                    light_azimuth: float = 135.0,
+                                    light_elevation: float = 45.0) -> Tuple[Image.Image, List[CharacterBox]]:
         """
         Render text along a curved vertical baseline from top to bottom.
 
@@ -465,11 +857,14 @@ class OCRDataGenerator:
             font: Font to use
             curve_type: 'arc' for circular arc, 'sine' for wave
             curve_intensity: Strength of curve (0.0-1.0)
+            overlap_intensity: Character overlap amount (0.0-1.0)
+            ink_bleed_intensity: Ink bleed effect strength (0.0-1.0)
 
         Returns:
             Tuple of (image, character_boxes)
         """
         import math
+        from glyph_overlap import OverlapRenderer
 
         # Handle empty text
         if not text:
@@ -478,7 +873,7 @@ class OCRDataGenerator:
 
         # Handle zero or negative intensity - fall back to straight rendering
         if curve_intensity <= 0.0:
-            return self.render_top_to_bottom(text, font)
+            return self.render_top_to_bottom(text, font, overlap_intensity, ink_bleed_intensity)
 
         # Measure characters
         temp_img = Image.new('RGBA', (1, 1))
@@ -491,7 +886,15 @@ class OCRDataGenerator:
             height = bbox[3] - bbox[1]
             char_info.append({'char': char, 'width': width, 'height': height})
 
-        total_height = sum(c['height'] for c in char_info)
+        # Calculate total height with overlap
+        base_spacing = 5
+        total_height = 0
+        for i, c in enumerate(char_info):
+            total_height += c['height']
+            if i < len(char_info) - 1:  # Not last character
+                reduced_spacing = max(0, base_spacing - (base_spacing * overlap_intensity * 0.8))
+                total_height += reduced_spacing
+
         max_width = max(c['width'] for c in char_info) if char_info else 20
 
         # Prevent division by zero
@@ -605,7 +1008,11 @@ class OCRDataGenerator:
                        x_draw + char_width/2, y_draw + char_height]
 
             char_boxes.append(CharacterBox(char, bbox))
-            y_pos += char_height
+
+            # Apply vertical overlap to spacing
+            base_spacing = 5
+            reduced_spacing = max(0, base_spacing - (base_spacing * overlap_intensity * 0.8))
+            y_pos += char_height + reduced_spacing
 
         # Convert back to RGB if needed
         if image.mode == 'RGBA':
@@ -613,13 +1020,29 @@ class OCRDataGenerator:
             rgb_image.paste(image, mask=image.split()[3])
             image = rgb_image
 
+        # Apply ink bleed effect if enabled
+        if OverlapRenderer.should_apply_ink_bleed(ink_bleed_intensity):
+            image = OverlapRenderer.apply_ink_bleed(image, ink_bleed_intensity)
+
+        # Apply 3D effect if enabled
+        from text_3d_effects import Text3DEffects
+        if Text3DEffects.should_apply_effect(effect_type, effect_depth):
+            image = Text3DEffects.apply_effect(image, effect_type, effect_depth,
+                                              light_azimuth, light_elevation)
+
         return image, char_boxes
 
     def render_bottom_to_top_curved(self,
                                     text: str,
                                     font: ImageFont.FreeTypeFont,
                                     curve_type: str = 'arc',
-                                    curve_intensity: float = 0.3) -> Tuple[Image.Image, List[CharacterBox]]:
+                                    curve_intensity: float = 0.3,
+                                    overlap_intensity: float = 0.0,
+                                    ink_bleed_intensity: float = 0.0,
+                                    effect_type: str = 'none',
+                                    effect_depth: float = 0.5,
+                                    light_azimuth: float = 135.0,
+                                    light_elevation: float = 45.0) -> Tuple[Image.Image, List[CharacterBox]]:
         """
         Render text along a curved vertical baseline from bottom to top.
 
@@ -628,11 +1051,14 @@ class OCRDataGenerator:
             font: Font to use
             curve_type: 'arc' for circular arc, 'sine' for wave
             curve_intensity: Strength of curve (0.0-1.0)
+            overlap_intensity: Character overlap amount (0.0-1.0)
+            ink_bleed_intensity: Ink bleed effect strength (0.0-1.0)
 
         Returns:
             Tuple of (image, character_boxes)
         """
         import math
+        from glyph_overlap import OverlapRenderer
 
         # Handle empty text
         if not text:
@@ -641,7 +1067,7 @@ class OCRDataGenerator:
 
         # Handle zero or negative intensity - fall back to straight rendering
         if curve_intensity <= 0.0:
-            return self.render_bottom_to_top(text, font)
+            return self.render_bottom_to_top(text, font, overlap_intensity, ink_bleed_intensity)
 
         # Measure characters
         temp_img = Image.new('RGBA', (1, 1))
@@ -654,7 +1080,15 @@ class OCRDataGenerator:
             height = bbox[3] - bbox[1]
             char_info.append({'char': char, 'width': width, 'height': height})
 
-        total_height = sum(c['height'] for c in char_info)
+        # Calculate total height with overlap
+        base_spacing = 5
+        total_height = 0
+        for i, c in enumerate(char_info):
+            total_height += c['height']
+            if i < len(char_info) - 1:  # Not last character
+                reduced_spacing = max(0, base_spacing - (base_spacing * overlap_intensity * 0.8))
+                total_height += reduced_spacing
+
         max_width = max(c['width'] for c in char_info) if char_info else 20
 
         # Prevent division by zero
@@ -780,12 +1214,28 @@ class OCRDataGenerator:
             rgb_image.paste(image, mask=image.split()[3])
             image = rgb_image
 
+        # Apply ink bleed effect if enabled
+        if OverlapRenderer.should_apply_ink_bleed(ink_bleed_intensity):
+            image = OverlapRenderer.apply_ink_bleed(image, ink_bleed_intensity)
+
+        # Apply 3D effect if enabled
+        from text_3d_effects import Text3DEffects
+        if Text3DEffects.should_apply_effect(effect_type, effect_depth):
+            image = Text3DEffects.apply_effect(image, effect_type, effect_depth,
+                                              light_azimuth, light_elevation)
+
         return image, char_boxes
 
     def render_text(self,
                    text: str,
                    font: ImageFont.FreeTypeFont,
-                   direction: str) -> Tuple[Image.Image, List[CharacterBox]]:
+                   direction: str,
+                   overlap_intensity: float = 0.0,
+                   ink_bleed_intensity: float = 0.0,
+                   effect_type: str = 'none',
+                   effect_depth: float = 0.5,
+                   light_azimuth: float = 135.0,
+                   light_elevation: float = 45.0) -> Tuple[Image.Image, List[CharacterBox]]:
         """
         Render text in specified direction with character-level bboxes.
 
@@ -793,18 +1243,28 @@ class OCRDataGenerator:
             text: Text to render
             font: Font to use
             direction: Text direction ('left_to_right', 'right_to_left', etc.)
+            overlap_intensity: Glyph overlap intensity (0.0-1.0)
+            ink_bleed_intensity: Ink bleed effect intensity (0.0-1.0)
+            effect_type: 3D effect type ('none', 'raised', 'embossed', 'engraved')
+            effect_depth: 3D effect depth (0.0-1.0)
+            light_azimuth: Light direction angle (0-360 degrees)
+            light_elevation: Light elevation angle (0-90 degrees)
 
         Returns:
             Tuple of (image, character_boxes)
         """
         if direction == 'left_to_right':
-            return self.render_left_to_right(text, font)
+            return self.render_left_to_right(text, font, overlap_intensity, ink_bleed_intensity,
+                                            effect_type, effect_depth, light_azimuth, light_elevation)
         elif direction == 'right_to_left':
-            return self.render_right_to_left(text, font)
+            return self.render_right_to_left(text, font, overlap_intensity, ink_bleed_intensity,
+                                            effect_type, effect_depth, light_azimuth, light_elevation)
         elif direction == 'top_to_bottom':
-            return self.render_top_to_bottom(text, font)
+            return self.render_top_to_bottom(text, font, overlap_intensity, ink_bleed_intensity,
+                                            effect_type, effect_depth, light_azimuth, light_elevation)
         elif direction == 'bottom_to_top':
-            return self.render_bottom_to_top(text, font)
+            return self.render_bottom_to_top(text, font, overlap_intensity, ink_bleed_intensity,
+                                            effect_type, effect_depth, light_azimuth, light_elevation)
         else:
             raise ValueError(f"Unknown direction: {direction}")
 
@@ -814,7 +1274,13 @@ class OCRDataGenerator:
                       font_size: int,
                       direction: str,
                       curve_type: str = 'none',
-                      curve_intensity: float = 0.0) -> Tuple[Image.Image, List[List[float]], str]:
+                      curve_intensity: float = 0.0,
+                      overlap_intensity: float = 0.0,
+                      ink_bleed_intensity: float = 0.0,
+                      effect_type: str = 'none',
+                      effect_depth: float = 0.5,
+                      light_azimuth: float = 135.0,
+                      light_elevation: float = 45.0) -> Tuple[Image.Image, List[List[float]], str]:
         """
         Generate a single synthetic OCR image with augmentations.
 
@@ -825,6 +1291,8 @@ class OCRDataGenerator:
             direction: Text direction
             curve_type: Type of text curvature ('none', 'arc', 'sine')
             curve_intensity: Strength of curve (0.0-1.0)
+            overlap_intensity: Glyph overlap intensity (0.0-1.0)
+            ink_bleed_intensity: Ink bleed effect intensity (0.0-1.0)
 
         Returns:
             Tuple of (augmented_image, character_bboxes, text)
@@ -833,12 +1301,33 @@ class OCRDataGenerator:
         font = self.load_font(font_path, font_size)
 
         # Render text with character bboxes
-        if curve_type != 'none' and curve_intensity > 0 and direction == 'left_to_right':
-            # Use curved rendering for LTR text
-            image, char_boxes = self.render_curved_text(text, font, curve_type, curve_intensity)
+        if curve_type != 'none' and curve_intensity > 0:
+            # Use curved rendering based on direction
+            if direction == 'left_to_right':
+                image, char_boxes = self.render_curved_text(text, font, curve_type, curve_intensity,
+                                                            overlap_intensity, ink_bleed_intensity,
+                                                            effect_type, effect_depth, light_azimuth, light_elevation)
+            elif direction == 'top_to_bottom':
+                image, char_boxes = self.render_top_to_bottom_curved(text, font, curve_type, curve_intensity,
+                                                                     overlap_intensity, ink_bleed_intensity,
+                                                                     effect_type, effect_depth, light_azimuth, light_elevation)
+            elif direction == 'bottom_to_top':
+                image, char_boxes = self.render_bottom_to_top_curved(text, font, curve_type, curve_intensity,
+                                                                     overlap_intensity, ink_bleed_intensity,
+                                                                     effect_type, effect_depth, light_azimuth, light_elevation)
+            elif direction == 'right_to_left':
+                image, char_boxes = self.render_right_to_left_curved(text, font, curve_type, curve_intensity,
+                                                                     overlap_intensity, ink_bleed_intensity,
+                                                                     effect_type, effect_depth, light_azimuth, light_elevation)
+            else:
+                image, char_boxes = self.render_text(text, font, direction,
+                                                    overlap_intensity, ink_bleed_intensity,
+                                                    effect_type, effect_depth, light_azimuth, light_elevation)
         else:
             # Use standard rendering
-            image, char_boxes = self.render_text(text, font, direction)
+            image, char_boxes = self.render_text(text, font, direction,
+                                                overlap_intensity, ink_bleed_intensity,
+                                                effect_type, effect_depth, light_azimuth, light_elevation)
 
         # Extract just the bbox coordinates
         char_bboxes = [box.bbox for box in char_boxes]
@@ -1065,7 +1554,13 @@ def generate_with_batches(batch_config, font_files, background_images, args):
                 augmented_image, augmented_bboxes, text = generator.generate_image(
                     text_line, font_path, font_size, task['text_direction'],
                     curve_type=task.get('curve_type', 'none'),
-                    curve_intensity=task.get('curve_intensity', 0.0)
+                    curve_intensity=task.get('curve_intensity', 0.0),
+                    overlap_intensity=task.get('overlap_intensity', 0.0),
+                    ink_bleed_intensity=task.get('ink_bleed_intensity', 0.0),
+                    effect_type=task.get('effect_type', 'none'),
+                    effect_depth=task.get('effect_depth', 0.5),
+                    light_azimuth=task.get('light_azimuth', 135.0),
+                    light_elevation=task.get('light_elevation', 45.0)
                 )
 
                 # Save image
@@ -1135,6 +1630,19 @@ def main():
                        help='Name of the font file to use.')
     parser.add_argument('--batch-config', type=str, default=None,
                        help='Path to YAML batch configuration file for proportional generation.')
+    parser.add_argument('--overlap-intensity', type=float, default=0.0,
+                       help='Glyph overlap intensity (0.0-1.0). Higher values increase character overlap.')
+    parser.add_argument('--ink-bleed-intensity', type=float, default=0.0,
+                       help='Ink bleed effect intensity (0.0-1.0). Simulates document scanning artifacts.')
+    parser.add_argument('--effect-type', type=str, default='none',
+                       choices=['none', 'raised', 'embossed', 'engraved'],
+                       help='3D text effect type. Options: none (default), raised (drop shadow), embossed (raised with highlights), engraved (carved/debossed).')
+    parser.add_argument('--effect-depth', type=float, default=0.5,
+                       help='3D effect depth intensity (0.0-1.0). Higher values create more pronounced effects.')
+    parser.add_argument('--light-azimuth', type=float, default=135.0,
+                       help='Light direction angle in degrees (0-360). 0=top, 90=right, 180=bottom, 270=left.')
+    parser.add_argument('--light-elevation', type=float, default=45.0,
+                       help='Light elevation angle in degrees (0-90). Lower values create longer shadows.')
 
     args = parser.parse_args()
 
@@ -1311,7 +1819,13 @@ def main():
                 try:
                     # Generate image with augmentations
                     augmented_image, augmented_bboxes, text = generator.generate_image(
-                        text_line, font_path, font_size, args.text_direction
+                        text_line, font_path, font_size, args.text_direction,
+                        overlap_intensity=args.overlap_intensity,
+                        ink_bleed_intensity=args.ink_bleed_intensity,
+                        effect_type=args.effect_type,
+                        effect_depth=args.effect_depth,
+                        light_azimuth=args.light_azimuth,
+                        light_elevation=args.light_elevation
                     )
 
                     # Save image

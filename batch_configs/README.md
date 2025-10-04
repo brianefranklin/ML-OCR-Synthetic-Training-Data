@@ -42,6 +42,12 @@ batches:
 | `max_text_length` | int | 25 | Maximum text length in characters |
 | `curve_type` | string | "none" | Text curvature: "none", "arc", "sine", or "random" |
 | `curve_intensity` | float | 0.0 | Curvature strength (0.0-1.0) |
+| `overlap_intensity` | float | 0.0 | Glyph overlap amount (0.0-1.0) |
+| `ink_bleed_intensity` | float | 0.0 | Ink bleed effect strength (0.0-1.0) |
+| `effect_type` | string | "none" | 3D effect type: "none", "raised", "embossed", or "engraved" |
+| `effect_depth` | float | 0.5 | 3D effect depth intensity (0.0-1.0) |
+| `light_azimuth` | float | 135.0 | Light direction angle (0-360 degrees) |
+| `light_elevation` | float | 45.0 | Light elevation angle (0-90 degrees) |
 
 ### Font Filters
 
@@ -101,7 +107,130 @@ curve_intensity: 0.3
 - `0.4-0.6` - Strong curve (artistic/distorted)
 - `0.6-1.0` - Extreme curve (special effects)
 
-**Note:** Curvature currently works for `left_to_right` text direction.
+**Supported Directions:** Curvature works for all text directions:
+- `left_to_right` - Arc and sine curves
+- `right_to_left` - Arc and sine curves (mirrored)
+- `top_to_bottom` - Arc and sine curves (vertical)
+- `bottom_to_top` - Arc and sine curves (vertical, reversed)
+
+### Glyph Overlap
+
+Simulate realistic handwriting and ancient text with character overlap:
+
+```yaml
+# No overlap (default)
+overlap_intensity: 0.0
+
+# Subtle overlap (typical handwriting)
+overlap_intensity: 0.25  # 20% overlap
+
+# Moderate overlap (dense handwriting, ancient scripts)
+overlap_intensity: 0.5   # 40% overlap
+
+# Heavy overlap (cursive, calligraphy)
+overlap_intensity: 0.75  # 60% overlap
+```
+
+**Overlap Guidelines:**
+- `0.0` - No overlap (default, typical printed text)
+- `0.0-0.3` - Subtle overlap (realistic handwriting)
+- `0.3-0.6` - Moderate overlap (dense text, ancient manuscripts)
+- `0.6-1.0` - Heavy overlap (cursive, artistic calligraphy)
+
+**Language-Agnostic:** The overlap feature uses spacing reduction rather than language-specific kerning tables, making it work with any script (Latin, Arabic, CJK, etc.).
+
+### Ink Bleed Effect
+
+Add realistic document scanning artifacts:
+
+```yaml
+# No ink bleed (default)
+ink_bleed_intensity: 0.0
+
+# Subtle bleed (good quality scan)
+ink_bleed_intensity: 0.3
+
+# Moderate bleed (typical old documents)
+ink_bleed_intensity: 0.5
+
+# Heavy bleed (aged/degraded documents)
+ink_bleed_intensity: 0.8
+```
+
+**Combines well with overlap** for ancient manuscript simulation:
+```yaml
+overlap_intensity: 0.6      # Heavy character overlap
+ink_bleed_intensity: 0.5    # Moderate ink bleeding
+```
+
+### 3D Text Effects
+
+Add realistic depth and dimensionality to text:
+
+```yaml
+# No 3D effect (default)
+effect_type: none
+effect_depth: 0.5
+
+# Raised text (drop shadow effect)
+effect_type: raised
+effect_depth: 0.6           # 0.0-1.0, higher = more pronounced
+light_azimuth: 135.0        # Light angle (0-360°)
+light_elevation: 45.0       # Light elevation (0-90°)
+
+# Embossed text (raised with highlights and shadows)
+effect_type: embossed
+effect_depth: 0.5
+light_azimuth: 135.0
+light_elevation: 45.0
+
+# Engraved/debossed text (carved into surface)
+effect_type: engraved
+effect_depth: 0.7
+light_azimuth: 135.0
+light_elevation: 45.0
+```
+
+**Effect Types:**
+- `none` - No 3D effect (default, flat text)
+- `raised` - Drop shadow effect for text that appears above the surface
+- `embossed` - Raised text with edge highlights and shadows for realistic depth
+- `engraved` - Text carved into the surface (inverted emboss)
+
+**Depth Guidelines:**
+- `0.0` - No effect
+- `0.0-0.3` - Subtle depth (realistic documents)
+- `0.3-0.6` - Moderate depth (signs, labels)
+- `0.6-1.0` - Strong depth (artistic/decorative)
+
+**Light Direction (Azimuth):**
+- `0°` - Light from top (shadow below)
+- `90°` - Light from right (shadow left)
+- `135°` - Light from top-right (shadow bottom-left) - default
+- `180°` - Light from bottom (shadow above)
+- `270°` - Light from left (shadow right)
+
+**Light Elevation:**
+- `10-30°` - Low angle, long shadows (dramatic effect)
+- `45°` - Moderate angle (default, balanced)
+- `60-90°` - High angle, short shadows (subtle effect)
+
+**Language-Agnostic:** Works with all scripts (Latin, Arabic, CJK, etc.)
+
+**Combines well with other effects:**
+```yaml
+# Embossed ancient manuscript
+effect_type: embossed
+effect_depth: 0.5
+overlap_intensity: 0.4      # Character overlap
+ink_bleed_intensity: 0.3    # Ink bleed
+
+# Engraved curved signage
+effect_type: engraved
+effect_depth: 0.6
+curve_type: arc
+curve_intensity: 0.3
+```
 
 ## Example Configurations
 
@@ -125,6 +254,27 @@ curve_intensity: 0.3
 - Font weight customization
 - Specialty font handling
 - Direction randomization
+
+### 4. Ancient Overlap (`ancient_overlap.yaml`)
+- 100 images demonstrating overlap effects
+- 25% modern printed (no overlap)
+- 25% handwritten style (subtle overlap)
+- 25% ancient manuscript (moderate overlap + ink bleed)
+- 25% calligraphic (heavy overlap + bleed)
+
+### 5. 3D Effects (`3d_effects_example.yaml`)
+- 100 images demonstrating 3D text effects
+- 25% flat text (no 3D effect)
+- 25% raised text (drop shadow)
+- 25% embossed text (raised with highlights)
+- 25% engraved text (carved into surface)
+
+### 6. Advanced 3D Combined (`3d_combined_example.yaml`)
+- 100 images combining 3D effects with other features
+- 30% embossed curved signage
+- 25% engraved ancient manuscript (with overlap + ink bleed)
+- 25% raised handwriting (with overlap + wavy curves)
+- 20% embossed vertical text (top-to-bottom)
 
 ## Features
 
