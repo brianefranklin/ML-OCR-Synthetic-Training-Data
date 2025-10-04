@@ -58,6 +58,171 @@ class OCRDataGenerator:
         self.font_files = font_files
         self.background_images = background_images or []
 
+    def render_curved_text(self,
+                          text: str,
+                          font: ImageFont.FreeTypeFont,
+                          curve_type: str = 'arc',
+                          curve_intensity: float = 0.3) -> Tuple[Image.Image, List[CharacterBox]]:
+        """
+        Render text along a curve (arc or sine wave).
+
+        Args:
+            text: Text to render
+            font: Font to use
+            curve_type: 'arc' for circular arc, 'sine' for wave
+            curve_intensity: Strength of curve (0.0-1.0)
+
+        Returns:
+            Tuple of (image, character_boxes)
+        """
+        import math
+
+        # Handle empty text
+        if not text:
+            empty_img = Image.new('RGB', (10, 10), color='white')
+            return empty_img, []
+
+        # Handle zero or negative intensity - fall back to straight rendering
+        if curve_intensity <= 0.0:
+            return self.render_left_to_right(text, font)
+
+        # Measure characters
+        temp_img = Image.new('RGBA', (1, 1))
+        temp_draw = ImageDraw.Draw(temp_img)
+
+        char_info = []
+        for char in text:
+            bbox = temp_draw.textbbox((0, 0), char, font=font)
+            width = bbox[2] - bbox[0]
+            height = bbox[3] - bbox[1]
+            char_info.append({'char': char, 'width': width, 'height': height})
+
+        total_width = sum(c['width'] for c in char_info)
+        max_height = max(c['height'] for c in char_info) if char_info else 20
+
+        # Prevent division by zero
+        if total_width == 0:
+            empty_img = Image.new('RGB', (10, 10), color='white')
+            return empty_img, []
+
+        # Clamp intensity to reasonable range
+        curve_intensity = max(0.01, min(curve_intensity, 1.0))
+
+        # Calculate curve parameters
+        if curve_type == 'arc':
+            # Circular arc
+            base_radius = total_width / (2 * curve_intensity)
+            radius = max(base_radius, total_width)
+            arc_height = (total_width ** 2) / (8 * radius)
+            curve_height = int(arc_height * 2 + max_height + 80)
+        else:  # sine wave
+            wavelength = total_width
+            amplitude = max_height * curve_intensity * 1.5
+            curve_height = int(max_height + amplitude * 2 + 80)
+
+        # Create oversized canvas
+        img_width = int(total_width + 100)
+        img_height = curve_height
+        image = Image.new('RGB', (img_width, img_height), color='white')
+        draw = ImageDraw.Draw(image)
+
+        # Render characters along curve
+        char_boxes = []
+        x_pos = 50
+
+        for info in char_info:
+            char = info['char']
+            char_width = info['width']
+            char_height = info['height']
+
+            # Calculate position and rotation
+            if curve_type == 'arc':
+                # Position on arc
+                theta = (x_pos - total_width/2 - 50) / radius
+                y_offset = radius * (1 - math.cos(theta)) if radius > 0 else 0
+                rotation_angle = math.degrees(theta)
+                x_draw = int(x_pos)
+                y_draw = int(img_height / 2 - y_offset)
+            else:  # sine
+                # Sine wave
+                phase = (x_pos / total_width) * 2 * math.pi * (1 + curve_intensity)
+                y_offset = amplitude * math.sin(phase)
+                # Tangent angle for rotation
+                rotation_angle = math.degrees(math.atan(
+                    amplitude * 2 * math.pi * (1 + curve_intensity) / total_width * math.cos(phase)
+                ))
+                x_draw = int(x_pos)
+                y_draw = int(img_height / 2 + y_offset)
+
+            # Render character
+            if abs(rotation_angle) > 0.5:
+                # Get original character bbox before rotation
+                temp_char_img = Image.new('RGBA', (char_width + 20, char_height + 20), (255, 255, 255, 0))
+                temp_char_draw = ImageDraw.Draw(temp_char_img)
+                temp_char_draw.text((10, 10), char, font=font, fill='black')
+                original_bbox = temp_char_draw.textbbox((10, 10), char, font=font)
+
+                # Create rotated character image
+                char_img = Image.new('RGBA', (char_width + 60, char_height + 60), (255, 255, 255, 0))
+                char_draw = ImageDraw.Draw(char_img)
+                char_center_x = 30
+                char_center_y = 30
+                char_draw.text((char_center_x, char_center_y), char, font=font, fill='black')
+                rotated = char_img.rotate(-rotation_angle, expand=True, fillcolor=(255, 255, 255, 0))
+
+                # Paste with transparency
+                paste_x = int(x_draw - rotated.width / 2)
+                paste_y = int(y_draw - rotated.height / 2)
+                if image.mode != 'RGBA':
+                    image = image.convert('RGBA')
+                image.paste(rotated, (paste_x, paste_y), rotated)
+
+                # Calculate accurate bbox using rotation matrix
+                # Original bbox corners relative to character center
+                orig_x0, orig_y0, orig_x1, orig_y1 = original_bbox
+                cx, cy = 10 + (orig_x1 - orig_x0) / 2, 10 + (orig_y1 - orig_y0) / 2
+
+                corners = [
+                    (orig_x0 - 10, orig_y0 - 10),  # top-left
+                    (orig_x1 - 10, orig_y0 - 10),  # top-right
+                    (orig_x1 - 10, orig_y1 - 10),  # bottom-right
+                    (orig_x0 - 10, orig_y1 - 10),  # bottom-left
+                ]
+
+                # Apply rotation matrix to each corner
+                angle_rad = math.radians(-rotation_angle)
+                cos_a = math.cos(angle_rad)
+                sin_a = math.sin(angle_rad)
+
+                rotated_corners = []
+                for x, y in corners:
+                    # Rotate around origin
+                    new_x = x * cos_a - y * sin_a
+                    new_y = x * sin_a + y * cos_a
+                    # Translate to actual position
+                    rotated_corners.append((new_x + x_draw, new_y + y_draw))
+
+                # Find bounding box of rotated corners
+                xs = [corner[0] for corner in rotated_corners]
+                ys = [corner[1] for corner in rotated_corners]
+                bbox = [min(xs), min(ys), max(xs), max(ys)]
+            else:
+                # Straight character
+                draw.text((x_draw, y_draw - char_height/2), char, font=font, fill='black')
+                bbox = [x_draw, y_draw - char_height/2,
+                       x_draw + char_width, y_draw + char_height/2]
+
+            char_boxes.append(CharacterBox(char, bbox))
+            x_pos += char_width
+
+        # Convert back to RGB if needed
+        if image.mode == 'RGBA':
+            rgb_image = Image.new('RGB', image.size, 'white')
+            rgb_image.paste(image, mask=image.split()[3])
+            image = rgb_image
+
+        return image, char_boxes
+
     def load_font(self, font_path: str, size: int) -> ImageFont.FreeTypeFont:
         """
         Load a TrueType/OpenType font.
@@ -287,6 +452,336 @@ class OCRDataGenerator:
 
         return image, char_boxes
 
+    def render_top_to_bottom_curved(self,
+                                    text: str,
+                                    font: ImageFont.FreeTypeFont,
+                                    curve_type: str = 'arc',
+                                    curve_intensity: float = 0.3) -> Tuple[Image.Image, List[CharacterBox]]:
+        """
+        Render text along a curved vertical baseline from top to bottom.
+
+        Args:
+            text: Text to render
+            font: Font to use
+            curve_type: 'arc' for circular arc, 'sine' for wave
+            curve_intensity: Strength of curve (0.0-1.0)
+
+        Returns:
+            Tuple of (image, character_boxes)
+        """
+        import math
+
+        # Handle empty text
+        if not text:
+            empty_img = Image.new('RGB', (10, 10), color='white')
+            return empty_img, []
+
+        # Handle zero or negative intensity - fall back to straight rendering
+        if curve_intensity <= 0.0:
+            return self.render_top_to_bottom(text, font)
+
+        # Measure characters
+        temp_img = Image.new('RGBA', (1, 1))
+        temp_draw = ImageDraw.Draw(temp_img)
+
+        char_info = []
+        for char in text:
+            bbox = temp_draw.textbbox((0, 0), char, font=font)
+            width = bbox[2] - bbox[0]
+            height = bbox[3] - bbox[1]
+            char_info.append({'char': char, 'width': width, 'height': height})
+
+        total_height = sum(c['height'] for c in char_info)
+        max_width = max(c['width'] for c in char_info) if char_info else 20
+
+        # Prevent division by zero
+        if total_height == 0:
+            empty_img = Image.new('RGB', (10, 10), color='white')
+            return empty_img, []
+
+        # Clamp intensity to reasonable range
+        curve_intensity = max(0.01, min(curve_intensity, 1.0))
+
+        # Calculate curve parameters
+        if curve_type == 'arc':
+            # Circular arc for vertical text
+            base_radius = total_height / (2 * curve_intensity)
+            radius = max(base_radius, total_height)
+            arc_width = (total_height ** 2) / (8 * radius)
+            curve_width = int(arc_width * 2 + max_width + 80)
+        else:  # sine wave
+            wavelength = total_height
+            amplitude = max_width * curve_intensity * 1.5
+            curve_width = int(max_width + amplitude * 2 + 80)
+
+        # Create oversized canvas
+        img_height = int(total_height + 100)
+        img_width = curve_width
+        image = Image.new('RGB', (img_width, img_height), color='white')
+        draw = ImageDraw.Draw(image)
+
+        # Render characters along vertical curve
+        char_boxes = []
+        y_pos = 50
+
+        for info in char_info:
+            char = info['char']
+            char_width = info['width']
+            char_height = info['height']
+
+            # Calculate position and rotation for vertical curve
+            if curve_type == 'arc':
+                # Position on vertical arc
+                theta = (y_pos - total_height/2 - 50) / radius
+                x_offset = radius * (1 - math.cos(theta)) if radius > 0 else 0
+                rotation_angle = math.degrees(theta)
+                y_draw = int(y_pos)
+                x_draw = int(img_width / 2 - x_offset)
+            else:  # sine
+                # Sine wave for vertical text
+                phase = (y_pos / total_height) * 2 * math.pi * (1 + curve_intensity)
+                x_offset = amplitude * math.sin(phase)
+                # Tangent angle for rotation
+                rotation_angle = math.degrees(math.atan(
+                    amplitude * 2 * math.pi * (1 + curve_intensity) / total_height * math.cos(phase)
+                ))
+                y_draw = int(y_pos)
+                x_draw = int(img_width / 2 + x_offset)
+
+            # Render character
+            if abs(rotation_angle) > 0.5:
+                # Get original character bbox before rotation
+                temp_char_img = Image.new('RGBA', (char_width + 20, char_height + 20), (255, 255, 255, 0))
+                temp_char_draw = ImageDraw.Draw(temp_char_img)
+                temp_char_draw.text((10, 10), char, font=font, fill='black')
+                original_bbox = temp_char_draw.textbbox((10, 10), char, font=font)
+
+                # Create rotated character image
+                char_img = Image.new('RGBA', (char_width + 60, char_height + 60), (255, 255, 255, 0))
+                char_draw = ImageDraw.Draw(char_img)
+                char_center_x = 30
+                char_center_y = 30
+                char_draw.text((char_center_x, char_center_y), char, font=font, fill='black')
+                rotated = char_img.rotate(-rotation_angle, expand=True, fillcolor=(255, 255, 255, 0))
+
+                # Paste with transparency
+                paste_x = int(x_draw - rotated.width / 2)
+                paste_y = int(y_draw - rotated.height / 2)
+                if image.mode != 'RGBA':
+                    image = image.convert('RGBA')
+                image.paste(rotated, (paste_x, paste_y), rotated)
+
+                # Calculate accurate bbox using rotation matrix
+                orig_x0, orig_y0, orig_x1, orig_y1 = original_bbox
+
+                corners = [
+                    (orig_x0 - 10, orig_y0 - 10),  # top-left
+                    (orig_x1 - 10, orig_y0 - 10),  # top-right
+                    (orig_x1 - 10, orig_y1 - 10),  # bottom-right
+                    (orig_x0 - 10, orig_y1 - 10),  # bottom-left
+                ]
+
+                # Apply rotation matrix to each corner
+                angle_rad = math.radians(-rotation_angle)
+                cos_a = math.cos(angle_rad)
+                sin_a = math.sin(angle_rad)
+
+                rotated_corners = []
+                for x, y in corners:
+                    # Rotate around origin
+                    new_x = x * cos_a - y * sin_a
+                    new_y = x * sin_a + y * cos_a
+                    # Translate to actual position
+                    rotated_corners.append((new_x + x_draw, new_y + y_draw))
+
+                # Find bounding box of rotated corners
+                xs = [corner[0] for corner in rotated_corners]
+                ys = [corner[1] for corner in rotated_corners]
+                bbox = [min(xs), min(ys), max(xs), max(ys)]
+            else:
+                # Straight character
+                draw.text((x_draw - char_width/2, y_draw), char, font=font, fill='black')
+                bbox = [x_draw - char_width/2, y_draw,
+                       x_draw + char_width/2, y_draw + char_height]
+
+            char_boxes.append(CharacterBox(char, bbox))
+            y_pos += char_height
+
+        # Convert back to RGB if needed
+        if image.mode == 'RGBA':
+            rgb_image = Image.new('RGB', image.size, 'white')
+            rgb_image.paste(image, mask=image.split()[3])
+            image = rgb_image
+
+        return image, char_boxes
+
+    def render_bottom_to_top_curved(self,
+                                    text: str,
+                                    font: ImageFont.FreeTypeFont,
+                                    curve_type: str = 'arc',
+                                    curve_intensity: float = 0.3) -> Tuple[Image.Image, List[CharacterBox]]:
+        """
+        Render text along a curved vertical baseline from bottom to top.
+
+        Args:
+            text: Text to render
+            font: Font to use
+            curve_type: 'arc' for circular arc, 'sine' for wave
+            curve_intensity: Strength of curve (0.0-1.0)
+
+        Returns:
+            Tuple of (image, character_boxes)
+        """
+        import math
+
+        # Handle empty text
+        if not text:
+            empty_img = Image.new('RGB', (10, 10), color='white')
+            return empty_img, []
+
+        # Handle zero or negative intensity - fall back to straight rendering
+        if curve_intensity <= 0.0:
+            return self.render_bottom_to_top(text, font)
+
+        # Measure characters
+        temp_img = Image.new('RGBA', (1, 1))
+        temp_draw = ImageDraw.Draw(temp_img)
+
+        char_info = []
+        for char in text:
+            bbox = temp_draw.textbbox((0, 0), char, font=font)
+            width = bbox[2] - bbox[0]
+            height = bbox[3] - bbox[1]
+            char_info.append({'char': char, 'width': width, 'height': height})
+
+        total_height = sum(c['height'] for c in char_info)
+        max_width = max(c['width'] for c in char_info) if char_info else 20
+
+        # Prevent division by zero
+        if total_height == 0:
+            empty_img = Image.new('RGB', (10, 10), color='white')
+            return empty_img, []
+
+        # Clamp intensity to reasonable range
+        curve_intensity = max(0.01, min(curve_intensity, 1.0))
+
+        # Calculate curve parameters
+        if curve_type == 'arc':
+            # Circular arc for vertical text
+            base_radius = total_height / (2 * curve_intensity)
+            radius = max(base_radius, total_height)
+            arc_width = (total_height ** 2) / (8 * radius)
+            curve_width = int(arc_width * 2 + max_width + 80)
+        else:  # sine wave
+            wavelength = total_height
+            amplitude = max_width * curve_intensity * 1.5
+            curve_width = int(max_width + amplitude * 2 + 80)
+
+        # Create oversized canvas
+        img_height = int(total_height + 100)
+        img_width = curve_width
+        image = Image.new('RGB', (img_width, img_height), color='white')
+        draw = ImageDraw.Draw(image)
+
+        # Render characters along vertical curve (bottom to top)
+        char_boxes = []
+        y_pos = img_height - 50  # Start from bottom
+
+        for info in char_info:
+            char = info['char']
+            char_width = info['width']
+            char_height = info['height']
+
+            # Move up by character height first (bottom-to-top)
+            y_pos -= char_height
+
+            # Calculate position and rotation for vertical curve
+            # Invert the curve direction for bottom-to-top
+            if curve_type == 'arc':
+                # Position on vertical arc (inverted)
+                theta = (y_pos - total_height/2 - 50) / radius
+                x_offset = radius * (1 - math.cos(theta)) if radius > 0 else 0
+                # Invert the curve by negating x_offset
+                rotation_angle = math.degrees(theta)
+                y_draw = int(y_pos)
+                x_draw = int(img_width / 2 + x_offset)  # Note: + instead of -
+            else:  # sine
+                # Sine wave for vertical text (inverted phase)
+                phase = (y_pos / total_height) * 2 * math.pi * (1 + curve_intensity)
+                x_offset = amplitude * math.sin(phase)
+                # Tangent angle for rotation
+                rotation_angle = math.degrees(math.atan(
+                    amplitude * 2 * math.pi * (1 + curve_intensity) / total_height * math.cos(phase)
+                ))
+                y_draw = int(y_pos)
+                x_draw = int(img_width / 2 - x_offset)  # Note: - instead of +
+
+            # Render character
+            if abs(rotation_angle) > 0.5:
+                # Get original character bbox before rotation
+                temp_char_img = Image.new('RGBA', (char_width + 20, char_height + 20), (255, 255, 255, 0))
+                temp_char_draw = ImageDraw.Draw(temp_char_img)
+                temp_char_draw.text((10, 10), char, font=font, fill='black')
+                original_bbox = temp_char_draw.textbbox((10, 10), char, font=font)
+
+                # Create rotated character image
+                char_img = Image.new('RGBA', (char_width + 60, char_height + 60), (255, 255, 255, 0))
+                char_draw = ImageDraw.Draw(char_img)
+                char_center_x = 30
+                char_center_y = 30
+                char_draw.text((char_center_x, char_center_y), char, font=font, fill='black')
+                rotated = char_img.rotate(-rotation_angle, expand=True, fillcolor=(255, 255, 255, 0))
+
+                # Paste with transparency
+                paste_x = int(x_draw - rotated.width / 2)
+                paste_y = int(y_draw - rotated.height / 2)
+                if image.mode != 'RGBA':
+                    image = image.convert('RGBA')
+                image.paste(rotated, (paste_x, paste_y), rotated)
+
+                # Calculate accurate bbox using rotation matrix
+                orig_x0, orig_y0, orig_x1, orig_y1 = original_bbox
+
+                corners = [
+                    (orig_x0 - 10, orig_y0 - 10),  # top-left
+                    (orig_x1 - 10, orig_y0 - 10),  # top-right
+                    (orig_x1 - 10, orig_y1 - 10),  # bottom-right
+                    (orig_x0 - 10, orig_y1 - 10),  # bottom-left
+                ]
+
+                # Apply rotation matrix to each corner
+                angle_rad = math.radians(-rotation_angle)
+                cos_a = math.cos(angle_rad)
+                sin_a = math.sin(angle_rad)
+
+                rotated_corners = []
+                for x, y in corners:
+                    # Rotate around origin
+                    new_x = x * cos_a - y * sin_a
+                    new_y = x * sin_a + y * cos_a
+                    # Translate to actual position
+                    rotated_corners.append((new_x + x_draw, new_y + y_draw))
+
+                # Find bounding box of rotated corners
+                xs = [corner[0] for corner in rotated_corners]
+                ys = [corner[1] for corner in rotated_corners]
+                bbox = [min(xs), min(ys), max(xs), max(ys)]
+            else:
+                # Straight character
+                draw.text((x_draw - char_width/2, y_draw), char, font=font, fill='black')
+                bbox = [x_draw - char_width/2, y_draw,
+                       x_draw + char_width/2, y_draw + char_height]
+
+            char_boxes.append(CharacterBox(char, bbox))
+
+        # Convert back to RGB if needed
+        if image.mode == 'RGBA':
+            rgb_image = Image.new('RGB', image.size, 'white')
+            rgb_image.paste(image, mask=image.split()[3])
+            image = rgb_image
+
+        return image, char_boxes
+
     def render_text(self,
                    text: str,
                    font: ImageFont.FreeTypeFont,
@@ -317,7 +812,9 @@ class OCRDataGenerator:
                       text: str,
                       font_path: str,
                       font_size: int,
-                      direction: str) -> Tuple[Image.Image, List[List[float]], str]:
+                      direction: str,
+                      curve_type: str = 'none',
+                      curve_intensity: float = 0.0) -> Tuple[Image.Image, List[List[float]], str]:
         """
         Generate a single synthetic OCR image with augmentations.
 
@@ -326,6 +823,8 @@ class OCRDataGenerator:
             font_path: Path to font file
             font_size: Font size in points
             direction: Text direction
+            curve_type: Type of text curvature ('none', 'arc', 'sine')
+            curve_intensity: Strength of curve (0.0-1.0)
 
         Returns:
             Tuple of (augmented_image, character_bboxes, text)
@@ -334,7 +833,12 @@ class OCRDataGenerator:
         font = self.load_font(font_path, font_size)
 
         # Render text with character bboxes
-        image, char_boxes = self.render_text(text, font, direction)
+        if curve_type != 'none' and curve_intensity > 0 and direction == 'left_to_right':
+            # Use curved rendering for LTR text
+            image, char_boxes = self.render_curved_text(text, font, curve_type, curve_intensity)
+        else:
+            # Use standard rendering
+            image, char_boxes = self.render_text(text, font, direction)
 
         # Extract just the bbox coordinates
         char_bboxes = [box.bbox for box in char_boxes]
@@ -559,7 +1063,9 @@ def generate_with_batches(batch_config, font_files, background_images, args):
             try:
                 # Generate image with augmentations
                 augmented_image, augmented_bboxes, text = generator.generate_image(
-                    text_line, font_path, font_size, task['text_direction']
+                    text_line, font_path, font_size, task['text_direction'],
+                    curve_type=task.get('curve_type', 'none'),
+                    curve_intensity=task.get('curve_intensity', 0.0)
                 )
 
                 # Save image

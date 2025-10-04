@@ -29,6 +29,8 @@ class BatchSpecification:
     font_weights: Dict[str, float] = field(default_factory=dict)
     min_text_length: int = 5
     max_text_length: int = 25
+    curve_type: str = "none"  # 'none', 'arc', 'sine', 'random'
+    curve_intensity: float = 0.0  # 0.0-1.0
     augmentation_params: Dict[str, Any] = field(default_factory=dict)
 
     def __post_init__(self):
@@ -101,6 +103,8 @@ class BatchConfig:
                 font_weights=batch_data.get('font_weights', {}),
                 min_text_length=batch_data.get('min_text_length', 5),
                 max_text_length=batch_data.get('max_text_length', 25),
+                curve_type=batch_data.get('curve_type', 'none'),
+                curve_intensity=batch_data.get('curve_intensity', 0.0),
                 augmentation_params=batch_data.get('augmentation_params', {})
             )
             batches.append(batch)
@@ -205,6 +209,12 @@ class BatchManager:
         else:
             direction = batch.text_direction
 
+        # Determine curve parameters
+        curve_type = batch.curve_type
+        if curve_type == 'random':
+            curve_type = random.choice(['none', 'arc', 'sine'])
+        curve_intensity = batch.curve_intensity
+
         # Create task
         task = {
             'batch_name': batch.name,
@@ -213,6 +223,8 @@ class BatchManager:
             'corpus_file': batch.corpus_file,
             'min_text_length': batch.min_text_length,
             'max_text_length': batch.max_text_length,
+            'curve_type': curve_type,
+            'curve_intensity': curve_intensity,
             'augmentation_params': batch.augmentation_params,
             'progress': f"{alloc['generated_count']+1}/{alloc['target_count']}"
         }

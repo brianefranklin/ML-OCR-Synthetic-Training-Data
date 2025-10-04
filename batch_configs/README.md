@@ -40,6 +40,8 @@ batches:
 | `font_weights` | dict | {} | Font weight multipliers (pattern: weight) |
 | `min_text_length` | int | 5 | Minimum text length in characters |
 | `max_text_length` | int | 25 | Maximum text length in characters |
+| `curve_type` | string | "none" | Text curvature: "none", "arc", "sine", or "random" |
+| `curve_intensity` | float | 0.0 | Curvature strength (0.0-1.0) |
 
 ### Font Filters
 
@@ -64,6 +66,42 @@ font_weights:
 ```
 
 Higher weights = more likely to be selected.
+
+### Text Curvature
+
+Add realistic curves to text for more varied training data:
+
+```yaml
+# No curvature (straight line)
+curve_type: none
+curve_intensity: 0.0
+
+# Circular arc (like text on a curved surface)
+curve_type: arc
+curve_intensity: 0.3  # 0.0-1.0, higher = more curve
+
+# Sine wave (wavy text)
+curve_type: sine
+curve_intensity: 0.4  # 0.0-1.0, higher = more wavy
+
+# Random selection per image
+curve_type: random  # Chooses none/arc/sine randomly
+curve_intensity: 0.3
+```
+
+**Curvature Types:**
+- `none` - Straight baseline (default)
+- `arc` - Circular arc path (realistic for curved surfaces, signs)
+- `sine` - Sine wave pattern (wavy/distorted text)
+- `random` - Randomly chooses arc or sine for each image
+
+**Intensity Guidelines:**
+- `0.0-0.2` - Subtle curve (realistic documents)
+- `0.2-0.4` - Moderate curve (street signs, labels)
+- `0.4-0.6` - Strong curve (artistic/distorted)
+- `0.6-1.0` - Extreme curve (special effects)
+
+**Note:** Curvature currently works for `left_to_right` text direction.
 
 ## Example Configurations
 

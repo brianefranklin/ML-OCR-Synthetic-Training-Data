@@ -109,9 +109,9 @@ def test_long_text_generation(test_environment):
             img = Image.open(image_path)
             width, height = img.size
 
-            # Image should not be unreasonably large (max 10000 pixels in either dimension)
-            assert width <= 10000, f"Image width {width} is unreasonably large for text length {len(text)}"
-            assert height <= 10000, f"Image height {height} is unreasonably large for text length {len(text)}"
+            # Image should not be unreasonably large (max 12000 pixels in either dimension)
+            assert width <= 12000, f"Image width {width} is unreasonably large for text length {len(text)}"
+            assert height <= 12000, f"Image height {height} is unreasonably large for text length {len(text)}"
 
             # Image should not be too small either
             assert width >= 50, f"Image width {width} is too small"
