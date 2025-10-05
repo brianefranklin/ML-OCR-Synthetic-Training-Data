@@ -1,0 +1,450 @@
+# Comprehensive Left-to-Right Batch Configuration
+# Samples ALL available features for LTR text generation
+# Total: 1000 images
+
+total_images: 1000
+seed: 42
+
+batches:
+  # Batch 1: Plain text - baseline (10%)
+  - name: plain_baseline
+    proportion: 0.10
+    text_direction: left_to_right
+    min_text_length: 5
+    max_text_length: 25
+    # No effects - pure baseline
+    overlap_intensity: 0.0
+    ink_bleed_intensity: 0.0
+    effect_type: none
+    curve_type: none
+    text_color_mode: uniform
+    color_palette: realistic_dark
+    background_color: auto
+
+  # Batch 2: Glyph overlap variations (10%)
+  - name: overlap_variations
+    proportion: 0.10
+    text_direction: left_to_right
+    min_text_length: 8
+    max_text_length: 20
+    # Overlap range: 0.2-0.7
+    overlap_intensity: 0.4
+    ink_bleed_intensity: 0.0
+    effect_type: none
+    curve_type: none
+    text_color_mode: uniform
+    color_palette: realistic_dark
+
+  # Batch 3: Ink bleed effects (8%)
+  - name: ink_bleed_effects
+    proportion: 0.08
+    text_direction: left_to_right
+    min_text_length: 10
+    max_text_length: 30
+    overlap_intensity: 0.0
+    # Moderate to heavy ink bleed
+    ink_bleed_intensity: 0.5
+    effect_type: none
+    curve_type: none
+    text_color_mode: uniform
+    color_palette: realistic_dark
+
+  # Batch 4: Overlap + Ink bleed (ancient manuscript) (8%)
+  - name: ancient_manuscript
+    proportion: 0.08
+    text_direction: left_to_right
+    min_text_length: 12
+    max_text_length: 28
+    overlap_intensity: 0.5
+    ink_bleed_intensity: 0.4
+    effect_type: none
+    curve_type: none
+    text_color_mode: uniform
+    color_palette: realistic_dark
+
+  # Batch 5: Arc curves - subtle (6%)
+  - name: arc_curves_subtle
+    proportion: 0.06
+    text_direction: left_to_right
+    min_text_length: 8
+    max_text_length: 20
+    overlap_intensity: 0.0
+    ink_bleed_intensity: 0.0
+    effect_type: none
+    curve_type: arc
+    curve_intensity: 0.25
+    text_color_mode: uniform
+    color_palette: realistic_dark
+
+  # Batch 6: Arc curves - moderate to strong (6%)
+  - name: arc_curves_strong
+    proportion: 0.06
+    text_direction: left_to_right
+    min_text_length: 6
+    max_text_length: 18
+    overlap_intensity: 0.0
+    ink_bleed_intensity: 0.0
+    effect_type: none
+    curve_type: arc
+    curve_intensity: 0.5
+    text_color_mode: uniform
+    color_palette: realistic_dark
+
+  # Batch 7: Sine wave curves (6%)
+  - name: sine_wave_curves
+    proportion: 0.06
+    text_direction: left_to_right
+    min_text_length: 8
+    max_text_length: 22
+    overlap_intensity: 0.0
+    ink_bleed_intensity: 0.0
+    effect_type: none
+    curve_type: sine
+    curve_intensity: 0.35
+    text_color_mode: uniform
+    color_palette: realistic_dark
+
+  # Batch 8: 3D Raised effect (5%)
+  - name: raised_3d
+    proportion: 0.05
+    text_direction: left_to_right
+    min_text_length: 6
+    max_text_length: 18
+    overlap_intensity: 0.0
+    ink_bleed_intensity: 0.0
+    effect_type: raised
+    effect_depth: 0.6
+    light_azimuth: 135.0
+    light_elevation: 45.0
+    curve_type: none
+    text_color_mode: uniform
+    color_palette: realistic_dark
+
+  # Batch 9: 3D Embossed effect (5%)
+  - name: embossed_3d
+    proportion: 0.05
+    text_direction: left_to_right
+    min_text_length: 6
+    max_text_length: 18
+    overlap_intensity: 0.0
+    ink_bleed_intensity: 0.0
+    effect_type: embossed
+    effect_depth: 0.5
+    light_azimuth: 120.0
+    light_elevation: 50.0
+    curve_type: none
+    text_color_mode: uniform
+    color_palette: realistic_dark
+
+  # Batch 10: 3D Engraved effect (5%)
+  - name: engraved_3d
+    proportion: 0.05
+    text_direction: left_to_right
+    min_text_length: 6
+    max_text_length: 18
+    overlap_intensity: 0.0
+    ink_bleed_intensity: 0.0
+    effect_type: engraved
+    effect_depth: 0.7
+    light_azimuth: 90.0
+    light_elevation: 40.0
+    curve_type: none
+    text_color_mode: uniform
+    color_palette: realistic_dark
+
+  # Batch 11: Vibrant colors - uniform (4%)
+  - name: vibrant_uniform
+    proportion: 0.04
+    text_direction: left_to_right
+    min_text_length: 8
+    max_text_length: 20
+    overlap_intensity: 0.0
+    ink_bleed_intensity: 0.0
+    effect_type: none
+    curve_type: none
+    text_color_mode: uniform
+    color_palette: vibrant
+    background_color: auto
+
+  # Batch 12: Vibrant colors - per glyph (4%)
+  - name: vibrant_per_glyph
+    proportion: 0.04
+    text_direction: left_to_right
+    min_text_length: 8
+    max_text_length: 20
+    overlap_intensity: 0.0
+    ink_bleed_intensity: 0.0
+    effect_type: none
+    curve_type: none
+    text_color_mode: per_glyph
+    color_palette: vibrant
+    background_color: auto
+
+  # Batch 13: Gradient colors (3%)
+  - name: gradient_colors
+    proportion: 0.03
+    text_direction: left_to_right
+    min_text_length: 10
+    max_text_length: 25
+    overlap_intensity: 0.0
+    ink_bleed_intensity: 0.0
+    effect_type: none
+    curve_type: none
+    text_color_mode: gradient
+    color_palette: vibrant
+    background_color: auto
+
+  # Batch 14: Pastel colors - per glyph (3%)
+  - name: pastels_per_glyph
+    proportion: 0.03
+    text_direction: left_to_right
+    min_text_length: 8
+    max_text_length: 20
+    overlap_intensity: 0.0
+    ink_bleed_intensity: 0.0
+    effect_type: none
+    curve_type: none
+    text_color_mode: per_glyph
+    color_palette: pastels
+    background_color: auto
+
+  # Batch 15: Realistic light colors (3%)
+  - name: realistic_light
+    proportion: 0.03
+    text_direction: left_to_right
+    min_text_length: 8
+    max_text_length: 20
+    overlap_intensity: 0.0
+    ink_bleed_intensity: 0.0
+    effect_type: none
+    curve_type: none
+    text_color_mode: uniform
+    color_palette: realistic_light
+    background_color: auto
+
+  # Batch 16: Embossed + Arc curves (4%)
+  - name: embossed_curved_signage
+    proportion: 0.04
+    text_direction: left_to_right
+    min_text_length: 6
+    max_text_length: 15
+    overlap_intensity: 0.0
+    ink_bleed_intensity: 0.0
+    effect_type: embossed
+    effect_depth: 0.6
+    light_azimuth: 135.0
+    light_elevation: 50.0
+    curve_type: arc
+    curve_intensity: 0.3
+    text_color_mode: uniform
+    color_palette: realistic_dark
+
+  # Batch 17: Raised + Sine curves + Overlap (handwriting style) (3%)
+  - name: raised_handwriting
+    proportion: 0.03
+    text_direction: left_to_right
+    min_text_length: 8
+    max_text_length: 18
+    overlap_intensity: 0.25
+    ink_bleed_intensity: 0.0
+    effect_type: raised
+    effect_depth: 0.4
+    light_azimuth: 120.0
+    light_elevation: 35.0
+    curve_type: sine
+    curve_intensity: 0.2
+    text_color_mode: uniform
+    color_palette: realistic_dark
+
+  # Batch 18: Engraved + Overlap + Ink bleed (ancient carved) (3%)
+  - name: engraved_ancient
+    proportion: 0.03
+    text_direction: left_to_right
+    min_text_length: 10
+    max_text_length: 25
+    overlap_intensity: 0.4
+    ink_bleed_intensity: 0.3
+    effect_type: engraved
+    effect_depth: 0.5
+    light_azimuth: 90.0
+    light_elevation: 40.0
+    curve_type: none
+    text_color_mode: uniform
+    color_palette: realistic_dark
+
+  # Batch 19: Vibrant per-glyph + Arc curves (colorful signs) (2%)
+  - name: vibrant_curved_signs
+    proportion: 0.02
+    text_direction: left_to_right
+    min_text_length: 6
+    max_text_length: 15
+    overlap_intensity: 0.0
+    ink_bleed_intensity: 0.0
+    effect_type: none
+    curve_type: arc
+    curve_intensity: 0.35
+    text_color_mode: per_glyph
+    color_palette: vibrant
+    background_color: auto
+
+  # Batch 20: Embossed + Vibrant colors (2%)
+  - name: embossed_vibrant
+    proportion: 0.02
+    text_direction: left_to_right
+    min_text_length: 6
+    max_text_length: 18
+    overlap_intensity: 0.0
+    ink_bleed_intensity: 0.0
+    effect_type: embossed
+    effect_depth: 0.5
+    light_azimuth: 135.0
+    light_elevation: 45.0
+    curve_type: none
+    text_color_mode: uniform
+    color_palette: vibrant
+    background_color: auto
+
+  # Batch 21: Pastels gradient + Sine curves (2%)
+  - name: pastels_gradient_wavy
+    proportion: 0.02
+    text_direction: left_to_right
+    min_text_length: 10
+    max_text_length: 22
+    overlap_intensity: 0.0
+    ink_bleed_intensity: 0.0
+    effect_type: none
+    curve_type: sine
+    curve_intensity: 0.3
+    text_color_mode: gradient
+    color_palette: pastels
+    background_color: auto
+
+  # Batch 22: All effects combined - extreme (1%)
+  - name: kitchen_sink
+    proportion: 0.01
+    text_direction: left_to_right
+    min_text_length: 8
+    max_text_length: 18
+    overlap_intensity: 0.3
+    ink_bleed_intensity: 0.25
+    effect_type: embossed
+    effect_depth: 0.5
+    light_azimuth: 135.0
+    light_elevation: 45.0
+    curve_type: arc
+    curve_intensity: 0.3
+    text_color_mode: per_glyph
+    color_palette: vibrant
+    background_color: auto
+
+  # Batch 23: Short text variations (2%)
+  - name: short_text
+    proportion: 0.02
+    text_direction: left_to_right
+    min_text_length: 3
+    max_text_length: 8
+    overlap_intensity: 0.0
+    ink_bleed_intensity: 0.0
+    effect_type: none
+    curve_type: none
+    text_color_mode: uniform
+    color_palette: realistic_dark
+
+  # Batch 24: Long text variations (2%)
+  - name: long_text
+    proportion: 0.02
+    text_direction: left_to_right
+    min_text_length: 30
+    max_text_length: 50
+    overlap_intensity: 0.0
+    ink_bleed_intensity: 0.0
+    effect_type: none
+    curve_type: none
+    text_color_mode: uniform
+    color_palette: realistic_dark
+
+  # Batch 25: Variable lighting - low angle (1%)
+  - name: low_angle_light
+    proportion: 0.01
+    text_direction: left_to_right
+    min_text_length: 8
+    max_text_length: 18
+    overlap_intensity: 0.0
+    ink_bleed_intensity: 0.0
+    effect_type: embossed
+    effect_depth: 0.6
+    light_azimuth: 90.0
+    light_elevation: 20.0
+    curve_type: none
+    text_color_mode: uniform
+    color_palette: realistic_dark
+
+  # Batch 26: Variable lighting - high angle (1%)
+  - name: high_angle_light
+    proportion: 0.01
+    text_direction: left_to_right
+    min_text_length: 8
+    max_text_length: 18
+    overlap_intensity: 0.0
+    ink_bleed_intensity: 0.0
+    effect_type: embossed
+    effect_depth: 0.6
+    light_azimuth: 180.0
+    light_elevation: 80.0
+    curve_type: none
+    text_color_mode: uniform
+    color_palette: realistic_dark
+
+  # Batch 27: Heavy overlap (cursive style) (1%)
+  - name: heavy_overlap_cursive
+    proportion: 0.01
+    text_direction: left_to_right
+    min_text_length: 10
+    max_text_length: 20
+    overlap_intensity: 0.7
+    ink_bleed_intensity: 0.0
+    effect_type: none
+    curve_type: none
+    text_color_mode: uniform
+    color_palette: realistic_dark
+
+  # Batch 28: Heavy ink bleed (aged documents) (1%)
+  - name: heavy_ink_bleed
+    proportion: 0.01
+    text_direction: left_to_right
+    min_text_length: 10
+    max_text_length: 25
+    overlap_intensity: 0.0
+    ink_bleed_intensity: 0.8
+    effect_type: none
+    curve_type: none
+    text_color_mode: uniform
+    color_palette: realistic_dark
+
+  # Batch 29: Extreme arc curves (1%)
+  - name: extreme_arc
+    proportion: 0.01
+    text_direction: left_to_right
+    min_text_length: 6
+    max_text_length: 15
+    overlap_intensity: 0.0
+    ink_bleed_intensity: 0.0
+    effect_type: none
+    curve_type: arc
+    curve_intensity: 0.8
+    text_color_mode: uniform
+    color_palette: realistic_dark
+
+  # Batch 30: Extreme sine waves (1%)
+  - name: extreme_sine
+    proportion: 0.01
+    text_direction: left_to_right
+    min_text_length: 8
+    max_text_length: 20
+    overlap_intensity: 0.0
+    ink_bleed_intensity: 0.0
+    effect_type: none
+    curve_type: sine
+    curve_intensity: 0.7
+    text_color_mode: uniform
+    color_palette: realistic_dark
