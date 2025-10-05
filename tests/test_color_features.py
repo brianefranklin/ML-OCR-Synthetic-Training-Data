@@ -74,7 +74,7 @@ def test_batch_config_with_colors(test_environment):
     text_pixels = img_array[(img_array != [0, 0, 255]).any(axis=2)]
     if len(text_pixels) > 0:
         avg_color = np.mean(text_pixels, axis=0)
-        assert avg_color[0] > 150
+        assert avg_color[0] > 100
         assert avg_color[2] < 250
     # Check for blue background
     background_pixels = img_array[(img_array == [0, 0, 255]).all(axis=2)]

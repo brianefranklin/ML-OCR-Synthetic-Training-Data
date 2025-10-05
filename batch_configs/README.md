@@ -48,6 +48,10 @@ batches:
 | `effect_depth` | float | 0.5 | 3D effect depth intensity (0.0-1.0) |
 | `light_azimuth` | float | 135.0 | Light direction angle (0-360 degrees) |
 | `light_elevation` | float | 45.0 | Light elevation angle (0-90 degrees) |
+| `text_color_mode` | string | "uniform" | Color mode: "uniform", "per_glyph", "gradient", or "random" |
+| `color_palette` | string | "realistic_dark" | Color palette: "realistic_dark", "realistic_light", "vibrant", or "pastels" |
+| `custom_colors` | list | [] | List of custom RGB tuples (e.g., [[255, 0, 0], [0, 255, 0]]) |
+| `background_color` | string/list | "auto" | Background color: RGB list, "auto" (contrasting), or color string |
 
 ### Font Filters
 
@@ -232,6 +236,81 @@ curve_type: arc
 curve_intensity: 0.3
 ```
 
+### Text Color
+
+Add realistic and artistic colors to text for varied training data:
+
+```yaml
+# Uniform color (all characters same color per line)
+text_color_mode: uniform
+color_palette: realistic_dark  # All text rendered in dark colors
+
+# Per-glyph color (each character different color)
+text_color_mode: per_glyph
+color_palette: vibrant  # Each char gets a different vibrant color
+
+# Gradient mode (gradient across text)
+text_color_mode: gradient
+color_palette: pastels  # Smooth gradient between first two palette colors
+
+# Random mode (randomly choose uniform or per_glyph)
+text_color_mode: random
+color_palette: realistic_light
+
+# Custom colors (define your own palette)
+text_color_mode: uniform
+custom_colors:
+  - [255, 0, 0]      # Red
+  - [0, 255, 0]      # Green
+  - [0, 0, 255]      # Blue
+
+# Background color (auto-contrast or custom)
+background_color: auto               # Automatically contrasting (default)
+background_color: [255, 255, 255]    # White background
+background_color: [0, 0, 0]          # Black background
+```
+
+**Color Modes:**
+- `uniform` - All characters same color per line (default)
+- `per_glyph` - Each character gets a different color from palette
+- `gradient` - Smooth gradient from first to second palette color
+- `random` - Randomly chooses uniform or per_glyph per image
+
+**Color Palettes:**
+- `realistic_dark` - Black, navy, brown, dark grays (for typical documents)
+- `realistic_light` - White, beige, light blues (for inverted/bright text)
+- `vibrant` - Red, green, blue, yellow, magenta, cyan (high saturation)
+- `pastels` - Light pink, light blue, peach, pale green (soft colors)
+
+**Background Color:**
+- `auto` - Automatically calculates contrasting background (default)
+- RGB list like `[255, 255, 255]` - Custom background color
+- System automatically ensures good contrast with text color
+
+**Language-Agnostic:** Works with all scripts (Latin, Arabic, CJK, etc.)
+
+**Combines well with other effects:**
+```yaml
+# Vibrant curved text
+text_color_mode: per_glyph
+color_palette: vibrant
+curve_type: arc
+curve_intensity: 0.3
+
+# Dark realistic text with 3D emboss
+text_color_mode: uniform
+color_palette: realistic_dark
+effect_type: embossed
+effect_depth: 0.5
+
+# Ancient manuscript with custom colors
+text_color_mode: uniform
+custom_colors: [[139, 69, 19]]  # Saddle brown
+background_color: [245, 245, 220]  # Beige
+overlap_intensity: 0.4
+ink_bleed_intensity: 0.3
+```
+
 ## Example Configurations
 
 ### 1. Simple Example (`simple_example.yaml`)
@@ -275,6 +354,19 @@ curve_intensity: 0.3
 - 25% engraved ancient manuscript (with overlap + ink bleed)
 - 25% raised handwriting (with overlap + wavy curves)
 - 20% embossed vertical text (top-to-bottom)
+
+### 7. Color Examples (`color_samples/`)
+- 10 color configuration examples in `batch_configs/color_samples/`
+- **vibrant_per_glyph.yaml** - Each character different vibrant color
+- **realistic_dark_random.yaml** - Randomly uniform or per-glyph dark colors
+- **realistic_light_per_glyph.yaml** - Light colors with per-glyph variation
+- **pastels_gradient.yaml** - Smooth gradient with pastel colors
+- **custom_gradient.yaml** - Custom color gradient
+- **custom_red_on_yellow.yaml** - Custom red text on yellow background
+- **black_on_white.yaml** - Classic black text on white
+- **white_on_black.yaml** - Inverted white text on black
+- **auto_background.yaml** - Auto-contrasting backgrounds
+- **mixed_color_modes.yaml** - Mix of all color modes
 
 ## Features
 

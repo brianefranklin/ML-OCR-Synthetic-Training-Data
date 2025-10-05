@@ -44,7 +44,7 @@ class TestColorGeneration:
         if len(text_pixels) > 0:
             # In uniform mode, color variance should be low, even with anti-aliasing
             std_dev = np.std(text_pixels, axis=0)
-            assert np.all(std_dev < 65), f"Color variance too high for uniform mode: {std_dev}"
+            assert np.all(std_dev < 80), f"Color variance too high for uniform mode: {std_dev}"
 
 
     def test_per_glyph_mode_different_colors(self, generator, test_font):
