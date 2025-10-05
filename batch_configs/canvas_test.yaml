@@ -1,0 +1,14 @@
+# Canvas placement test configuration
+# Tests the new canvas placement and JSON label format
+
+total_images: 5
+seed: 42
+
+batches:
+  - name: test_canvas
+    proportion: 1.0
+    text_direction: left_to_right
+    min_text_length: 5
+    max_text_length: 15
+    text_color_mode: uniform
+    color_palette: realistic_dark

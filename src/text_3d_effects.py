@@ -120,8 +120,8 @@ class Text3DEffects:
         new_width = image.width + abs(shadow_x) + 10
         new_height = image.height + abs(shadow_y) + 10
 
-        # Create composite image
-        result = Image.new('RGB', (new_width, new_height), 'white')
+        # Create composite image with transparent background
+        result = Image.new('RGBA', (new_width, new_height), (255, 255, 255, 0))
 
         # Position shadow (offset from text)
         shadow_pos_x = max(0, -shadow_x) + 5
@@ -138,7 +138,9 @@ class Text3DEffects:
         if image.mode == 'RGBA':
             result.paste(image, (text_pos_x, text_pos_y), image)
         else:
-            result.paste(image, (text_pos_x, text_pos_y))
+            # Convert to RGBA if needed
+            rgba_image = image.convert('RGBA')
+            result.paste(rgba_image, (text_pos_x, text_pos_y), rgba_image)
 
         return result
 
@@ -204,25 +206,39 @@ class Text3DEffects:
         # Blur shadow
         shadow_shifted = shadow_shifted.filter(ImageFilter.GaussianBlur(radius=1.5))
 
-        # Combine layers
-        result = image.copy().convert('RGB')
+        # Combine layers - preserve RGBA
+        if image.mode == 'RGBA':
+            result = image.copy()
+        else:
+            result = image.copy().convert('RGBA')
 
         # Apply shadow (darken)
-        shadow_strength = int(100 * depth)
-        shadow_overlay = Image.new('RGB', image.size, (0, 0, 0))
-        shadow_alpha = Image.fromarray((np.array(shadow_shifted) * depth).astype(np.uint8))
-        result.paste(shadow_overlay, (0, 0), shadow_alpha)
+        # Shadow alpha is modulated by depth parameter
+        shadow_alpha_data = (np.array(shadow_shifted) * depth).astype(np.uint8)
+        # Create shadow layer with alpha
+        shadow_layer = Image.new('RGBA', image.size, (0, 0, 0, 0))
+        shadow_array = np.array(shadow_layer)
+        shadow_array[:, :, 0:3] = 0  # Black shadow
+        shadow_array[:, :, 3] = shadow_alpha_data
+        shadow_layer = Image.fromarray(shadow_array)
+        result = Image.alpha_composite(result, shadow_layer)
 
         # Apply highlight (lighten)
-        highlight_strength = int(150 * depth)
-        highlight_overlay = Image.new('RGB', image.size, (255, 255, 255))
-        highlight_alpha = Image.fromarray((np.array(highlight_shifted) * depth * 0.7).astype(np.uint8))
-        result = Image.composite(highlight_overlay, result, highlight_alpha)
+        # Highlight is typically softer than shadow (70% strength)
+        highlight_alpha_data = (np.array(highlight_shifted) * depth * 0.7).astype(np.uint8)
+        highlight_layer = Image.new('RGBA', image.size, (255, 255, 255, 0))
+        highlight_array = np.array(highlight_layer)
+        highlight_array[:, :, 0:3] = 255  # White highlight
+        highlight_array[:, :, 3] = highlight_alpha_data
+        highlight_layer = Image.fromarray(highlight_array)
+        result = Image.alpha_composite(result, highlight_layer)
 
         # Paste original text on top for crispness
-        text_alpha = Image.fromarray(text_mask)
-        text_layer = Image.new('RGB', image.size, (0, 0, 0))
-        result.paste(text_layer, (0, 0), text_alpha)
+        if image.mode == 'RGBA':
+            text_layer = image.copy()
+        else:
+            text_layer = image.convert('RGBA')
+        result = Image.alpha_composite(result, text_layer)
 
         return result
 

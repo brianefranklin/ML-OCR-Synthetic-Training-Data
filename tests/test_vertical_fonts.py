@@ -67,16 +67,15 @@ def test_top_to_bottom_text_generation(test_environment, language, corpus, font_
         assert result.returncode == 0, f"Script failed with error:\n{log_contents}"
 
     output_dir = Path(test_environment["output_dir"])
-    labels_file = output_dir / "labels.csv"
-    assert labels_file.exists(), "labels.csv was not created."
+    json_files = list(output_dir.glob("image_*.json"))
+    assert len(json_files) > 0, "JSON label files were not created."
 
-    with open(labels_file, 'r', encoding="utf-8") as f:
-        lines = f.readlines()
-    
     import json
-    filename, json_data = lines[1].strip().split(',', 1)
-    label_data = json.loads(json_data)
-    bboxes = label_data["bboxes"]
+    with open(json_files[0], 'r', encoding="utf-8") as f:
+        label_data = json.load(f)
+
+    filename = label_data["image_file"]
+    bboxes = label_data["char_bboxes"]
 
     # Check that bboxes are generally stacked top to bottom
     # Due to augmentations (rotation, perspective), strict ordering may not hold for every pair
@@ -136,16 +135,15 @@ def test_bottom_to_top_text_generation(test_environment):
         assert result.returncode == 0, f"Script failed with error:\n{log_contents}"
 
     output_dir = Path(test_environment["output_dir"])
-    labels_file = output_dir / "labels.csv"
-    assert labels_file.exists(), "labels.csv was not created."
+    json_files = list(output_dir.glob("image_*.json"))
+    assert len(json_files) > 0, "JSON label files were not created."
 
-    with open(labels_file, 'r', encoding="utf-8") as f:
-        lines = f.readlines()
-    
     import json
-    filename, json_data = lines[1].strip().split(',', 1)
-    label_data = json.loads(json_data)
-    bboxes = label_data["bboxes"]
+    with open(json_files[0], 'r', encoding="utf-8") as f:
+        label_data = json.load(f)
+
+    filename = label_data["image_file"]
+    bboxes = label_data["char_bboxes"]
 
     # Check that bboxes are generally stacked bottom to top
     # Due to augmentations (rotation, perspective), strict ordering may not hold for every pair

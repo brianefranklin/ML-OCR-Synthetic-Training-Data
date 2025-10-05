@@ -19,18 +19,21 @@ def cv2_to_pil(cv2_image):
 def add_noise(image):
     """Adds random 'salt and pepper' noise to a Pillow image."""
     logging.debug("Applying add_noise augmentation")
+    # Preserve RGBA mode if present
+    original_mode = image.mode
     img_np = pil_to_cv2(image.convert('L')) # Convert to grayscale
     h, w = img_np.shape
     noise = np.zeros((h, w), np.uint8)
     cv2.randu(noise, 0, 255)
-    
+
     salt = noise > 245
     pepper = noise < 10
-    
+
     img_np[salt] = 255
     img_np[pepper] = 0
-    
-    return cv2_to_pil(img_np).convert('RGB')
+
+    result = cv2_to_pil(img_np).convert(original_mode)
+    return result
 
 
 def rotate_image(image, bboxes):
@@ -43,7 +46,9 @@ def rotate_image(image, bboxes):
     center_x, center_y = w / 2, h / 2
 
     # Rotate image with expand=True to prevent cutoff
-    rotated_image = image.rotate(angle, expand=True, fillcolor='white')
+    # Use transparent fillcolor for RGBA, white for RGB
+    fillcolor = (255, 255, 255, 0) if image.mode == 'RGBA' else 'white'
+    rotated_image = image.rotate(angle, expand=True, fillcolor=fillcolor)
     new_w, new_h = rotated_image.size
 
     # Adjust the rotation matrix to account for the new dimensions and center
@@ -59,7 +64,7 @@ def rotate_image(image, bboxes):
         points_ones = np.hstack([points, ones])
 
         transformed_points = M.dot(points_ones.T).T
-        
+
         x_min = min(transformed_points[:, 0])
         y_min = min(transformed_points[:, 1])
         x_max = max(transformed_points[:, 0])
@@ -71,7 +76,9 @@ def rotate_image(image, bboxes):
     padding_x = max(0, -overall_bbox[0])
     padding_y = max(0, -overall_bbox[1])
 
-    padded_image = Image.new('RGB', (new_w + int(padding_x), new_h + int(padding_y)), color='white')
+    # Create padded image matching original mode
+    pad_color = (255, 255, 255, 0) if image.mode == 'RGBA' else 'white'
+    padded_image = Image.new(image.mode, (new_w + int(padding_x), new_h + int(padding_y)), color=pad_color)
     padded_image.paste(rotated_image, (int(padding_x), int(padding_y)))
 
     # Adjust bounding boxes for the padded image
@@ -197,6 +204,8 @@ def erode_dilate(image):
         logging.warning("erode_dilate received empty image, skipping")
         return image
 
+    # Preserve original mode
+    original_mode = image.mode
     img_cv = pil_to_cv2(image.convert('L'))
 
     # Double-check OpenCV image is valid
@@ -213,7 +222,7 @@ def erode_dilate(image):
         # Dilate
         result_cv = cv2.dilate(img_cv, kernel, iterations=1)
 
-    return cv2_to_pil(result_cv).convert('RGB')
+    return cv2_to_pil(result_cv).convert(original_mode)
 
 def add_background(image, background_images):
     """Adds a random background from a list of images."""
@@ -231,13 +240,19 @@ def add_background(image, background_images):
         bg_image = Image.open(bg_path).convert('RGB')
         bg_image = bg_image.resize(image.size)
 
-        # Create a mask from the text (dark pixels = text, light pixels = background)
-        # Mask should be 255 where text is (to show original text) and 0 where background is
-        mask = image.convert('L').point(lambda x: 255 if x < 200 else 0, '1')
+        # Handle RGBA images - use alpha channel as mask
+        if image.mode == 'RGBA':
+            # Composite RGBA text onto RGB background using alpha channel
+            bg_image.paste(image, (0, 0), image)
+            return bg_image
+        else:
+            # Create a mask from the text (dark pixels = text, light pixels = background)
+            # Mask should be 255 where text is (to show original text) and 0 where background is
+            mask = image.convert('L').point(lambda x: 255 if x < 200 else 0, '1')
 
-        # Composite the text onto the background
-        bg_image.paste(image, (0, 0), mask)
-        return bg_image
+            # Composite the text onto the background
+            bg_image.paste(image, (0, 0), mask)
+            return bg_image
     except Exception as e:
         logging.error(f"Could not apply background {bg_path}: {e}")
         return image
@@ -252,9 +267,17 @@ def add_shadow(image):
         logging.warning("add_shadow received empty image, skipping")
         return image
 
-    img_cv = pil_to_cv2(image)
+    # Convert to RGB for shadow processing, preserve alpha if RGBA
+    if image.mode == 'RGBA':
+        alpha_channel = image.split()[3]
+        rgb_image = Image.merge('RGB', image.split()[:3])
+    else:
+        rgb_image = image
+        alpha_channel = None
+
+    img_cv = pil_to_cv2(rgb_image)
     h, w, _ = img_cv.shape
-    
+
     # Create a shadow by shifting the text
     shadow_offset_x = random.randint(-3, 3)
     shadow_offset_y = random.randint(2, 4)
@@ -270,7 +293,13 @@ def add_shadow(image):
     # Combine original image with shadow
     img_with_shadow = np.minimum(img_cv, shadow)
 
-    return cv2_to_pil(img_with_shadow)
+    result = cv2_to_pil(img_with_shadow)
+
+    # Restore alpha channel if original was RGBA
+    if alpha_channel is not None:
+        result = Image.merge('RGBA', (*result.split(), alpha_channel))
+
+    return result
 
 
 def cutout(image):

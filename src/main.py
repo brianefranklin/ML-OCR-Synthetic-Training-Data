@@ -97,7 +97,7 @@ class OCRDataGenerator:
 
         # Handle empty text
         if not text:
-            empty_img = Image.new('RGB', (10, 10), color='white')
+            empty_img = Image.new('RGBA', (10, 10), color=(255, 255, 255, 0))
             return empty_img, []
 
         # Handle zero or negative intensity - fall back to straight rendering
@@ -130,7 +130,7 @@ class OCRDataGenerator:
 
         # Prevent division by zero
         if total_width == 0:
-            empty_img = Image.new('RGB', (10, 10), color='white')
+            empty_img = Image.new('RGBA', (10, 10), color=(255, 255, 255, 0))
             return empty_img, []
 
         # Clamp intensity to reasonable range
@@ -161,10 +161,10 @@ class OCRDataGenerator:
             parsed = ColorRenderer.parse_color_string(bg_color)
             bg_color = parsed if parsed else (255, 255, 255)
 
-        # Create oversized canvas
+        # Create oversized canvas with transparent background
         img_width = int(total_width + 100)
         img_height = curve_height
-        image = Image.new('RGB', (img_width, img_height), color=bg_color)
+        image = Image.new('RGBA', (img_width, img_height), color=(255, 255, 255, 0))
         draw = ImageDraw.Draw(image)
 
         # Render characters along curve
@@ -176,6 +176,9 @@ class OCRDataGenerator:
             char_width = info['width']
             char_height = info['height']
             char_color = text_colors[i]
+            # Add full opacity to RGB color
+            if len(char_color) == 3:
+                char_color = (*char_color, 255)
 
             # Calculate position and rotation
             if curve_type == 'arc':
@@ -215,8 +218,6 @@ class OCRDataGenerator:
                 # Paste with transparency
                 paste_x = int(x_draw - rotated.width / 2)
                 paste_y = int(y_draw - rotated.height / 2)
-                if image.mode != 'RGBA':
-                    image = image.convert('RGBA')
                 image.paste(rotated, (paste_x, paste_y), rotated)
 
                 # Calculate accurate bbox using rotation matrix
@@ -261,12 +262,6 @@ class OCRDataGenerator:
                 char_width, overlap_intensity, enable_variation=True
             )
             x_pos += spacing
-
-        # Convert back to RGB if needed
-        if image.mode == 'RGBA':
-            rgb_image = Image.new('RGB', image.size, 'white')
-            rgb_image.paste(image, mask=image.split()[3])
-            image = rgb_image
 
         # Apply ink bleed effect if enabled
         if OverlapRenderer.should_apply_ink_bleed(ink_bleed_intensity):
@@ -319,7 +314,7 @@ class OCRDataGenerator:
 
         # Handle empty text
         if not text:
-            empty_img = Image.new('RGB', (10, 10), color='white')
+            empty_img = Image.new('RGBA', (10, 10), color=(255, 255, 255, 0))
             return empty_img, []
 
         # Handle zero or negative intensity - fall back to straight rendering
@@ -352,7 +347,7 @@ class OCRDataGenerator:
 
         # Prevent division by zero
         if total_width == 0:
-            empty_img = Image.new('RGB', (10, 10), color='white')
+            empty_img = Image.new('RGBA', (10, 10), color=(255, 255, 255, 0))
             return empty_img, []
 
         # Clamp intensity to reasonable range
@@ -383,10 +378,10 @@ class OCRDataGenerator:
             parsed = ColorRenderer.parse_color_string(bg_color)
             bg_color = parsed if parsed else (255, 255, 255)
 
-        # Create oversized canvas
+        # Create oversized canvas with transparent background
         img_width = int(total_width + 100)
         img_height = curve_height
-        image = Image.new('RGB', (img_width, img_height), color=bg_color)
+        image = Image.new('RGBA', (img_width, img_height), color=(255, 255, 255, 0))
         draw = ImageDraw.Draw(image)
 
         # Render characters along curve (RTL: start from right)
@@ -398,6 +393,9 @@ class OCRDataGenerator:
             char_width = info['width']
             char_height = info['height']
             char_color = text_colors[i]
+            # Add full opacity to RGB color
+            if len(char_color) == 3:
+                char_color = (*char_color, 255)
 
             # Calculate position and rotation (RTL: mirror curve horizontally)
             if curve_type == 'arc':
@@ -437,8 +435,6 @@ class OCRDataGenerator:
                 # Paste with transparency
                 paste_x = int(x_draw + char_width/2 - rotated.width / 2)
                 paste_y = int(y_draw - rotated.height / 2)
-                if image.mode != 'RGBA':
-                    image = image.convert('RGBA')
                 image.paste(rotated, (paste_x, paste_y), rotated)
 
                 # Calculate accurate bbox using rotation matrix
@@ -480,12 +476,6 @@ class OCRDataGenerator:
                 char_width, overlap_intensity, enable_variation=True
             )
             x_pos -= spacing
-
-        # Convert back to RGB if needed
-        if image.mode == 'RGBA':
-            rgb_image = Image.new('RGB', image.size, 'white')
-            rgb_image.paste(image, mask=image.split()[3])
-            image = rgb_image
 
         # Apply ink bleed effect if enabled
         if OverlapRenderer.should_apply_ink_bleed(ink_bleed_intensity):
@@ -568,17 +558,21 @@ class OCRDataGenerator:
             text_color_mode: Color mode ('uniform', 'per_glyph', 'gradient', 'random')
             color_palette: Color palette name ('realistic_dark', 'vibrant', 'pastels', etc.)
             custom_colors: Optional list of custom RGB tuples
-            background_color: Background color RGB tuple or 'auto'
+            background_color: DEPRECATED - Ignored. Text rendered with transparent background.
 
         Returns:
             Tuple of (image, character_boxes)
+
+        Note:
+            All render functions now return RGBA images with transparent backgrounds.
+            The background_color parameter is deprecated and ignored.
         """
         from glyph_overlap import OverlapRenderer
         from text_color import ColorRenderer
 
         # Handle empty text
         if not text:
-            empty_img = Image.new('RGB', (10, 10), color='white')
+            empty_img = Image.new('RGBA', (10, 10), color=(255, 255, 255, 0))
             return empty_img, []
 
         # Measure characters and calculate width with overlap
@@ -612,8 +606,8 @@ class OCRDataGenerator:
             parsed = ColorRenderer.parse_color_string(bg_color)
             bg_color = parsed if parsed else (255, 255, 255)
 
-        # Create actual image
-        image = Image.new('RGB', (int(total_width), img_height), color=bg_color)
+        # Create actual image with transparent background
+        image = Image.new('RGBA', (int(total_width), img_height), color=(255, 255, 255, 0))
         draw = ImageDraw.Draw(image)
 
         # Render characters and collect bboxes
@@ -623,8 +617,11 @@ class OCRDataGenerator:
 
         for i, char in enumerate(text):
             char_color = text_colors[i]
+            # Add full opacity to RGB color
+            if len(char_color) == 3:
+                char_color = (*char_color, 255)
             char_bbox = draw.textbbox((x_offset, y_offset), char, font=font)
-            draw.text((x_offset, y_offset), char, font=font, fill=text_colors[i])
+            draw.text((x_offset, y_offset), char, font=font, fill=char_color)
             char_boxes.append(CharacterBox(char, list(char_bbox)))
 
             # Apply overlap to spacing
@@ -680,7 +677,7 @@ class OCRDataGenerator:
 
         # Handle empty text
         if not text:
-            empty_img = Image.new('RGB', (10, 10), color='white')
+            empty_img = Image.new('RGBA', (10, 10), color=(255, 255, 255, 0))
             return empty_img, []
 
         # Use BiDi algorithm for proper RTL display
@@ -718,8 +715,8 @@ class OCRDataGenerator:
             parsed = ColorRenderer.parse_color_string(bg_color)
             bg_color = parsed if parsed else (255, 255, 255)
 
-        # Create actual image
-        image = Image.new('RGB', (int(total_width), img_height), color=bg_color)
+        # Create actual image with transparent background
+        image = Image.new('RGBA', (int(total_width), img_height), color=(255, 255, 255, 0))
         draw = ImageDraw.Draw(image)
 
         # Render characters from right to left
@@ -731,7 +728,11 @@ class OCRDataGenerator:
             char_width = draw.textlength(char, font=font)
             x_offset -= char_width
 
-            draw.text((x_offset, y_offset), char, font=font, fill=text_colors[i])
+            # Add full opacity to RGB color
+            char_color = text_colors[i]
+            if len(char_color) == 3:
+                char_color = (*char_color, 255)
+            draw.text((x_offset, y_offset), char, font=font, fill=char_color)
             char_bbox = draw.textbbox((x_offset, y_offset), char, font=font)
             char_boxes.append(CharacterBox(char, list(char_bbox)))
 
@@ -788,7 +789,7 @@ class OCRDataGenerator:
 
         # Handle empty text
         if not text:
-            empty_img = Image.new('RGB', (10, 10), color='white')
+            empty_img = Image.new('RGBA', (10, 10), color=(255, 255, 255, 0))
             return empty_img, []
 
         # Measure characters
@@ -829,8 +830,8 @@ class OCRDataGenerator:
             parsed = ColorRenderer.parse_color_string(bg_color)
             bg_color = parsed if parsed else (255, 255, 255)
 
-        # Create actual image
-        image = Image.new('RGB', (img_width, img_height), color=bg_color)
+        # Create actual image with transparent background
+        image = Image.new('RGBA', (img_width, img_height), color=(255, 255, 255, 0))
         draw = ImageDraw.Draw(image)
 
         # Render characters top to bottom
@@ -839,12 +840,15 @@ class OCRDataGenerator:
 
         for i, char in enumerate(text):
             char_color = text_colors[i]
+            # Add full opacity to RGB color
+            if len(char_color) == 3:
+                char_color = (*char_color, 255)
             char_bbox_temp = draw.textbbox((0, 0), char, font=font)
             char_width = char_bbox_temp[2] - char_bbox_temp[0]
             char_height = char_bbox_temp[3] - char_bbox_temp[1]
             x_cursor = (img_width - char_width) / 2
 
-            draw.text((x_cursor, y_cursor), char, font=font, fill=text_colors[i])
+            draw.text((x_cursor, y_cursor), char, font=font, fill=char_color)
             char_bbox = draw.textbbox((x_cursor, y_cursor), char, font=font)
             char_boxes.append(CharacterBox(char, list(char_bbox)))
             logging.debug(f"char: {char}, bbox: {char_bbox}")
@@ -898,7 +902,7 @@ class OCRDataGenerator:
 
         # Handle empty text
         if not text:
-            empty_img = Image.new('RGB', (10, 10), color='white')
+            empty_img = Image.new('RGBA', (10, 10), color=(255, 255, 255, 0))
             return empty_img, []
 
         # Measure characters
@@ -939,8 +943,8 @@ class OCRDataGenerator:
             parsed = ColorRenderer.parse_color_string(bg_color)
             bg_color = parsed if parsed else (255, 255, 255)
 
-        # Create actual image
-        image = Image.new('RGB', (img_width, img_height), color=bg_color)
+        # Create actual image with transparent background
+        image = Image.new('RGBA', (img_width, img_height), color=(255, 255, 255, 0))
         draw = ImageDraw.Draw(image)
 
         # Render characters bottom to top
@@ -949,13 +953,16 @@ class OCRDataGenerator:
 
         for i, char in enumerate(text):
             char_color = text_colors[i]
+            # Add full opacity to RGB color
+            if len(char_color) == 3:
+                char_color = (*char_color, 255)
             char_bbox_temp = draw.textbbox((0, 0), char, font=font)
             char_width = char_bbox_temp[2] - char_bbox_temp[0]
             char_height = char_bbox_temp[3] - char_bbox_temp[1]
             x_cursor = (img_width - char_width) / 2
             y_cursor -= char_height
 
-            draw.text((x_cursor, y_cursor), char, font=font, fill=text_colors[i])
+            draw.text((x_cursor, y_cursor), char, font=font, fill=char_color)
             char_bbox = draw.textbbox((x_cursor, y_cursor), char, font=font)
             char_boxes.append(CharacterBox(char, list(char_bbox)))
             logging.debug(f"char: {char}, bbox: {char_bbox}")
@@ -1010,7 +1017,7 @@ class OCRDataGenerator:
 
         # Handle empty text
         if not text:
-            empty_img = Image.new('RGB', (10, 10), color='white')
+            empty_img = Image.new('RGBA', (10, 10), color=(255, 255, 255, 0))
             return empty_img, []
 
         # Handle zero or negative intensity - fall back to straight rendering
@@ -1072,10 +1079,10 @@ class OCRDataGenerator:
             parsed = ColorRenderer.parse_color_string(bg_color)
             bg_color = parsed if parsed else (255, 255, 255)
 
-        # Create oversized canvas
+        # Create oversized canvas with transparent background
         img_height = int(total_height + 100)
         img_width = curve_width
-        image = Image.new('RGB', (img_width, img_height), color=bg_color)
+        image = Image.new('RGBA', (img_width, img_height), color=(255, 255, 255, 0))
         draw = ImageDraw.Draw(image)
 
         # Render characters along vertical curve
@@ -1087,6 +1094,9 @@ class OCRDataGenerator:
             char_width = info['width']
             char_height = info['height']
             char_color = text_colors[i]
+            # Add full opacity to RGB color
+            if len(char_color) == 3:
+                char_color = (*char_color, 255)
 
             # Calculate position and rotation for vertical curve
             if curve_type == 'arc':
@@ -1126,8 +1136,6 @@ class OCRDataGenerator:
                 # Paste with transparency
                 paste_x = int(x_draw - rotated.width / 2)
                 paste_y = int(y_draw - rotated.height / 2)
-                if image.mode != 'RGBA':
-                    image = image.convert('RGBA')
                 image.paste(rotated, (paste_x, paste_y), rotated)
 
                 # Calculate accurate bbox using rotation matrix
@@ -1169,12 +1177,6 @@ class OCRDataGenerator:
             base_spacing = 5
             reduced_spacing = max(0, base_spacing - (base_spacing * overlap_intensity * 0.8))
             y_pos += char_height + reduced_spacing
-
-        # Convert back to RGB if needed
-        if image.mode == 'RGBA':
-            rgb_image = Image.new('RGB', image.size, 'white')
-            rgb_image.paste(image, mask=image.split()[3])
-            image = rgb_image
 
         # Apply ink bleed effect if enabled
         if OverlapRenderer.should_apply_ink_bleed(ink_bleed_intensity):
@@ -1223,7 +1225,7 @@ class OCRDataGenerator:
 
         # Handle empty text
         if not text:
-            empty_img = Image.new('RGB', (10, 10), color='white')
+            empty_img = Image.new('RGBA', (10, 10), color=(255, 255, 255, 0))
             return empty_img, []
 
         # Handle zero or negative intensity - fall back to straight rendering
@@ -1285,10 +1287,10 @@ class OCRDataGenerator:
             parsed = ColorRenderer.parse_color_string(bg_color)
             bg_color = parsed if parsed else (255, 255, 255)
 
-        # Create oversized canvas
+        # Create oversized canvas with transparent background
         img_height = int(total_height + 100)
         img_width = curve_width
-        image = Image.new('RGB', (img_width, img_height), color=bg_color)
+        image = Image.new('RGBA', (img_width, img_height), color=(255, 255, 255, 0))
         draw = ImageDraw.Draw(image)
 
         # Render characters along vertical curve (bottom to top)
@@ -1300,6 +1302,9 @@ class OCRDataGenerator:
             char_width = info['width']
             char_height = info['height']
             char_color = text_colors[i]
+            # Add full opacity to RGB color
+            if len(char_color) == 3:
+                char_color = (*char_color, 255)
 
             # Move up by character height first (bottom-to-top)
             y_pos -= char_height
@@ -1344,8 +1349,6 @@ class OCRDataGenerator:
                 # Paste with transparency
                 paste_x = int(x_draw - rotated.width / 2)
                 paste_y = int(y_draw - rotated.height / 2)
-                if image.mode != 'RGBA':
-                    image = image.convert('RGBA')
                 image.paste(rotated, (paste_x, paste_y), rotated)
 
                 # Calculate accurate bbox using rotation matrix
@@ -1382,12 +1385,6 @@ class OCRDataGenerator:
                        x_draw + char_width/2, y_draw + char_height]
 
             char_boxes.append(CharacterBox(char, bbox))
-
-        # Convert back to RGB if needed
-        if image.mode == 'RGBA':
-            rgb_image = Image.new('RGB', image.size, 'white')
-            rgb_image.paste(image, mask=image.split()[3])
-            image = rgb_image
 
         # Apply ink bleed effect if enabled
         if OverlapRenderer.should_apply_ink_bleed(ink_bleed_intensity):
@@ -1467,7 +1464,12 @@ class OCRDataGenerator:
                       text_color_mode: str = 'uniform',
                       color_palette: str = 'realistic_dark',
                       custom_colors: List[Tuple[int, int, int]] = None,
-                      background_color: Union[Tuple[int, int, int], str] = 'auto') -> Tuple[Image.Image, List[List[float]], str]:
+                      background_color: Union[Tuple[int, int, int], str] = 'auto',
+                      canvas_enabled: bool = True,
+                      canvas_size: Tuple[int, int] = None,
+                      canvas_min_padding: int = 10,
+                      canvas_placement: str = 'weighted_random',
+                      canvas_max_megapixels: float = 12.0) -> Tuple[Image.Image, Dict, str]:
         """
         Generate a single synthetic OCR image with augmentations.
 
@@ -1480,9 +1482,16 @@ class OCRDataGenerator:
             curve_intensity: Strength of curve (0.0-1.0)
             overlap_intensity: Glyph overlap intensity (0.0-1.0)
             ink_bleed_intensity: Ink bleed effect intensity (0.0-1.0)
+            canvas_enabled: Whether to place text on larger canvas
+            canvas_size: Fixed canvas size (if None, generates random size)
+            canvas_min_padding: Minimum padding around text
+            canvas_placement: Placement strategy ('weighted_random', 'uniform_random', 'center')
+            canvas_max_megapixels: Maximum canvas size in megapixels
 
         Returns:
-            Tuple of (augmented_image, character_bboxes, text)
+            Tuple of (final_image, metadata_dict, text)
+            If canvas_enabled=False: metadata_dict = {'char_bboxes': [...]}
+            If canvas_enabled=True: metadata_dict = {'canvas_size': [...], 'text_placement': [...], 'line_bbox': [...], 'char_bboxes': [...]}
         """
         # Load font
         font = self.load_font(font_path, font_size)
@@ -1529,7 +1538,33 @@ class OCRDataGenerator:
             image, char_bboxes, self.background_images
         )
 
-        return augmented_image, augmented_bboxes, text
+        # Apply canvas placement if enabled
+        if canvas_enabled:
+            from canvas_placement import place_on_canvas, generate_random_canvas_size
+
+            # Generate canvas size if not provided
+            if canvas_size is None:
+                canvas_size = generate_random_canvas_size(
+                    augmented_image.size,
+                    min_padding=canvas_min_padding,
+                    max_megapixels=canvas_max_megapixels
+                )
+
+            # Place on canvas
+            final_image, metadata = place_on_canvas(
+                augmented_image,
+                augmented_bboxes,
+                canvas_size=canvas_size,
+                min_padding=canvas_min_padding,
+                placement=canvas_placement,
+                background_color=(255, 255, 255)
+            )
+
+            return final_image, metadata, text
+        else:
+            # Return without canvas placement (legacy format)
+            metadata = {'char_bboxes': augmented_bboxes}
+            return augmented_image, metadata, text
 
 
 def setup_logging(log_level: str, log_file: str) -> None:
@@ -1688,92 +1723,93 @@ def generate_with_batches(batch_config, font_files, background_images, args):
                       if f.startswith('image_') and f.endswith('.png')]
     image_counter = len(existing_images)
 
-    labels_file = os.path.join(args.output_dir, 'labels.csv')
-    file_mode = 'a' if os.path.exists(labels_file) else 'w'
-
     # Track corpora per batch
     batch_corpora = {}
 
     logging.info(f"Starting batch generation of {batch_config.total_images} images")
 
-    with open(labels_file, file_mode) as f:
-        if file_mode == 'w':
-            f.write('filename,text\n')
+    # Interleaved generation
+    while True:
+        task = batch_manager.get_next_task()
+        if task is None:
+            break
 
-        # Interleaved generation
-        while True:
-            task = batch_manager.get_next_task()
-            if task is None:
-                break
+        # Load corpus for this batch if not already loaded
+        batch_name = task['batch_name']
+        if batch_name not in batch_corpora:
+            corpus_file = task['corpus_file'] or args.text_file
+            with open(corpus_file, 'r') as cf:
+                batch_corpora[batch_name] = cf.read().strip()
 
-            # Load corpus for this batch if not already loaded
-            batch_name = task['batch_name']
-            if batch_name not in batch_corpora:
-                corpus_file = task['corpus_file'] or args.text_file
-                with open(corpus_file, 'r') as cf:
-                    batch_corpora[batch_name] = cf.read().strip()
+        corpus = batch_corpora[batch_name]
 
-            corpus = batch_corpora[batch_name]
+        # Validate corpus for this batch's fonts
+        sample_chars = extract_sample_characters(corpus, max_samples=100)
+        font_path = task['font_path']
 
-            # Validate corpus for this batch's fonts
-            sample_chars = extract_sample_characters(corpus, max_samples=100)
-            font_path = task['font_path']
+        # Check if font can render this corpus
+        can_render, coverage = can_font_render_text(font_path, sample_chars, min_coverage=0.9)
+        if not can_render:
+            logging.warning(f"Skipping task {task['progress']} for batch '{batch_name}': "
+                          f"font {os.path.basename(font_path)} has {coverage*100:.1f}% coverage")
+            continue
 
-            # Check if font can render this corpus
-            can_render, coverage = can_font_render_text(font_path, sample_chars, min_coverage=0.9)
-            if not can_render:
-                logging.warning(f"Skipping task {task['progress']} for batch '{batch_name}': "
-                              f"font {os.path.basename(font_path)} has {coverage*100:.1f}% coverage")
-                continue
+        # Initialize generator with task-specific background images
+        generator = OCRDataGenerator([font_path], background_images)
 
-            # Initialize generator with task-specific background images
-            generator = OCRDataGenerator([font_path], background_images)
+        # Extract text
+        text_line = generator.extract_text_segment(
+            corpus, task['min_text_length'], task['max_text_length']
+        )
 
-            # Extract text
-            text_line = generator.extract_text_segment(
-                corpus, task['min_text_length'], task['max_text_length']
+        if not text_line:
+            logging.warning(f"Could not generate text for batch '{batch_name}'. Skipping.")
+            continue
+
+        # Generate font size
+        font_size = random.randint(28, 40)
+
+        try:
+            # Generate image with augmentations and canvas placement
+            final_image, metadata, text = generator.generate_image(
+                text_line, font_path, font_size, task['text_direction'],
+                curve_type=task.get('curve_type', 'none'),
+                curve_intensity=task.get('curve_intensity', 0.0),
+                overlap_intensity=task.get('overlap_intensity', 0.0),
+                ink_bleed_intensity=task.get('ink_bleed_intensity', 0.0),
+                effect_type=task.get('effect_type', 'none'),
+                effect_depth=task.get('effect_depth', 0.5),
+                light_azimuth=task.get('light_azimuth', 135.0),
+                light_elevation=task.get('light_elevation', 45.0),
+                text_color_mode=task.get('text_color_mode', 'uniform'),
+                color_palette=task.get('color_palette', 'realistic_dark'),
+                custom_colors=task.get('custom_colors'),
+                background_color=task.get('background_color', 'auto'),
+                canvas_enabled=True,
+                canvas_min_padding=task.get('canvas_min_padding', 10),
+                canvas_placement=task.get('canvas_placement', 'weighted_random'),
+                canvas_max_megapixels=task.get('canvas_max_megapixels', 12.0)
             )
 
-            if not text_line:
-                logging.warning(f"Could not generate text for batch '{batch_name}'. Skipping.")
-                continue
+            # Save image
+            image_filename = f'image_{image_counter:05d}.png'
+            image_path = os.path.join(args.output_dir, image_filename)
+            final_image.save(image_path)
 
-            # Generate font size
-            font_size = random.randint(28, 40)
+            # Save JSON label
+            from canvas_placement import save_label_json
+            json_filename = f'image_{image_counter:05d}.json'
+            json_path = os.path.join(args.output_dir, json_filename)
+            save_label_json(json_path, image_filename, text, metadata)
 
-            try:
-                # Generate image with augmentations
-                augmented_image, augmented_bboxes, text = generator.generate_image(
-                    text_line, font_path, font_size, task['text_direction'],
-                    curve_type=task.get('curve_type', 'none'),
-                    curve_intensity=task.get('curve_intensity', 0.0),
-                    overlap_intensity=task.get('overlap_intensity', 0.0),
-                    ink_bleed_intensity=task.get('ink_bleed_intensity', 0.0),
-                    effect_type=task.get('effect_type', 'none'),
-                    effect_depth=task.get('effect_depth', 0.5),
-                    light_azimuth=task.get('light_azimuth', 135.0),
-                    light_elevation=task.get('light_elevation', 45.0)
-                )
+            image_counter += 1
 
-                # Save image
-                image_filename = f'image_{image_counter:05d}.png'
-                image_path = os.path.join(args.output_dir, image_filename)
-                augmented_image.save(image_path)
+            logging.debug(f"Batch '{batch_name}' ({task['progress']}): "
+                        f"{os.path.basename(font_path)}, direction={task['text_direction']}")
 
-                # Create label with text, bboxes, and metadata
-                label_data = {
-                    "text": text,
-                    "bboxes": [[float(coord) for coord in bbox] for bbox in augmented_bboxes]
-                }
-                f.write(f'{image_filename},{json.dumps(label_data)}\n')
-                image_counter += 1
-
-                logging.debug(f"Batch '{batch_name}' ({task['progress']}): "
-                            f"{os.path.basename(font_path)}, direction={task['text_direction']}")
-
-            except Exception as e:
-                logging.error(f"Failed to generate image for batch '{batch_name}': {e}")
-                continue
+        except Exception as e:
+            logging.error(f"Failed to generate image for batch '{batch_name}': {e}")
+            continue
 
     logging.info(f"\n{batch_manager.get_progress_summary()}")
     logging.info(f"Successfully generated {image_counter} images in {args.output_dir}")
@@ -1970,98 +2006,94 @@ def main():
                          if f.startswith('image_') and f.endswith('.png')]
         image_counter = len(existing_images)
 
-        labels_file = os.path.join(args.output_dir, 'labels.csv')
+        logging.info(f"Generating up to {args.num_images} images (starting from image_{image_counter:05d})...")
 
-        # Append to labels.csv if it exists, otherwise create it with header
-        file_mode = 'a' if os.path.exists(labels_file) else 'w'
+        # Check if corpus has enough content
+        if len(corpus) < args.min_text_length:
+            logging.error(f"Corpus is too short (length: {len(corpus)}). Need at least {args.min_text_length} characters.")
+            return
 
-        with open(labels_file, file_mode) as f:
-            if file_mode == 'w':
-                f.write('filename,text\n')
+        for i in range(args.num_images):
+            # --- Time Limit Check ---
+            if args.max_execution_time and (time.time() - start_time) > args.max_execution_time:
+                logging.info(f"\nTime limit of {args.max_execution_time} seconds reached. Stopping generation.")
+                break
 
-            logging.info(f"Generating up to {args.num_images} images (starting from image_{image_counter:05d})...")
+            # Extract text segment from corpus
+            text_line = generator.extract_text_segment(
+                corpus, args.min_text_length, args.max_text_length
+            )
 
-            # Check if corpus has enough content
-            if len(corpus) < args.min_text_length:
-                logging.error(f"Corpus is too short (length: {len(corpus)}). Need at least {args.min_text_length} characters.")
-                return
+            if not text_line:
+                logging.warning(f"Could not generate text of minimum length {args.min_text_length}. Skipping image.")
+                continue
 
-            for i in range(args.num_images):
-                # --- Time Limit Check ---
-                if args.max_execution_time and (time.time() - start_time) > args.max_execution_time:
-                    logging.info(f"\nTime limit of {args.max_execution_time} seconds reached. Stopping generation.")
-                    break
+            logging.debug(f"Selected text: {text_line}")
 
-                # Extract text segment from corpus
-                text_line = generator.extract_text_segment(
-                    corpus, args.min_text_length, args.max_text_length
+            # Select font
+            if args.font_name:
+                font_path = os.path.join(args.fonts_dir, args.font_name)
+                if not os.path.exists(font_path):
+                    logging.error(f"Error: Font file {args.font_name} not found in {args.fonts_dir}")
+                    continue
+            else:
+                font_path = random.choice(font_files)
+            logging.debug(f"Selected font: {font_path}")
+
+            # Generate font size
+            font_size = random.randint(28, 40)
+
+            # Parse custom colors
+            custom_colors = None
+            if args.custom_colors:
+                try:
+                    custom_colors = [
+                        tuple(map(int, color.split(',')))
+                        for color in args.custom_colors.split(';')
+                    ]
+                except ValueError:
+                    logging.warning(f"Invalid format for --custom-colors: {args.custom_colors}")
+
+            try:
+                # Generate image with augmentations and canvas placement
+                final_image, metadata, text = generator.generate_image(
+                    text_line, font_path, font_size, args.text_direction,
+                    overlap_intensity=args.overlap_intensity,
+                    ink_bleed_intensity=args.ink_bleed_intensity,
+                    effect_type=args.effect_type,
+                    effect_depth=args.effect_depth,
+                    light_azimuth=args.light_azimuth,
+                    light_elevation=args.light_elevation,
+                    text_color_mode=args.text_color_mode,
+                    color_palette=args.color_palette,
+                    custom_colors=custom_colors,
+                    background_color=args.background_color,
+                    canvas_enabled=True,
+                    canvas_min_padding=10,
+                    canvas_placement='weighted_random',
+                    canvas_max_megapixels=12.0
                 )
 
-                if not text_line:
-                    logging.warning(f"Could not generate text of minimum length {args.min_text_length}. Skipping image.")
-                    continue
+                # Save image
+                image_filename = f'image_{image_counter:05d}.png'
+                image_path = os.path.join(args.output_dir, image_filename)
+                final_image.save(image_path)
+                logging.debug(f"Saved image to {image_path}")
 
-                logging.debug(f"Selected text: {text_line}")
+                # Save JSON label
+                from canvas_placement import save_label_json
+                json_filename = f'image_{image_counter:05d}.json'
+                json_path = os.path.join(args.output_dir, json_filename)
+                save_label_json(json_path, image_filename, text, metadata)
+                logging.debug(f"Saved label to {json_path}")
 
-                # Select font
-                if args.font_name:
-                    font_path = os.path.join(args.fonts_dir, args.font_name)
-                    if not os.path.exists(font_path):
-                        logging.error(f"Error: Font file {args.font_name} not found in {args.fonts_dir}")
-                        continue
-                else:
-                    font_path = random.choice(font_files)
-                logging.debug(f"Selected font: {font_path}")
+                image_counter += 1
 
-                # Generate font size
-                font_size = random.randint(28, 40)
+            except Exception as e:
+                logging.error(f"Failed to generate image: {e}")
+                continue
 
-                # Parse custom colors
-                custom_colors = None
-                if args.custom_colors:
-                    try:
-                        custom_colors = [
-                            tuple(map(int, color.split(',')))
-                            for color in args.custom_colors.split(';')
-                        ]
-                    except ValueError:
-                        logging.warning(f"Invalid format for --custom-colors: {args.custom_colors}")
-
-                try:
-                    # Generate image with augmentations
-                    augmented_image, augmented_bboxes, text = generator.generate_image(
-                        text_line, font_path, font_size, args.text_direction,
-                        overlap_intensity=args.overlap_intensity,
-                        ink_bleed_intensity=args.ink_bleed_intensity,
-                        effect_type=args.effect_type,
-                        effect_depth=args.effect_depth,
-                        light_azimuth=args.light_azimuth,
-                        light_elevation=args.light_elevation,
-                        text_color_mode=args.text_color_mode,
-                        color_palette=args.color_palette,
-                        custom_colors=custom_colors,
-                        background_color=args.background_color
-                    )
-
-                    # Save image
-                    image_filename = f'image_{image_counter:05d}.png'
-                    image_path = os.path.join(args.output_dir, image_filename)
-                    augmented_image.save(image_path)
-                    logging.debug(f"Saved image to {image_path}")
-
-                    # Create label with text and bboxes
-                    label_data = {
-                        "text": text,
-                        "bboxes": [[float(coord) for coord in bbox] for bbox in augmented_bboxes]
-                    }
-                    f.write(f'{image_filename},{json.dumps(label_data)}\n')
-                    image_counter += 1
-
-                except Exception as e:
-                    logging.error(f"Failed to generate image: {e}")
-                    continue
-
-        logging.info(f"Successfully generated {image_counter} images and a labels.csv file in {args.output_dir}")
+        logging.info(f"Successfully generated {image_counter} images with JSON labels in {args.output_dir}")
 
 
 if __name__ == '__main__':

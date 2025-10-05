@@ -74,16 +74,10 @@ def test_main_script_execution(test_environment):
 
     # --- Verify the output ---
     output_dir = Path(test_environment["output_dir"])
-    
-    # Check for labels.csv
-    labels_file = output_dir / "labels.csv"
-    assert labels_file.exists(), "labels.csv was not created."
 
-    # Check the content of labels.csv
-    with open(labels_file, 'r') as f:
-        lines = f.readlines()
-    # 1 header line + num_images_to_generate data lines
-    assert len(lines) == num_images_to_generate + 1, "labels.csv has incorrect number of rows."
+    # Check for JSON label files (one per image)
+    json_files = list(output_dir.glob("image_*.json"))
+    assert len(json_files) == num_images_to_generate, f"Expected {num_images_to_generate} JSON files, found {len(json_files)}"
 
     # Check for the correct number of image files
     image_files = list(output_dir.glob("image_*.png"))
@@ -109,28 +103,25 @@ def test_main_script_bbox_output(test_environment):
     assert result.returncode == 0, f"Script failed with error:\n{result.stderr}"
 
     output_dir = Path(test_environment["output_dir"])
-    labels_file = output_dir / "labels.csv"
-    assert labels_file.exists(), "labels.csv was not created."
 
-    with open(labels_file, 'r') as f:
-        lines = f.readlines()
-    
-    # Check the data line (skip header)
-    header, data_line = lines[0], lines[1]
-    assert header.strip() == "filename,text"
+    # Check for JSON label files
+    json_files = list(output_dir.glob("image_*.json"))
+    assert len(json_files) == num_images_to_generate, f"Expected {num_images_to_generate} JSON files"
 
     import json
-    filename, json_data = data_line.strip().split(',', 1)
-    label_data = json.loads(json_data)
+    # Read the first JSON file
+    with open(json_files[0], 'r') as f:
+        label_data = json.load(f)
 
     assert "text" in label_data
-    assert "bboxes" in label_data
-    assert isinstance(label_data["bboxes"], list)
-    assert len(label_data["text"]) == len(label_data["bboxes"])
+    assert "image_file" in label_data
+    assert "char_bboxes" in label_data
+    assert isinstance(label_data["char_bboxes"], list)
+    assert len(label_data["text"]) == len(label_data["char_bboxes"])
 
     # Check format of a single bounding box
-    if label_data["bboxes"]:
-        bbox = label_data["bboxes"][0]
+    if label_data["char_bboxes"]:
+        bbox = label_data["char_bboxes"][0]
         assert isinstance(bbox, list)
         assert len(bbox) == 4
         assert all(isinstance(coord, (int, float)) for coord in bbox)
@@ -173,9 +164,9 @@ def test_clear_output_functionality(test_environment):
     subprocess.run(generation_command, check=True)
     
     image_files = list(output_dir.glob("image_*.png"))
-    labels_file = output_dir / "labels.csv"
+    json_files = list(output_dir.glob("image_*.json"))
     assert len(image_files) > 0, "Image was not generated for the second part of the test."
-    assert labels_file.exists(), "labels.csv was not generated for the second part of the test."
+    assert len(json_files) > 0, "JSON label files were not generated for the second part of the test."
 
     # Now, run the clear command again
     clear_command = [
@@ -192,8 +183,9 @@ def test_clear_output_functionality(test_environment):
 
     # Check that the generated files are gone
     image_files_after_clear = list(output_dir.glob("image_*.png"))
+    json_files_after_clear = list(output_dir.glob("image_*.json"))
     assert len(image_files_after_clear) == 0, "Generated image was not deleted."
-    assert not labels_file.exists(), "labels.csv was not deleted."
+    assert len(json_files_after_clear) == 0, "JSON label files were not deleted."
 
 def test_top_to_bottom_text_generation(test_environment):
     """Tests that the --text-direction top_to_bottom flag works."""
@@ -214,16 +206,15 @@ def test_top_to_bottom_text_generation(test_environment):
     assert result.returncode == 0, f"Script failed with error:\n{result.stderr}"
 
     output_dir = Path(test_environment["output_dir"])
-    labels_file = output_dir / "labels.csv"
-    assert labels_file.exists(), "labels.csv was not created."
-
-    with open(labels_file, 'r') as f:
-        lines = f.readlines()
+    json_files = list(output_dir.glob("image_*.json"))
+    assert len(json_files) > 0, "JSON label files were not created."
 
     import json
-    filename, json_data = lines[1].strip().split(',', 1)
-    label_data = json.loads(json_data)
-    bboxes = label_data["bboxes"]
+    with open(json_files[0], 'r', encoding='utf-8') as f:
+        label_data = json.load(f)
+
+    filename = label_data["image_file"]
+    bboxes = label_data["char_bboxes"]
 
     # Check that bboxes are generally stacked top to bottom
     # Due to augmentations (rotation, perspective), strict ordering may not hold for every pair
@@ -267,8 +258,8 @@ def test_variable_text_length(test_environment):
     assert result.returncode == 0, f"Script failed with error:\n{result.stderr}"
 
     output_dir = Path(test_environment["output_dir"])
-    labels_file = output_dir / "labels.csv"
-    assert labels_file.exists(), "labels.csv was not created."
+    json_files = list(output_dir.glob("image_*.json"))
+    assert len(json_files) > 0, "JSON label files were not created."
 
     with open(labels_file, 'r') as f:
         lines = f.readlines()
@@ -377,8 +368,8 @@ def test_right_to_left_text_generation(test_environment):
     assert result.returncode == 0, f"Script failed with error:\n{result.stderr}"
 
     output_dir = Path(test_environment["output_dir"])
-    labels_file = output_dir / "labels.csv"
-    assert labels_file.exists(), "labels.csv was not created."
+    json_files = list(output_dir.glob("image_*.json"))
+    assert len(json_files) > 0, "JSON label files were not created."
 
     with open(labels_file, 'r', encoding="utf-8") as f:
         lines = f.readlines()
@@ -425,16 +416,15 @@ def test_bottom_to_top_text_generation(test_environment):
     assert result.returncode == 0, f"Script failed with error:\n{result.stderr}"
 
     output_dir = Path(test_environment["output_dir"])
-    labels_file = output_dir / "labels.csv"
-    assert labels_file.exists(), "labels.csv was not created."
-
-    with open(labels_file, 'r') as f:
-        lines = f.readlines()
+    json_files = list(output_dir.glob("image_*.json"))
+    assert len(json_files) > 0, "JSON label files were not created."
 
     import json
-    filename, json_data = lines[1].strip().split(',', 1)
-    label_data = json.loads(json_data)
-    bboxes = label_data["bboxes"]
+    with open(json_files[0], 'r', encoding='utf-8') as f:
+        label_data = json.load(f)
+
+    filename = label_data["image_file"]
+    bboxes = label_data["char_bboxes"]
 
     # Check that bboxes are generally stacked bottom to top
     # Due to augmentations (rotation, perspective), strict ordering may not hold for every pair

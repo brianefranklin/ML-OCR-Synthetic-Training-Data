@@ -483,7 +483,7 @@ class TestVisualQuality:
         )
 
         # Check image is valid RGB
-        assert img.mode == 'RGB'
+        assert img.mode == 'RGBA'
         assert img.size[0] > 0
         assert img.size[1] > 0
 
@@ -495,7 +495,7 @@ class TestVisualQuality:
 
         # Just verify image is generated properly
         assert img is not None
-        assert img.mode == 'RGB'
+        assert img.mode == 'RGBA'
 
     def test_effect_maintains_text_visibility(self, generator, test_font):
         """Effects should maintain sufficient contrast."""

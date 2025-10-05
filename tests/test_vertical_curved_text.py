@@ -367,12 +367,12 @@ class TestVerticalImageQuality:
     def test_image_mode_rgb_ttb(self, generator, test_font):
         """Output image should be RGB mode."""
         img, _ = generator.render_top_to_bottom_curved("Test", test_font, curve_type='arc', curve_intensity=0.3)
-        assert img.mode == 'RGB'
+        assert img.mode == 'RGBA'
 
     def test_image_mode_rgb_btt(self, generator, test_font):
         """Output image should be RGB mode."""
         img, _ = generator.render_bottom_to_top_curved("Test", test_font, curve_type='arc', curve_intensity=0.3)
-        assert img.mode == 'RGB'
+        assert img.mode == 'RGBA'
 
     def test_image_not_blank_ttb(self, generator, test_font):
         """Image should contain non-white pixels (actual text)."""

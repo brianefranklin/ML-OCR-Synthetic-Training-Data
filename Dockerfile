@@ -71,7 +71,7 @@ RUN rm -rf /home/vscode/.claude && \
     
 
 RUN mkdir -p /home/vscode/.ssh
-COPY --chown=vscode:vscode id_rsa.pub /home/vscode/.ssh/authorized_keys
+RUN echo "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAACAQCe9FFoDaLKQjhWPVxEpGCfek8a9/MpW9JmvtblOFtWoPjnCtS+MHiGDbIjNOMuZtPcVky/R9BqeyTYA/my7mOFhkuGh1ckv/e5Z9egZetWQFggcQcXfNSKN6sDaLLkIsvrgrOliaHmNWd6XgVkZeGbIlT77gvtR6lgc9n20Cqv8l9R0guxKW1GYREP+k11tBGPS6JyLfi+eBTDW7Uc4G22n/rrvNxvoCUNT0skFahMmEIcI3bezx9anWlwUCUeyLzZFSGAGGnfeewqjX50xTqjgnIbdVjITPQZvIIHgmt4TmuEdo8vRQJHwI12i7W9Ga9y+oMxzmpCUM36Zo1K3K7EXa7ACwHf5ikq3m1mKG3O0vfRcxG8XKNwsEV+xg7Y+eBiH5ewRo/Zr1U5xzwgR1Iw9IjS+AW/KD8Qei3ccMdsMLv/3vCCnITNiANaf3KciACmoGRODugQiWcem1p0WDszRBmRwRvMsmpRBUJbAP+cR98a91UoEkvN03PyEWBuUSQI1o4YD2RItXRMnFjtXixqvj7X7dFwFFP4Jo9YANiFdfe/FSb4ywMViDvmyVlQi0ZIVFjb82m32iU+yJKtPG2HfMGSI5AHv87tN3JVKYgTkAbAdi56+i/KQicW2QHzgWrc1agcKWecXRPwC8EBD1/nPR4EO5UHUBEsGtSH0Jm+iQ== brianefranklin@penguin" >> /home/vscode/.ssh/authorized_keys
 RUN chmod 700 /home/vscode/.ssh && \
     chmod 600 /home/vscode/.ssh/authorized_keys
 

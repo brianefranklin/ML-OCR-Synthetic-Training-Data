@@ -1,0 +1,16 @@
+# White text test configuration
+# Tests white text on white background edge case
+
+total_images: 10
+seed: 42
+
+batches:
+  # White text batch
+  - name: white_text
+    proportion: 1.0
+    text_direction: left_to_right
+    min_text_length: 5
+    max_text_length: 15
+    text_color_mode: uniform
+    color_palette: realistic_light  # This includes white
+    background_color: auto

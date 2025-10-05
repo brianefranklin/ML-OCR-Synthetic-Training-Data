@@ -83,8 +83,8 @@ def test_long_text_generation(test_environment):
         assert result.returncode == 0, f"Script failed for text length {min_len}-{max_len}: {result.stderr}"
 
         # Verify output
-        labels_file = output_dir / "labels.csv"
-        assert labels_file.exists(), f"labels.csv not created for length {min_len}-{max_len}"
+        json_files = list(output_dir.glob("image_*.json"))
+        assert len(json_files) > 0, f"labels.csv not created for length {min_len}-{max_len}"
 
         with open(labels_file, 'r', encoding='utf-8') as f:
             lines = f.readlines()
@@ -156,8 +156,8 @@ def test_special_characters(test_environment):
         assert result.returncode == 0, f"Script failed for {test_name} characters: {result.stderr}"
 
         # Verify output
-        labels_file = output_dir / "labels.csv"
-        assert labels_file.exists(), f"labels.csv not created for {test_name}"
+        json_files = list(output_dir.glob("image_*.json"))
+        assert len(json_files) > 0, f"labels.csv not created for {test_name}"
 
         with open(labels_file, 'r', encoding='utf-8') as f:
             lines = f.readlines()
@@ -224,7 +224,7 @@ def test_font_compatibility(test_environment):
 
         if result.returncode == 0:
             # Verify output was created
-            labels_file = output_dir / "labels.csv"
+            json_files = list(output_dir.glob("image_*.json"))
             image_files = list(output_dir.glob("image_*.png"))
 
             if labels_file.exists() and len(image_files) > 0:
@@ -384,8 +384,8 @@ def test_output_format_consistency(test_environment):
     assert result.returncode == 0, f"Script failed: {result.stderr}"
 
     output_dir = Path(test_environment["output_dir"])
-    labels_file = output_dir / "labels.csv"
-    assert labels_file.exists(), "labels.csv not created"
+    json_files = list(output_dir.glob("image_*.json"))
+    assert len(json_files) > 0, "JSON label files were not created."
 
     # Verify CSV format
     with open(labels_file, 'r', encoding='utf-8') as f:

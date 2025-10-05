@@ -9,9 +9,13 @@ This script creates images for an optical character recognition (OCR) training p
   The main logic is encapsulated in the OCRDataGenerator class. It orchestrates the entire image 
   generation pipeline, from rendering text to applying complex augmentations.
 
-  1. Text Rendering and Layout
+  1. Configuration (`batch_config.py` and `batch_configs/`)
 
-  The script first renders text onto a blank canvas. This is a highly configurable step:
+  The script is highly configurable through YAML files located in the `batch_configs/` directory. The `batch_config.py` module is responsible for parsing these files and setting up the generation parameters, such as image dimensions, font choices, text content, and the types and ranges of augmentations to be applied.
+
+  2. Text Rendering and Layout (`canvas_placement.py`)
+
+  The script first renders text onto a blank canvas. This is a highly configurable step, with the `canvas_placement.py` module handling the positioning of the text.
 
    * Multi-Directional Text: It can render text in four directions:
        * left_to_right (standard for English)
@@ -24,7 +28,7 @@ This script creates images for an optical character recognition (OCR) training p
       bounding box). This is the most critical piece of information for training the OCR model, as it 
      tells the model exactly where each character is located in the image.
 
-  2. Simulating Real-World Text Imperfections
+  3. Simulating Real-World Text Imperfections
 
   To make the training data more realistic, the script applies several effects during the rendering 
   phase, using modules from src/:
@@ -41,7 +45,7 @@ This script creates images for an optical character recognition (OCR) training p
        * Per-Glyph: Each character has a different, random color.
        * Gradient: A smooth color gradient is applied across the text.
 
-  3. Augmentations for Robustness
+  4. Augmentations for Robustness (`augmentations.py`)
 
   After the initial text is rendered, the apply_augmentations function from src/augmentations.py 
   applies a random series of transformations to the image. This is crucial for training a robust OCR 
@@ -50,6 +54,8 @@ This script creates images for an optical character recognition (OCR) training p
    * Geometric Distortions:
        * Perspective Warp: Skews the image to simulate a photo taken from an angle.
        * Elastic Distortion: Creates a "wavy" effect in the text.
+       * Grid Distortion: Distorts the image using a grid.
+       * Optical Distortion: Simulates lens distortion.
        * Rotation: Rotates the image by a small, random angle.
    * Image-Level Effects:
        * Backgrounds: The rendered text is pasted onto a random background image to train the model to 
@@ -64,7 +70,7 @@ This script creates images for an optical character recognition (OCR) training p
   Throughout the augmentation process, the character bounding boxes are continuously recalculated to 
   ensure they remain accurate.
 
-  4. Output
+  5. Output
 
   The final output of the script consists of two main parts:
 

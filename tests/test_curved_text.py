@@ -297,7 +297,7 @@ class TestImageQuality:
 
         image, bboxes = generator.render_curved_text("RGB Test", font, 'arc', 0.3)
 
-        assert image.mode == 'RGB', f"Expected RGB mode, got {image.mode}"
+        assert image.mode == 'RGBA', f"Expected RGBA mode, got {image.mode}"
 
     def test_image_not_blank(self, generator, test_font):
         """Test that rendered image contains actual content."""
@@ -570,8 +570,8 @@ class TestRegressionTests:
 
         image, bboxes = generator.render_curved_text("RGBA Test", font, 'sine', 0.5)
 
-        # Final image should always be RGB
-        assert image.mode == 'RGB', f"Expected RGB, got {image.mode}"
+        # Final image should always be RGBA
+        assert image.mode == 'RGBA', f"Expected RGBA, got {image.mode}"
 
     def test_overlapping_characters_handled(self, generator, test_font):
         """Test that overlapping characters (if any) are handled correctly."""

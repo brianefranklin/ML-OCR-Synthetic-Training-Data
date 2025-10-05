@@ -81,8 +81,8 @@ def test_bbox_validation(test_environment):
         assert result.returncode == 0, f"Script failed for direction {direction}: {result.stderr}"
 
         # Verify bboxes for each generated image
-        labels_file = output_dir / "labels.csv"
-        assert labels_file.exists(), f"labels.csv not created for direction {direction}"
+        json_files = list(output_dir.glob("image_*.json"))
+        assert len(json_files) > 0, f"JSON label files not created for direction {direction}"
 
         with open(labels_file, 'r', encoding='utf-8') as f:
             lines = f.readlines()
@@ -307,17 +307,16 @@ def test_bbox_character_correspondence(test_environment):
     assert result.returncode == 0, f"Script failed: {result.stderr}"
 
     output_dir = Path(test_environment["output_dir"])
-    labels_file = output_dir / "labels.csv"
-
-    with open(labels_file, 'r', encoding='utf-8') as f:
-        lines = f.readlines()
+    json_files = list(output_dir.glob("image_*.json"))
 
     # Test each generated image
-    for line in lines[1:]:  # Skip header
-        filename, json_data = line.strip().split(',', 1)
-        label_data = json.loads(json_data)
+    for json_file in json_files:
+        with open(json_file, 'r', encoding='utf-8') as f:
+            label_data = json.load(f)
+
         text = label_data["text"]
-        bboxes = label_data["bboxes"]
+        bboxes = label_data["char_bboxes"]
+        filename = label_data["image_file"]
 
         image_path = output_dir / filename
         img = Image.open(image_path).convert('L')  # Convert to grayscale

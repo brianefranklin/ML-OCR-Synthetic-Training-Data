@@ -298,21 +298,21 @@ class TestVisualEffects:
         img, _ = generator.render_left_to_right("Test", test_font, overlap_intensity=0.3,
                                                  ink_bleed_intensity=0.0)
         assert img is not None
-        assert img.mode == 'RGB'
+        assert img.mode == 'RGBA'
 
     def test_ink_bleed_low_intensity(self, generator, test_font):
         """Low ink bleed should produce slight blur."""
         img, _ = generator.render_left_to_right("Test", test_font, overlap_intensity=0.3,
                                                  ink_bleed_intensity=0.2)
         assert img is not None
-        assert img.mode == 'RGB'
+        assert img.mode == 'RGBA'
 
     def test_ink_bleed_high_intensity(self, generator, test_font):
         """High ink bleed should produce noticeable effect."""
         img, _ = generator.render_left_to_right("Test", test_font, overlap_intensity=0.3,
                                                  ink_bleed_intensity=0.8)
         assert img is not None
-        assert img.mode == 'RGB'
+        assert img.mode == 'RGBA'
 
     def test_ink_bleed_maintains_text_visibility(self, generator, test_font):
         """Ink bleed should not completely destroy text."""

@@ -79,8 +79,14 @@ class OverlapRenderer:
         # Clamp intensity
         intensity = max(0.0, min(1.0, ink_bleed_intensity))
 
-        # Convert to grayscale for processing
-        if image.mode == 'RGB':
+        # Handle RGBA images - preserve alpha channel
+        if image.mode == 'RGBA':
+            # Split channels
+            r, g, b, a = image.split()
+            # Convert RGB to grayscale for processing
+            rgb_img = Image.merge('RGB', (r, g, b))
+            gray = rgb_img.convert('L')
+        elif image.mode == 'RGB':
             gray = image.convert('L')
         else:
             gray = image
@@ -110,8 +116,12 @@ class OverlapRenderer:
         # Convert back to PIL Image
         result = Image.fromarray(np_img.astype(np.uint8))
 
-        # Convert back to RGB if original was RGB
-        if image.mode == 'RGB':
+        # Convert back to original mode
+        if image.mode == 'RGBA':
+            # Convert grayscale back to RGB and merge with alpha
+            rgb_result = result.convert('RGB')
+            return Image.merge('RGBA', (*rgb_result.split(), a))
+        elif image.mode == 'RGB':
             return result.convert('RGB')
         return result
 

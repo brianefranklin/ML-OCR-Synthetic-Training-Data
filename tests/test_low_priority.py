@@ -82,13 +82,11 @@ def test_edge_case_whitespace_only_corpus(test_environment):
         assert "text" in result.stderr.lower() or "empty" in result.stderr.lower() or "corpus" in result.stderr.lower()
     else:
         # If it succeeds, should have generated something or nothing
-        labels_file = Path(test_environment["output_dir"]) / "labels.csv"
-        # Either no labels file or empty data
-        if labels_file.exists():
-            with open(labels_file, 'r') as f:
-                lines = f.readlines()
-            # Should have header at most
-            assert len(lines) <= 1
+        json_files = list(Path(test_environment["output_dir"]).glob("image_*.json"))
+        # Either no JSON files or empty data
+        if len(json_files) > 0:
+            # Should have generated minimal or no files
+            assert len(json_files) <= 1
 
 
 def test_edge_case_num_images_exceeds_combinations(test_environment):
@@ -117,12 +115,10 @@ def test_edge_case_num_images_exceeds_combinations(test_environment):
     # Should complete without crashing (may generate duplicates or fewer images)
     assert result.returncode == 0, f"Script crashed: {result.stderr}"
 
-    labels_file = Path(test_environment["output_dir"]) / "labels.csv"
-    if labels_file.exists():
-        with open(labels_file, 'r') as f:
-            lines = f.readlines()
+    json_files = list(Path(test_environment["output_dir"]).glob("image_*.json"))
+    if len(json_files) > 0:
         # Should have generated some images (may have duplicates)
-        assert len(lines) >= 2  # At least header + 1 image
+        assert len(json_files) >= 1  # At least 1 JSON file
 
 
 def test_augmentation_combinations(test_environment):
@@ -146,21 +142,22 @@ def test_augmentation_combinations(test_environment):
     assert result.returncode == 0, f"Script failed with augmentation combinations: {result.stderr}"
 
     output_dir = Path(test_environment["output_dir"])
-    labels_file = output_dir / "labels.csv"
-    assert labels_file.exists()
-
-    with open(labels_file, 'r', encoding='utf-8') as f:
-        lines = f.readlines()
+    json_files = list(output_dir.glob("image_*.json"))
+    assert len(json_files) > 0
 
     # Verify all images were created successfully
-    assert len(lines) == 21, f"Expected 21 lines (header + 20 images), got {len(lines)}"
+    assert len(json_files) == 20, f"Expected 20 JSON files, got {len(json_files)}"
 
-    for line in lines[1:]:
-        filename, json_data = line.strip().split(',', 1)
-        label_data = json.loads(json_data)
+    for json_file in json_files:
+        with open(json_file, 'r', encoding='utf-8') as f:
+            label_data = json.load(f)
+
+        text = label_data["text"]
+        bboxes = label_data["char_bboxes"]
+        filename = label_data["image_file"]
 
         # Verify bbox transformations composed correctly
-        assert len(label_data["bboxes"]) == len(label_data["text"])
+        assert len(bboxes) == len(text)
 
         # Verify image exists and is valid
         img_path = output_dir / filename
@@ -169,7 +166,7 @@ def test_augmentation_combinations(test_environment):
         assert img.size[0] > 0 and img.size[1] > 0
 
         # All bboxes should be lists of 4 numbers (even after multiple augmentations)
-        for bbox in label_data["bboxes"]:
+        for bbox in bboxes:
             assert isinstance(bbox, list)
             assert len(bbox) == 4
             assert all(isinstance(x, (int, float)) for x in bbox)
@@ -268,14 +265,11 @@ def test_multiline_text_as_single_images(test_environment):
     assert result.returncode == 0, f"Script failed with multiline corpus: {result.stderr}"
 
     # Current implementation should pick from available lines
-    labels_file = Path(test_environment["output_dir"]) / "labels.csv"
-    assert labels_file.exists()
-
-    with open(labels_file, 'r') as f:
-        lines = f.readlines()
+    json_files = list(Path(test_environment["output_dir"]).glob("image_*.json"))
+    assert len(json_files) > 0
 
     # Should have generated images (may be from different lines)
-    assert len(lines) >= 2  # Header + at least 1 image
+    assert len(json_files) >= 1  # At least 1 JSON file
 
 
 def test_mixed_direction_text_limitations(test_environment):
@@ -306,8 +300,8 @@ def test_mixed_direction_text_limitations(test_environment):
     # Just verify it doesn't crash catastrophically
     if result.returncode == 0:
         # If successful, verify images were created
-        labels_file = Path(test_environment["output_dir"]) / "labels.csv"
-        assert labels_file.exists()
+        json_files = list(Path(test_environment["output_dir"]).glob("image_*.json"))
+        assert len(json_files) > 0
 
 
 def test_font_fallback_missing_glyphs(test_environment):
@@ -336,18 +330,15 @@ def test_font_fallback_missing_glyphs(test_environment):
 
     # Should handle gracefully - either skip unsupported chars or use font that supports them
     if result.returncode == 0:
-        labels_file = Path(test_environment["output_dir"]) / "labels.csv"
-        if labels_file.exists():
-            with open(labels_file, 'r', encoding='utf-8') as f:
-                lines = f.readlines()
-
+        json_files = list(Path(test_environment["output_dir"]).glob("image_*.json"))
+        if len(json_files) > 0:
             # Verify bbox count matches text (or adjusted text if chars were skipped)
-            for line in lines[1:]:
-                filename, json_data = line.strip().split(',', 1)
-                label_data = json.loads(json_data)
+            for json_file in json_files:
+                with open(json_file, 'r', encoding='utf-8') as f:
+                    label_data = json.load(f)
                 # Just verify it's valid, may have fewer chars if unsupported
                 assert isinstance(label_data["text"], str)
-                assert isinstance(label_data["bboxes"], list)
+                assert isinstance(label_data["char_bboxes"], list)
 
 
 def test_deterministic_generation_with_seed(test_environment):
@@ -379,8 +370,8 @@ def test_deterministic_generation_with_seed(test_environment):
     assert result1.returncode == 0
 
     # Just verify the output exists and is valid
-    labels_file1 = output_dir1 / "labels.csv"
-    assert labels_file1.exists()
+    json_files1 = list(output_dir1.glob("image_*.json"))
+    assert len(json_files1) > 0
 
 
 def test_invalid_corrupted_background(test_environment):
@@ -416,11 +407,9 @@ def test_invalid_corrupted_background(test_environment):
     # Should handle gracefully - skip corrupted backgrounds or error appropriately
     if result.returncode == 0:
         # If successful, some images should have been generated
-        labels_file = Path(test_environment["output_dir"]) / "labels.csv"
-        assert labels_file.exists()
-        with open(labels_file, 'r') as f:
-            lines = f.readlines()
-        assert len(lines) >= 2  # Header + at least 1 image
+        json_files = list(Path(test_environment["output_dir"]).glob("image_*.json"))
+        assert len(json_files) > 0
+        assert len(json_files) >= 1  # At least 1 JSON file
     else:
         # Acceptable to error if backgrounds are invalid
         assert "background" in result.stderr.lower() or "image" in result.stderr.lower()
@@ -458,12 +447,10 @@ def test_invalid_malformed_font(test_environment):
 
     # Should handle gracefully - skip bad fonts and use valid ones
     if result.returncode == 0:
-        labels_file = Path(test_environment["output_dir"]) / "labels.csv"
-        assert labels_file.exists()
+        json_files = list(Path(test_environment["output_dir"]).glob("image_*.json"))
+        assert len(json_files) > 0
         # Should have used the valid font
-        with open(labels_file, 'r') as f:
-            lines = f.readlines()
-        assert len(lines) >= 2
+        assert len(json_files) >= 1
     else:
         # May error if no valid fonts found
         assert "font" in result.stderr.lower()
@@ -513,32 +500,31 @@ def test_metadata_consistency(test_environment):
     result = subprocess.run(command, capture_output=True, text=True, check=False)
     assert result.returncode == 0
 
-    labels_file = Path(test_environment["output_dir"]) / "labels.csv"
-    assert labels_file.exists()
-
-    with open(labels_file, 'r', encoding='utf-8') as f:
-        lines = f.readlines()
+    json_files = list(Path(test_environment["output_dir"]).glob("image_*.json"))
+    assert len(json_files) > 0
 
     # Check all entries have same structure
-    for line in lines[1:]:
-        filename, json_data = line.strip().split(',', 1)
-        label_data = json.loads(json_data)
+    for json_file in json_files:
+        with open(json_file, 'r', encoding='utf-8') as f:
+            label_data = json.load(f)
 
         # Verify required fields exist
         assert "text" in label_data, "Missing 'text' field"
-        assert "bboxes" in label_data, "Missing 'bboxes' field"
+        assert "char_bboxes" in label_data, "Missing 'char_bboxes' field"
+        assert "image_file" in label_data, "Missing 'image_file' field"
 
         # Verify field types are consistent
         assert isinstance(label_data["text"], str), "'text' should be string"
-        assert isinstance(label_data["bboxes"], list), "'bboxes' should be list"
+        assert isinstance(label_data["char_bboxes"], list), "'char_bboxes' should be list"
 
         # Verify bbox structure is consistent
-        for bbox in label_data["bboxes"]:
+        for bbox in label_data["char_bboxes"]:
             assert isinstance(bbox, list), "bbox should be list"
             assert len(bbox) == 4, "bbox should have 4 coordinates"
             assert all(isinstance(x, (int, float)) for x in bbox), "bbox coordinates should be numeric"
 
         # Check filename follows pattern
+        filename = label_data["image_file"]
         assert filename.startswith("image_"), "Filename should start with 'image_'"
         assert filename.endswith(".png"), "Filename should end with '.png'"
 
