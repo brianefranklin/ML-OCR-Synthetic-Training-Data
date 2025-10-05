@@ -1,0 +1,7 @@
+total_images: 10
+batches:
+  - name: custom_red_on_yellow
+    proportion: 1.0
+    text_color_mode: uniform
+    custom_colors: [[255, 0, 0]]
+    background_color: [255, 255, 0]

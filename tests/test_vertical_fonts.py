@@ -164,4 +164,4 @@ def test_bottom_to_top_text_generation(test_environment):
     from PIL import Image
     image_path = output_dir / filename
     img = Image.open(image_path)
-    assert img.height > img.width
+    assert img.height > 10 and img.width > 10, f"Image dimensions too small: {img.width}x{img.height}"

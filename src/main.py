@@ -11,7 +11,7 @@ import random
 import sys
 import time
 import logging
-from typing import List, Tuple, Dict, Optional
+from typing import List, Tuple, Dict, Optional, Union
 from dataclasses import dataclass
 from PIL import Image, ImageDraw, ImageFont
 import bidi.algorithm
@@ -68,7 +68,11 @@ class OCRDataGenerator:
                           effect_type: str = 'none',
                           effect_depth: float = 0.5,
                           light_azimuth: float = 135.0,
-                          light_elevation: float = 45.0) -> Tuple[Image.Image, List[CharacterBox]]:
+                          light_elevation: float = 45.0,
+                            text_color_mode: str = 'uniform',
+                                                                color_palette: str = 'realistic_dark',
+                                                                custom_colors: List[Tuple[int, int, int]] = None,
+                                                                background_color: Union[Tuple[int, int, int], str] = 'auto') -> Tuple[Image.Image, List[CharacterBox]]:
         """
         Render text along a curve (arc or sine wave).
 
@@ -89,6 +93,7 @@ class OCRDataGenerator:
         """
         import math
         from glyph_overlap import OverlapRenderer
+        from text_color import ColorRenderer
 
         # Handle empty text
         if not text:
@@ -143,20 +148,34 @@ class OCRDataGenerator:
             amplitude = max_height * curve_intensity * 1.5
             curve_height = int(max_height + amplitude * 2 + 80)
 
+        # Generate text colors
+        text_colors = ColorRenderer.generate_line_colors(
+            text, text_color_mode, color_palette, custom_colors
+        )
+
+        # Determine background color
+        bg_color = background_color
+        if bg_color == 'auto' or bg_color is None:
+            bg_color = ColorRenderer.get_contrasting_color(text_colors[0])
+        elif isinstance(bg_color, str):
+            parsed = ColorRenderer.parse_color_string(bg_color)
+            bg_color = parsed if parsed else (255, 255, 255)
+
         # Create oversized canvas
         img_width = int(total_width + 100)
         img_height = curve_height
-        image = Image.new('RGB', (img_width, img_height), color='white')
+        image = Image.new('RGB', (img_width, img_height), color=bg_color)
         draw = ImageDraw.Draw(image)
 
         # Render characters along curve
         char_boxes = []
         x_pos = 50
 
-        for info in char_info:
+        for i, info in enumerate(char_info):
             char = info['char']
             char_width = info['width']
             char_height = info['height']
+            char_color = text_colors[i]
 
             # Calculate position and rotation
             if curve_type == 'arc':
@@ -182,7 +201,7 @@ class OCRDataGenerator:
                 # Get original character bbox before rotation
                 temp_char_img = Image.new('RGBA', (char_width + 20, char_height + 20), (255, 255, 255, 0))
                 temp_char_draw = ImageDraw.Draw(temp_char_img)
-                temp_char_draw.text((10, 10), char, font=font, fill='black')
+                temp_char_draw.text((10, 10), char, font=font, fill=char_color)
                 original_bbox = temp_char_draw.textbbox((10, 10), char, font=font)
 
                 # Create rotated character image
@@ -190,7 +209,7 @@ class OCRDataGenerator:
                 char_draw = ImageDraw.Draw(char_img)
                 char_center_x = 30
                 char_center_y = 30
-                char_draw.text((char_center_x, char_center_y), char, font=font, fill='black')
+                char_draw.text((char_center_x, char_center_y), char, font=font, fill=char_color)
                 rotated = char_img.rotate(-rotation_angle, expand=True, fillcolor=(255, 255, 255, 0))
 
                 # Paste with transparency
@@ -231,7 +250,7 @@ class OCRDataGenerator:
                 bbox = [min(xs), min(ys), max(xs), max(ys)]
             else:
                 # Straight character
-                draw.text((x_draw, y_draw - char_height/2), char, font=font, fill='black')
+                draw.text((x_draw, y_draw - char_height/2), char, font=font, fill=char_color)
                 bbox = [x_draw, y_draw - char_height/2,
                        x_draw + char_width, y_draw + char_height/2]
 
@@ -271,7 +290,11 @@ class OCRDataGenerator:
                                     effect_type: str = 'none',
                                     effect_depth: float = 0.5,
                                     light_azimuth: float = 135.0,
-                                    light_elevation: float = 45.0) -> Tuple[Image.Image, List[CharacterBox]]:
+                                    light_elevation: float = 45.0,
+                            text_color_mode: str = 'uniform',
+                                                                color_palette: str = 'realistic_dark',
+                                                                custom_colors: List[Tuple[int, int, int]] = None,
+                                                                background_color: Union[Tuple[int, int, int], str] = 'auto') -> Tuple[Image.Image, List[CharacterBox]]:
         """
         Render RTL text along a curve (arc or sine wave).
 
@@ -292,6 +315,7 @@ class OCRDataGenerator:
         """
         import math
         from glyph_overlap import OverlapRenderer
+        from text_color import ColorRenderer
 
         # Handle empty text
         if not text:
@@ -346,20 +370,34 @@ class OCRDataGenerator:
             amplitude = max_height * curve_intensity * 1.5
             curve_height = int(max_height + amplitude * 2 + 80)
 
+        # Generate text colors
+        text_colors = ColorRenderer.generate_line_colors(
+            text, text_color_mode, color_palette, custom_colors
+        )
+
+        # Determine background color
+        bg_color = background_color
+        if bg_color == 'auto' or bg_color is None:
+            bg_color = ColorRenderer.get_contrasting_color(text_colors[0])
+        elif isinstance(bg_color, str):
+            parsed = ColorRenderer.parse_color_string(bg_color)
+            bg_color = parsed if parsed else (255, 255, 255)
+
         # Create oversized canvas
         img_width = int(total_width + 100)
         img_height = curve_height
-        image = Image.new('RGB', (img_width, img_height), color='white')
+        image = Image.new('RGB', (img_width, img_height), color=bg_color)
         draw = ImageDraw.Draw(image)
 
         # Render characters along curve (RTL: start from right)
         char_boxes = []
         x_pos = img_width - 50  # Start from right edge
 
-        for info in char_info:
+        for i, info in enumerate(char_info):
             char = info['char']
             char_width = info['width']
             char_height = info['height']
+            char_color = text_colors[i]
 
             # Calculate position and rotation (RTL: mirror curve horizontally)
             if curve_type == 'arc':
@@ -385,7 +423,7 @@ class OCRDataGenerator:
                 # Get original character bbox before rotation
                 temp_char_img = Image.new('RGBA', (char_width + 20, char_height + 20), (255, 255, 255, 0))
                 temp_char_draw = ImageDraw.Draw(temp_char_img)
-                temp_char_draw.text((10, 10), char, font=font, fill='black')
+                temp_char_draw.text((10, 10), char, font=font, fill=char_color)
                 original_bbox = temp_char_draw.textbbox((10, 10), char, font=font)
 
                 # Create rotated character image
@@ -393,7 +431,7 @@ class OCRDataGenerator:
                 char_draw = ImageDraw.Draw(char_img)
                 char_center_x = 30
                 char_center_y = 30
-                char_draw.text((char_center_x, char_center_y), char, font=font, fill='black')
+                char_draw.text((char_center_x, char_center_y), char, font=font, fill=char_color)
                 rotated = char_img.rotate(-rotation_angle, expand=True, fillcolor=(255, 255, 255, 0))
 
                 # Paste with transparency
@@ -431,7 +469,7 @@ class OCRDataGenerator:
                 bbox = [min(xs), min(ys), max(xs), max(ys)]
             else:
                 # Straight character
-                draw.text((x_draw, y_draw - char_height/2), char, font=font, fill='black')
+                draw.text((x_draw, y_draw - char_height/2), char, font=font, fill=char_color)
                 bbox = [x_draw, y_draw - char_height/2,
                        x_draw + char_width, y_draw + char_height/2]
 
@@ -510,7 +548,11 @@ class OCRDataGenerator:
                             effect_type: str = 'none',
                             effect_depth: float = 0.5,
                             light_azimuth: float = 135.0,
-                            light_elevation: float = 45.0) -> Tuple[Image.Image, List[CharacterBox]]:
+                            light_elevation: float = 45.0,
+                            text_color_mode: str = 'uniform',
+                            color_palette: str = 'realistic_dark',
+                            custom_colors: List[Tuple[int, int, int]] = None,
+                            background_color: Union[Tuple[int, int, int], str] = 'auto') -> Tuple[Image.Image, List[CharacterBox]]:
         """
         Render left-to-right horizontal text with character bboxes.
 
@@ -523,11 +565,21 @@ class OCRDataGenerator:
             effect_depth: 3D effect depth (0.0-1.0)
             light_azimuth: Light direction angle (0-360 degrees)
             light_elevation: Light elevation angle (0-90 degrees)
+            text_color_mode: Color mode ('uniform', 'per_glyph', 'gradient', 'random')
+            color_palette: Color palette name ('realistic_dark', 'vibrant', 'pastels', etc.)
+            custom_colors: Optional list of custom RGB tuples
+            background_color: Background color RGB tuple or 'auto'
 
         Returns:
             Tuple of (image, character_boxes)
         """
         from glyph_overlap import OverlapRenderer
+        from text_color import ColorRenderer
+
+        # Handle empty text
+        if not text:
+            empty_img = Image.new('RGB', (10, 10), color='white')
+            return empty_img, []
 
         # Measure characters and calculate width with overlap
         temp_img = Image.new('RGBA', (1, 1))
@@ -547,8 +599,21 @@ class OCRDataGenerator:
         total_text_bbox = temp_draw.textbbox((0, 0), text, font=font)
         img_height = (total_text_bbox[3] - total_text_bbox[1]) + 30
 
+        # Generate text colors
+        text_colors = ColorRenderer.generate_line_colors(
+            text, text_color_mode, color_palette, custom_colors
+        )
+
+        # Determine background color
+        bg_color = background_color
+        if bg_color == 'auto' or bg_color is None:
+            bg_color = ColorRenderer.get_contrasting_color(text_colors[0])
+        elif isinstance(bg_color, str):
+            parsed = ColorRenderer.parse_color_string(bg_color)
+            bg_color = parsed if parsed else (255, 255, 255)
+
         # Create actual image
-        image = Image.new('RGB', (int(total_width), img_height), color='white')
+        image = Image.new('RGB', (int(total_width), img_height), color=bg_color)
         draw = ImageDraw.Draw(image)
 
         # Render characters and collect bboxes
@@ -556,9 +621,10 @@ class OCRDataGenerator:
         x_offset = 20
         y_offset = 15
 
-        for char in text:
+        for i, char in enumerate(text):
+            char_color = text_colors[i]
             char_bbox = draw.textbbox((x_offset, y_offset), char, font=font)
-            draw.text((x_offset, y_offset), char, font=font, fill='black')
+            draw.text((x_offset, y_offset), char, font=font, fill=text_colors[i])
             char_boxes.append(CharacterBox(char, list(char_bbox)))
 
             # Apply overlap to spacing
@@ -588,7 +654,11 @@ class OCRDataGenerator:
                            effect_type: str = 'none',
                            effect_depth: float = 0.5,
                            light_azimuth: float = 135.0,
-                           light_elevation: float = 45.0) -> Tuple[Image.Image, List[CharacterBox]]:
+                           light_elevation: float = 45.0,
+                            text_color_mode: str = 'uniform',
+                                                        color_palette: str = 'realistic_dark',
+                                                        custom_colors: List[Tuple[int, int, int]] = None,
+                                                        background_color: Union[Tuple[int, int, int], str] = 'auto') -> Tuple[Image.Image, List[CharacterBox]]:
         """
         Render right-to-left horizontal text with proper BiDi handling.
 
@@ -606,6 +676,12 @@ class OCRDataGenerator:
             Tuple of (image, character_boxes)
         """
         from glyph_overlap import OverlapRenderer
+        from text_color import ColorRenderer
+
+        # Handle empty text
+        if not text:
+            empty_img = Image.new('RGB', (10, 10), color='white')
+            return empty_img, []
 
         # Use BiDi algorithm for proper RTL display
         display_text = bidi.algorithm.get_display(text)
@@ -629,8 +705,21 @@ class OCRDataGenerator:
         total_text_bbox = temp_draw.textbbox((0, 0), display_text, font=font)
         img_height = (total_text_bbox[3] - total_text_bbox[1]) + 30
 
+        # Generate text colors
+        text_colors = ColorRenderer.generate_line_colors(
+            display_text, text_color_mode, color_palette, custom_colors
+        )
+
+        # Determine background color
+        bg_color = background_color
+        if bg_color == 'auto' or bg_color is None:
+            bg_color = ColorRenderer.get_contrasting_color(text_colors[0])
+        elif isinstance(bg_color, str):
+            parsed = ColorRenderer.parse_color_string(bg_color)
+            bg_color = parsed if parsed else (255, 255, 255)
+
         # Create actual image
-        image = Image.new('RGB', (int(total_width), img_height), color='white')
+        image = Image.new('RGB', (int(total_width), img_height), color=bg_color)
         draw = ImageDraw.Draw(image)
 
         # Render characters from right to left
@@ -638,11 +727,11 @@ class OCRDataGenerator:
         x_offset = int(total_width) - 20
         y_offset = 15
 
-        for char in display_text:
+        for i, char in enumerate(display_text):
             char_width = draw.textlength(char, font=font)
             x_offset -= char_width
 
-            draw.text((x_offset, y_offset), char, font=font, fill='black')
+            draw.text((x_offset, y_offset), char, font=font, fill=text_colors[i])
             char_bbox = draw.textbbox((x_offset, y_offset), char, font=font)
             char_boxes.append(CharacterBox(char, list(char_bbox)))
 
@@ -673,7 +762,11 @@ class OCRDataGenerator:
                            effect_type: str = 'none',
                            effect_depth: float = 0.5,
                            light_azimuth: float = 135.0,
-                           light_elevation: float = 45.0) -> Tuple[Image.Image, List[CharacterBox]]:
+                           light_elevation: float = 45.0,
+                            text_color_mode: str = 'uniform',
+                                                        color_palette: str = 'realistic_dark',
+                                                        custom_colors: List[Tuple[int, int, int]] = None,
+                                                        background_color: Union[Tuple[int, int, int], str] = 'auto') -> Tuple[Image.Image, List[CharacterBox]]:
         """
         Render top-to-bottom vertical text (traditional CJK style).
 
@@ -691,6 +784,12 @@ class OCRDataGenerator:
             Tuple of (image, character_boxes)
         """
         from glyph_overlap import OverlapRenderer
+        from text_color import ColorRenderer
+
+        # Handle empty text
+        if not text:
+            empty_img = Image.new('RGB', (10, 10), color='white')
+            return empty_img, []
 
         # Measure characters
         temp_img = Image.new('RGBA', (1, 1))
@@ -717,21 +816,35 @@ class OCRDataGenerator:
         img_width = max_char_width + 40
         img_height = int(total_height)
 
+        # Generate text colors
+        text_colors = ColorRenderer.generate_line_colors(
+            text, text_color_mode, color_palette, custom_colors
+        )
+
+        # Determine background color
+        bg_color = background_color
+        if bg_color == 'auto' or bg_color is None:
+            bg_color = ColorRenderer.get_contrasting_color(text_colors[0])
+        elif isinstance(bg_color, str):
+            parsed = ColorRenderer.parse_color_string(bg_color)
+            bg_color = parsed if parsed else (255, 255, 255)
+
         # Create actual image
-        image = Image.new('RGB', (img_width, img_height), color='white')
+        image = Image.new('RGB', (img_width, img_height), color=bg_color)
         draw = ImageDraw.Draw(image)
 
         # Render characters top to bottom
         char_boxes = []
         y_cursor = 15
 
-        for char in text:
+        for i, char in enumerate(text):
+            char_color = text_colors[i]
             char_bbox_temp = draw.textbbox((0, 0), char, font=font)
             char_width = char_bbox_temp[2] - char_bbox_temp[0]
             char_height = char_bbox_temp[3] - char_bbox_temp[1]
             x_cursor = (img_width - char_width) / 2
 
-            draw.text((x_cursor, y_cursor), char, font=font, fill='black')
+            draw.text((x_cursor, y_cursor), char, font=font, fill=text_colors[i])
             char_bbox = draw.textbbox((x_cursor, y_cursor), char, font=font)
             char_boxes.append(CharacterBox(char, list(char_bbox)))
             logging.debug(f"char: {char}, bbox: {char_bbox}")
@@ -759,7 +872,11 @@ class OCRDataGenerator:
                            effect_type: str = 'none',
                            effect_depth: float = 0.5,
                            light_azimuth: float = 135.0,
-                           light_elevation: float = 45.0) -> Tuple[Image.Image, List[CharacterBox]]:
+                           light_elevation: float = 45.0,
+                            text_color_mode: str = 'uniform',
+                                                        color_palette: str = 'realistic_dark',
+                                                        custom_colors: List[Tuple[int, int, int]] = None,
+                                                        background_color: Union[Tuple[int, int, int], str] = 'auto') -> Tuple[Image.Image, List[CharacterBox]]:
         """
         Render bottom-to-top vertical text.
 
@@ -777,6 +894,12 @@ class OCRDataGenerator:
             Tuple of (image, character_boxes)
         """
         from glyph_overlap import OverlapRenderer
+        from text_color import ColorRenderer
+
+        # Handle empty text
+        if not text:
+            empty_img = Image.new('RGB', (10, 10), color='white')
+            return empty_img, []
 
         # Measure characters
         temp_img = Image.new('RGBA', (1, 1))
@@ -803,22 +926,36 @@ class OCRDataGenerator:
         img_width = max_char_width + 40
         img_height = int(total_height)
 
+        # Generate text colors
+        text_colors = ColorRenderer.generate_line_colors(
+            text, text_color_mode, color_palette, custom_colors
+        )
+
+        # Determine background color
+        bg_color = background_color
+        if bg_color == 'auto' or bg_color is None:
+            bg_color = ColorRenderer.get_contrasting_color(text_colors[0])
+        elif isinstance(bg_color, str):
+            parsed = ColorRenderer.parse_color_string(bg_color)
+            bg_color = parsed if parsed else (255, 255, 255)
+
         # Create actual image
-        image = Image.new('RGB', (img_width, img_height), color='white')
+        image = Image.new('RGB', (img_width, img_height), color=bg_color)
         draw = ImageDraw.Draw(image)
 
         # Render characters bottom to top
         char_boxes = []
         y_cursor = img_height - 15
 
-        for char in text:
+        for i, char in enumerate(text):
+            char_color = text_colors[i]
             char_bbox_temp = draw.textbbox((0, 0), char, font=font)
             char_width = char_bbox_temp[2] - char_bbox_temp[0]
             char_height = char_bbox_temp[3] - char_bbox_temp[1]
             x_cursor = (img_width - char_width) / 2
             y_cursor -= char_height
 
-            draw.text((x_cursor, y_cursor), char, font=font, fill='black')
+            draw.text((x_cursor, y_cursor), char, font=font, fill=text_colors[i])
             char_bbox = draw.textbbox((x_cursor, y_cursor), char, font=font)
             char_boxes.append(CharacterBox(char, list(char_bbox)))
             logging.debug(f"char: {char}, bbox: {char_bbox}")
@@ -848,7 +985,11 @@ class OCRDataGenerator:
                                     effect_type: str = 'none',
                                     effect_depth: float = 0.5,
                                     light_azimuth: float = 135.0,
-                                    light_elevation: float = 45.0) -> Tuple[Image.Image, List[CharacterBox]]:
+                                    light_elevation: float = 45.0,
+                            text_color_mode: str = 'uniform',
+                                                                color_palette: str = 'realistic_dark',
+                                                                custom_colors: List[Tuple[int, int, int]] = None,
+                                                                background_color: Union[Tuple[int, int, int], str] = 'auto') -> Tuple[Image.Image, List[CharacterBox]]:
         """
         Render text along a curved vertical baseline from top to bottom.
 
@@ -865,6 +1006,7 @@ class OCRDataGenerator:
         """
         import math
         from glyph_overlap import OverlapRenderer
+        from text_color import ColorRenderer
 
         # Handle empty text
         if not text:
@@ -917,20 +1059,34 @@ class OCRDataGenerator:
             amplitude = max_width * curve_intensity * 1.5
             curve_width = int(max_width + amplitude * 2 + 80)
 
+        # Generate text colors
+        text_colors = ColorRenderer.generate_line_colors(
+            text, text_color_mode, color_palette, custom_colors
+        )
+
+        # Determine background color
+        bg_color = background_color
+        if bg_color == 'auto' or bg_color is None:
+            bg_color = ColorRenderer.get_contrasting_color(text_colors[0])
+        elif isinstance(bg_color, str):
+            parsed = ColorRenderer.parse_color_string(bg_color)
+            bg_color = parsed if parsed else (255, 255, 255)
+
         # Create oversized canvas
         img_height = int(total_height + 100)
         img_width = curve_width
-        image = Image.new('RGB', (img_width, img_height), color='white')
+        image = Image.new('RGB', (img_width, img_height), color=bg_color)
         draw = ImageDraw.Draw(image)
 
         # Render characters along vertical curve
         char_boxes = []
         y_pos = 50
 
-        for info in char_info:
+        for i, info in enumerate(char_info):
             char = info['char']
             char_width = info['width']
             char_height = info['height']
+            char_color = text_colors[i]
 
             # Calculate position and rotation for vertical curve
             if curve_type == 'arc':
@@ -956,7 +1112,7 @@ class OCRDataGenerator:
                 # Get original character bbox before rotation
                 temp_char_img = Image.new('RGBA', (char_width + 20, char_height + 20), (255, 255, 255, 0))
                 temp_char_draw = ImageDraw.Draw(temp_char_img)
-                temp_char_draw.text((10, 10), char, font=font, fill='black')
+                temp_char_draw.text((10, 10), char, font=font, fill=char_color)
                 original_bbox = temp_char_draw.textbbox((10, 10), char, font=font)
 
                 # Create rotated character image
@@ -964,7 +1120,7 @@ class OCRDataGenerator:
                 char_draw = ImageDraw.Draw(char_img)
                 char_center_x = 30
                 char_center_y = 30
-                char_draw.text((char_center_x, char_center_y), char, font=font, fill='black')
+                char_draw.text((char_center_x, char_center_y), char, font=font, fill=char_color)
                 rotated = char_img.rotate(-rotation_angle, expand=True, fillcolor=(255, 255, 255, 0))
 
                 # Paste with transparency
@@ -1003,7 +1159,7 @@ class OCRDataGenerator:
                 bbox = [min(xs), min(ys), max(xs), max(ys)]
             else:
                 # Straight character
-                draw.text((x_draw - char_width/2, y_draw), char, font=font, fill='black')
+                draw.text((x_draw - char_width/2, y_draw), char, font=font, fill=char_color)
                 bbox = [x_draw - char_width/2, y_draw,
                        x_draw + char_width/2, y_draw + char_height]
 
@@ -1042,7 +1198,11 @@ class OCRDataGenerator:
                                     effect_type: str = 'none',
                                     effect_depth: float = 0.5,
                                     light_azimuth: float = 135.0,
-                                    light_elevation: float = 45.0) -> Tuple[Image.Image, List[CharacterBox]]:
+                                    light_elevation: float = 45.0,
+                            text_color_mode: str = 'uniform',
+                                                                color_palette: str = 'realistic_dark',
+                                                                custom_colors: List[Tuple[int, int, int]] = None,
+                                                                background_color: Union[Tuple[int, int, int], str] = 'auto') -> Tuple[Image.Image, List[CharacterBox]]:
         """
         Render text along a curved vertical baseline from bottom to top.
 
@@ -1059,6 +1219,7 @@ class OCRDataGenerator:
         """
         import math
         from glyph_overlap import OverlapRenderer
+        from text_color import ColorRenderer
 
         # Handle empty text
         if not text:
@@ -1111,20 +1272,34 @@ class OCRDataGenerator:
             amplitude = max_width * curve_intensity * 1.5
             curve_width = int(max_width + amplitude * 2 + 80)
 
+        # Generate text colors
+        text_colors = ColorRenderer.generate_line_colors(
+            text, text_color_mode, color_palette, custom_colors
+        )
+
+        # Determine background color
+        bg_color = background_color
+        if bg_color == 'auto' or bg_color is None:
+            bg_color = ColorRenderer.get_contrasting_color(text_colors[0])
+        elif isinstance(bg_color, str):
+            parsed = ColorRenderer.parse_color_string(bg_color)
+            bg_color = parsed if parsed else (255, 255, 255)
+
         # Create oversized canvas
         img_height = int(total_height + 100)
         img_width = curve_width
-        image = Image.new('RGB', (img_width, img_height), color='white')
+        image = Image.new('RGB', (img_width, img_height), color=bg_color)
         draw = ImageDraw.Draw(image)
 
         # Render characters along vertical curve (bottom to top)
         char_boxes = []
         y_pos = img_height - 50  # Start from bottom
 
-        for info in char_info:
+        for i, info in enumerate(char_info):
             char = info['char']
             char_width = info['width']
             char_height = info['height']
+            char_color = text_colors[i]
 
             # Move up by character height first (bottom-to-top)
             y_pos -= char_height
@@ -1155,7 +1330,7 @@ class OCRDataGenerator:
                 # Get original character bbox before rotation
                 temp_char_img = Image.new('RGBA', (char_width + 20, char_height + 20), (255, 255, 255, 0))
                 temp_char_draw = ImageDraw.Draw(temp_char_img)
-                temp_char_draw.text((10, 10), char, font=font, fill='black')
+                temp_char_draw.text((10, 10), char, font=font, fill=char_color)
                 original_bbox = temp_char_draw.textbbox((10, 10), char, font=font)
 
                 # Create rotated character image
@@ -1163,7 +1338,7 @@ class OCRDataGenerator:
                 char_draw = ImageDraw.Draw(char_img)
                 char_center_x = 30
                 char_center_y = 30
-                char_draw.text((char_center_x, char_center_y), char, font=font, fill='black')
+                char_draw.text((char_center_x, char_center_y), char, font=font, fill=char_color)
                 rotated = char_img.rotate(-rotation_angle, expand=True, fillcolor=(255, 255, 255, 0))
 
                 # Paste with transparency
@@ -1202,7 +1377,7 @@ class OCRDataGenerator:
                 bbox = [min(xs), min(ys), max(xs), max(ys)]
             else:
                 # Straight character
-                draw.text((x_draw - char_width/2, y_draw), char, font=font, fill='black')
+                draw.text((x_draw - char_width/2, y_draw), char, font=font, fill=char_color)
                 bbox = [x_draw - char_width/2, y_draw,
                        x_draw + char_width/2, y_draw + char_height]
 
@@ -1235,7 +1410,11 @@ class OCRDataGenerator:
                    effect_type: str = 'none',
                    effect_depth: float = 0.5,
                    light_azimuth: float = 135.0,
-                   light_elevation: float = 45.0) -> Tuple[Image.Image, List[CharacterBox]]:
+                   light_elevation: float = 45.0,
+                   text_color_mode: str = 'uniform',
+                   color_palette: str = 'realistic_dark',
+                   custom_colors: List[Tuple[int, int, int]] = None,
+                   background_color: Union[Tuple[int, int, int], str] = 'auto') -> Tuple[Image.Image, List[CharacterBox]]:
         """
         Render text in specified direction with character-level bboxes.
 
@@ -1255,16 +1434,20 @@ class OCRDataGenerator:
         """
         if direction == 'left_to_right':
             return self.render_left_to_right(text, font, overlap_intensity, ink_bleed_intensity,
-                                            effect_type, effect_depth, light_azimuth, light_elevation)
+                                            effect_type, effect_depth, light_azimuth, light_elevation,
+                                            text_color_mode, color_palette, custom_colors, background_color)
         elif direction == 'right_to_left':
             return self.render_right_to_left(text, font, overlap_intensity, ink_bleed_intensity,
-                                            effect_type, effect_depth, light_azimuth, light_elevation)
+                                            effect_type, effect_depth, light_azimuth, light_elevation,
+                                            text_color_mode, color_palette, custom_colors, background_color)
         elif direction == 'top_to_bottom':
             return self.render_top_to_bottom(text, font, overlap_intensity, ink_bleed_intensity,
-                                            effect_type, effect_depth, light_azimuth, light_elevation)
+                                            effect_type, effect_depth, light_azimuth, light_elevation,
+                                            text_color_mode, color_palette, custom_colors, background_color)
         elif direction == 'bottom_to_top':
             return self.render_bottom_to_top(text, font, overlap_intensity, ink_bleed_intensity,
-                                            effect_type, effect_depth, light_azimuth, light_elevation)
+                                            effect_type, effect_depth, light_azimuth, light_elevation,
+                                            text_color_mode, color_palette, custom_colors, background_color)
         else:
             raise ValueError(f"Unknown direction: {direction}")
 
@@ -1280,7 +1463,11 @@ class OCRDataGenerator:
                       effect_type: str = 'none',
                       effect_depth: float = 0.5,
                       light_azimuth: float = 135.0,
-                      light_elevation: float = 45.0) -> Tuple[Image.Image, List[List[float]], str]:
+                      light_elevation: float = 45.0,
+                      text_color_mode: str = 'uniform',
+                      color_palette: str = 'realistic_dark',
+                      custom_colors: List[Tuple[int, int, int]] = None,
+                      background_color: Union[Tuple[int, int, int], str] = 'auto') -> Tuple[Image.Image, List[List[float]], str]:
         """
         Generate a single synthetic OCR image with augmentations.
 
@@ -1306,23 +1493,28 @@ class OCRDataGenerator:
             if direction == 'left_to_right':
                 image, char_boxes = self.render_curved_text(text, font, curve_type, curve_intensity,
                                                             overlap_intensity, ink_bleed_intensity,
-                                                            effect_type, effect_depth, light_azimuth, light_elevation)
+                                                            effect_type, effect_depth, light_azimuth, light_elevation,
+                                                            text_color_mode, color_palette, custom_colors, background_color)
             elif direction == 'top_to_bottom':
                 image, char_boxes = self.render_top_to_bottom_curved(text, font, curve_type, curve_intensity,
                                                                      overlap_intensity, ink_bleed_intensity,
-                                                                     effect_type, effect_depth, light_azimuth, light_elevation)
+                                                                     effect_type, effect_depth, light_azimuth, light_elevation,
+                                                                     text_color_mode, color_palette, custom_colors, background_color)
             elif direction == 'bottom_to_top':
                 image, char_boxes = self.render_bottom_to_top_curved(text, font, curve_type, curve_intensity,
                                                                      overlap_intensity, ink_bleed_intensity,
-                                                                     effect_type, effect_depth, light_azimuth, light_elevation)
+                                                                     effect_type, effect_depth, light_azimuth, light_elevation,
+                                                                     text_color_mode, color_palette, custom_colors, background_color)
             elif direction == 'right_to_left':
                 image, char_boxes = self.render_right_to_left_curved(text, font, curve_type, curve_intensity,
                                                                      overlap_intensity, ink_bleed_intensity,
-                                                                     effect_type, effect_depth, light_azimuth, light_elevation)
+                                                                     effect_type, effect_depth, light_azimuth, light_elevation,
+                                                                     text_color_mode, color_palette, custom_colors, background_color)
             else:
                 image, char_boxes = self.render_text(text, font, direction,
                                                     overlap_intensity, ink_bleed_intensity,
-                                                    effect_type, effect_depth, light_azimuth, light_elevation)
+                                                    effect_type, effect_depth, light_azimuth, light_elevation,
+                                                    text_color_mode, color_palette, custom_colors, background_color)
         else:
             # Use standard rendering
             image, char_boxes = self.render_text(text, font, direction,
@@ -1643,6 +1835,14 @@ def main():
                        help='Light direction angle in degrees (0-360). 0=top, 90=right, 180=bottom, 270=left.')
     parser.add_argument('--light-elevation', type=float, default=45.0,
                        help='Light elevation angle in degrees (0-90). Lower values create longer shadows.')
+    parser.add_argument('--text-color-mode', type=str, default='uniform',
+                       choices=['uniform', 'per_glyph', 'gradient', 'random'],
+                       help='Text color mode.')
+    parser.add_argument('--color-palette', type=str, default='realistic_dark',
+                       choices=['realistic_dark', 'realistic_light', 'vibrant', 'pastels'],
+                       help='Color palette to use.')
+    parser.add_argument('--custom-colors', type=str, help='Comma-separated list of custom RGB colors (e.g., \'255,0,0;0,255,0\').')
+    parser.add_argument('--background-color', type=str, default='auto', help='Background color (e.g., \'255,255,255\' or \'auto\').')
 
     args = parser.parse_args()
 
@@ -1816,6 +2016,17 @@ def main():
                 # Generate font size
                 font_size = random.randint(28, 40)
 
+                # Parse custom colors
+                custom_colors = None
+                if args.custom_colors:
+                    try:
+                        custom_colors = [
+                            tuple(map(int, color.split(',')))
+                            for color in args.custom_colors.split(';')
+                        ]
+                    except ValueError:
+                        logging.warning(f"Invalid format for --custom-colors: {args.custom_colors}")
+
                 try:
                     # Generate image with augmentations
                     augmented_image, augmented_bboxes, text = generator.generate_image(
@@ -1825,7 +2036,11 @@ def main():
                         effect_type=args.effect_type,
                         effect_depth=args.effect_depth,
                         light_azimuth=args.light_azimuth,
-                        light_elevation=args.light_elevation
+                        light_elevation=args.light_elevation,
+                        text_color_mode=args.text_color_mode,
+                        color_palette=args.color_palette,
+                        custom_colors=custom_colors,
+                        background_color=args.background_color
                     )
 
                     # Save image

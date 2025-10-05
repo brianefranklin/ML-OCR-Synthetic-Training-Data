@@ -42,9 +42,10 @@ class TestColorGeneration:
         text_pixels = img_array[(img_array != [255, 255, 255]).any(axis=2)]
 
         if len(text_pixels) > 0:
-            # All text pixels should be same color in uniform mode
-            unique_colors = np.unique(text_pixels.reshape(-1, 3), axis=0)
-            assert len(unique_colors) == 1, f"Found {len(unique_colors)} colors, expected 1"
+            # In uniform mode, color variance should be low, even with anti-aliasing
+            std_dev = np.std(text_pixels, axis=0)
+            assert np.all(std_dev < 65), f"Color variance too high for uniform mode: {std_dev}"
+
 
     def test_per_glyph_mode_different_colors(self, generator, test_font):
         """Per-glyph mode should allow different colors per character."""
@@ -59,9 +60,11 @@ class TestColorGeneration:
         text_pixels = img_array[(img_array != [255, 255, 255]).any(axis=2)]
 
         if len(text_pixels) > 0:
-            unique_colors = np.unique(text_pixels.reshape(-1, 3), axis=0)
-            # Should have multiple colors (at least 2 different)
-            assert len(unique_colors) >= 2, "Per-glyph should have multiple colors"
+            # In per-glyph mode, color variance should be high
+            min_color = np.min(text_pixels, axis=0)
+            max_color = np.max(text_pixels, axis=0)
+            color_range = max_color - min_color
+            assert np.any(color_range > 100), f"Color range too small for per-glyph: {color_range}"
 
     def test_realistic_dark_palette_dark_colors(self, generator, test_font):
         """Realistic dark palette should produce dark text colors."""
@@ -108,11 +111,14 @@ class TestColorGeneration:
         text_pixels = img_array[(img_array != [255, 255, 255]).any(axis=2)]
 
         if len(text_pixels) > 0:
-            # Should be red (high R, low G/B)
-            avg_color = text_pixels.mean(axis=0)
-            assert avg_color[0] > 200, "Should have high red channel"
-            assert avg_color[1] < 50, "Should have low green channel"
-            assert avg_color[2] < 50, "Should have low blue channel"
+            # Find the most frequent color
+            unique_colors, counts = np.unique(text_pixels.reshape(-1, 3), axis=0, return_counts=True)
+            primary_color = unique_colors[counts.argmax()]
+
+            # The primary color should be very close to the custom red
+            assert primary_color[0] > 240, "Primary color should be red"
+            assert primary_color[1] < 15, "Primary color should have low green"
+            assert primary_color[2] < 15, "Primary color should have low blue"
 
 
 class TestColorModes:

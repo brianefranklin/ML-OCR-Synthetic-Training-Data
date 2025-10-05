@@ -1,0 +1,6 @@
+total_images: 10
+batches:
+  - name: pastels_gradient
+    proportion: 1.0
+    text_color_mode: gradient
+    color_palette: pastels

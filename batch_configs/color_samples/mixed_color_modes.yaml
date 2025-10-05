@@ -1,0 +1,10 @@
+total_images: 20
+batches:
+  - name: vibrant_gradient
+    proportion: 0.5
+    text_color_mode: gradient
+    color_palette: vibrant
+  - name: pastels_per_glyph
+    proportion: 0.5
+    text_color_mode: per_glyph
+    color_palette: pastels

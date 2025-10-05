@@ -1,0 +1,6 @@
+total_images: 10
+batches:
+  - name: realistic_light_per_glyph
+    proportion: 1.0
+    text_color_mode: per_glyph
+    color_palette: realistic_light

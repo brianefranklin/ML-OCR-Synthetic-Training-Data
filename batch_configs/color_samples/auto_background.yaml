@@ -1,0 +1,7 @@
+total_images: 10
+batches:
+  - name: auto_background
+    proportion: 1.0
+    text_color_mode: uniform
+    color_palette: vibrant
+    background_color: auto

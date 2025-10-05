@@ -1,0 +1,6 @@
+total_images: 10
+batches:
+  - name: realistic_dark_random
+    proportion: 1.0
+    text_color_mode: random
+    color_palette: realistic_dark

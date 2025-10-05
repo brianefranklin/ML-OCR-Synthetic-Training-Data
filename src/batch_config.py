@@ -12,7 +12,7 @@ import yaml
 import random
 import logging
 import fnmatch
-from typing import List, Dict, Optional, Any
+from typing import List, Dict, Optional, Any, Tuple, Union
 from dataclasses import dataclass, field
 from pathlib import Path
 
@@ -37,6 +37,10 @@ class BatchSpecification:
     effect_depth: float = 0.5  # 0.0-1.0, 3D effect depth intensity
     light_azimuth: float = 135.0  # 0-360 degrees, light direction angle
     light_elevation: float = 45.0  # 0-90 degrees, light elevation angle
+    text_color_mode: str = "uniform"  # 'uniform', 'per_glyph', 'gradient', 'random'
+    color_palette: str = "realistic_dark"  # 'realistic_dark', 'vibrant', 'pastels', etc.
+    custom_colors: Optional[List[Tuple[int, int, int]]] = None  # Optional list of custom RGB tuples
+    background_color: Union[Tuple[int, int, int], str] = "auto"  # Background color RGB tuple or 'auto'
     augmentation_params: Dict[str, Any] = field(default_factory=dict)
 
     def __post_init__(self):
@@ -117,6 +121,10 @@ class BatchConfig:
                 effect_depth=batch_data.get('effect_depth', 0.5),
                 light_azimuth=batch_data.get('light_azimuth', 135.0),
                 light_elevation=batch_data.get('light_elevation', 45.0),
+                text_color_mode=batch_data.get('text_color_mode', 'uniform'),
+                color_palette=batch_data.get('color_palette', 'realistic_dark'),
+                custom_colors=batch_data.get('custom_colors'),
+                background_color=batch_data.get('background_color', 'auto'),
                 augmentation_params=batch_data.get('augmentation_params', {})
             )
             batches.append(batch)
@@ -243,6 +251,10 @@ class BatchManager:
             'effect_depth': batch.effect_depth,
             'light_azimuth': batch.light_azimuth,
             'light_elevation': batch.light_elevation,
+            'text_color_mode': batch.text_color_mode,
+            'color_palette': batch.color_palette,
+            'custom_colors': batch.custom_colors,
+            'background_color': batch.background_color,
             'augmentation_params': batch.augmentation_params,
             'progress': f"{alloc['generated_count']+1}/{alloc['target_count']}"
         }

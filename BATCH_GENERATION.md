@@ -53,6 +53,13 @@ Automatic glyph coverage checking ensures fonts can render the corpus text (90% 
 ### ✅ Reproducibility
 Set a `seed` value for deterministic generation across runs.
 
+### ✅ Color Control
+Specify text and background colors per batch:
+- `text_color_mode`: `uniform`, `per_glyph`, `gradient`, `random`
+- `color_palette`: `realistic_dark`, `realistic_light`, `vibrant`, `pastels`
+- `custom_colors`: A list of custom RGB colors
+- `background_color`: A specific RGB color or `auto` for contrast
+
 ### ✅ Single Script Run
 No more shell scripts calling the generator 40+ times. One command, one process.
 
@@ -118,6 +125,12 @@ batches:
       "*noto*": 2.0
     min_text_length: 5
     max_text_length: 20
+
+  - name: red_text_on_blue
+    proportion: 0.1
+    text_color_mode: uniform
+    custom_colors: [[255, 0, 0]]
+    background_color: [0, 0, 255]
 ```
 
 ### Parameters Reference
@@ -135,6 +148,10 @@ batches:
 | `font_weights` | dict | No | {} | Pattern → weight mapping |
 | `min_text_length` | int | No | 5 | Minimum characters |
 | `max_text_length` | int | No | 25 | Maximum characters |
+| `text_color_mode` | string | No | "uniform" | "uniform", "per_glyph", "gradient", "random" |
+| `color_palette` | string | No | "realistic_dark" | "realistic_dark", "realistic_light", "vibrant", "pastels" |
+| `custom_colors` | list | No | None | List of RGB tuples, e.g., `[[255, 0, 0], [0, 0, 255]]` |
+| `background_color`| string or list | No | "auto" | RGB tuple or "auto" |
 
 ## Font Filters
 
