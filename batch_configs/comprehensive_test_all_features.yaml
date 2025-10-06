@@ -1,0 +1,1014 @@
+# COMPREHENSIVE TEST - ALL FEATURES, ALL COMBINATIONS
+# This configuration exercises EVERY feature of the OCR synthetic data generator
+# Total: 10,000 images covering all possible combinations
+
+total_images: 10000
+seed: 42  # For reproducibility
+
+batches:
+  # ============================================================================
+  # LEFT TO RIGHT - 2,500 images
+  # ============================================================================
+
+  # --- Baseline (no curve, no effect) - 312 images ---
+  - name: ltr_baseline_uniform_dark
+    proportion: 0.0156
+    text_direction: left_to_right
+    corpus_dir: data/corpus_text/ltr
+    min_text_length: 5
+    max_text_length: 25
+    curve_type: none
+    effect_type: none
+    text_color_mode: uniform
+    color_palette: realistic_dark
+
+  - name: ltr_baseline_perglyph_vibrant
+    proportion: 0.0156
+    text_direction: left_to_right
+    corpus_dir: data/corpus_text/ltr
+    min_text_length: 8
+    max_text_length: 30
+    curve_type: none
+    effect_type: none
+    text_color_mode: per_glyph
+    color_palette: vibrant
+
+  - name: ltr_baseline_gradient_pastels
+    proportion: 0.0156
+    text_direction: left_to_right
+    corpus_dir: data/corpus_text/ltr
+    min_text_length: 10
+    max_text_length: 35
+    curve_type: none
+    effect_type: none
+    text_color_mode: gradient
+    color_palette: pastels
+
+  - name: ltr_baseline_random_light
+    proportion: 0.0156
+    text_direction: left_to_right
+    corpus_dir: data/corpus_text/ltr
+    min_text_length: 5
+    max_text_length: 20
+    curve_type: none
+    effect_type: none
+    text_color_mode: random
+    color_palette: realistic_light
+
+  # --- Arc curves with all 3D effects - 625 images ---
+  - name: ltr_arc_raised_uniform
+    proportion: 0.0156
+    text_direction: left_to_right
+    corpus_dir: data/corpus_text/ltr
+    min_text_length: 5
+    max_text_length: 25
+    curve_type: arc
+    curve_intensity: 0.3
+    effect_type: raised
+    effect_depth: 0.6
+    light_azimuth: 135.0
+    light_elevation: 45.0
+    text_color_mode: uniform
+    color_palette: realistic_dark
+
+  - name: ltr_arc_embossed_perglyph
+    proportion: 0.0156
+    text_direction: left_to_right
+    corpus_dir: data/corpus_text/ltr
+    min_text_length: 7
+    max_text_length: 28
+    curve_type: arc
+    curve_intensity: 0.4
+    effect_type: embossed
+    effect_depth: 0.5
+    light_azimuth: 90.0
+    light_elevation: 30.0
+    text_color_mode: per_glyph
+    color_palette: vibrant
+
+  - name: ltr_arc_engraved_gradient
+    proportion: 0.0156
+    text_direction: left_to_right
+    corpus_dir: data/corpus_text/ltr
+    min_text_length: 8
+    max_text_length: 30
+    curve_type: arc
+    curve_intensity: 0.5
+    effect_type: engraved
+    effect_depth: 0.7
+    light_azimuth: 180.0
+    light_elevation: 60.0
+    text_color_mode: gradient
+    color_palette: pastels
+
+  - name: ltr_arc_none_random
+    proportion: 0.0156
+    text_direction: left_to_right
+    corpus_dir: data/corpus_text/ltr
+    min_text_length: 6
+    max_text_length: 22
+    curve_type: arc
+    curve_intensity: 0.35
+    effect_type: none
+    text_color_mode: random
+    color_palette: realistic_light
+
+  # --- Sine curves with all 3D effects - 625 images ---
+  - name: ltr_sine_raised_uniform
+    proportion: 0.0156
+    text_direction: left_to_right
+    corpus_dir: data/corpus_text/ltr
+    min_text_length: 5
+    max_text_length: 25
+    curve_type: sine
+    curve_intensity: 0.25
+    effect_type: raised
+    effect_depth: 0.6
+    light_azimuth: 270.0
+    light_elevation: 45.0
+    text_color_mode: uniform
+    color_palette: realistic_dark
+
+  - name: ltr_sine_embossed_perglyph
+    proportion: 0.0156
+    text_direction: left_to_right
+    corpus_dir: data/corpus_text/ltr
+    min_text_length: 8
+    max_text_length: 32
+    curve_type: sine
+    curve_intensity: 0.35
+    effect_type: embossed
+    effect_depth: 0.5
+    light_azimuth: 45.0
+    light_elevation: 50.0
+    text_color_mode: per_glyph
+    color_palette: vibrant
+
+  - name: ltr_sine_engraved_gradient
+    proportion: 0.0156
+    text_direction: left_to_right
+    corpus_dir: data/corpus_text/ltr
+    min_text_length: 7
+    max_text_length: 27
+    curve_type: sine
+    curve_intensity: 0.4
+    effect_type: engraved
+    effect_depth: 0.7
+    light_azimuth: 225.0
+    light_elevation: 40.0
+    text_color_mode: gradient
+    color_palette: pastels
+
+  - name: ltr_sine_none_random
+    proportion: 0.0156
+    text_direction: left_to_right
+    corpus_dir: data/corpus_text/ltr
+    min_text_length: 9
+    max_text_length: 29
+    curve_type: sine
+    curve_intensity: 0.3
+    effect_type: none
+    text_color_mode: random
+    color_palette: realistic_light
+
+  # --- Overlap and Ink Bleed combinations - 625 images ---
+  - name: ltr_overlap_light
+    proportion: 0.0156
+    text_direction: left_to_right
+    corpus_dir: data/corpus_text/ltr
+    min_text_length: 10
+    max_text_length: 30
+    curve_type: none
+    overlap_intensity: 0.25
+    ink_bleed_intensity: 0.0
+    text_color_mode: uniform
+    color_palette: realistic_dark
+
+  - name: ltr_overlap_moderate_bleed_light
+    proportion: 0.0156
+    text_direction: left_to_right
+    corpus_dir: data/corpus_text/ltr
+    min_text_length: 8
+    max_text_length: 25
+    curve_type: none
+    overlap_intensity: 0.5
+    ink_bleed_intensity: 0.3
+    text_color_mode: per_glyph
+    color_palette: vibrant
+
+  - name: ltr_overlap_heavy_bleed_moderate
+    proportion: 0.0156
+    text_direction: left_to_right
+    corpus_dir: data/corpus_text/ltr
+    min_text_length: 12
+    max_text_length: 35
+    curve_type: arc
+    curve_intensity: 0.2
+    overlap_intensity: 0.75
+    ink_bleed_intensity: 0.5
+    text_color_mode: gradient
+    color_palette: pastels
+
+  - name: ltr_bleed_heavy_only
+    proportion: 0.0156
+    text_direction: left_to_right
+    corpus_dir: data/corpus_text/ltr
+    min_text_length: 6
+    max_text_length: 20
+    curve_type: sine
+    curve_intensity: 0.3
+    overlap_intensity: 0.0
+    ink_bleed_intensity: 0.8
+    text_color_mode: random
+    color_palette: realistic_light
+
+  # --- Combined effects (curves + 3D + overlap + bleed) - 312 images ---
+  - name: ltr_kitchen_sink_1
+    proportion: 0.0156
+    text_direction: left_to_right
+    corpus_dir: data/corpus_text/ltr
+    min_text_length: 8
+    max_text_length: 28
+    curve_type: arc
+    curve_intensity: 0.4
+    overlap_intensity: 0.4
+    ink_bleed_intensity: 0.3
+    effect_type: embossed
+    effect_depth: 0.5
+    light_azimuth: 135.0
+    light_elevation: 45.0
+    text_color_mode: per_glyph
+    color_palette: vibrant
+
+  - name: ltr_kitchen_sink_2
+    proportion: 0.0156
+    text_direction: left_to_right
+    corpus_dir: data/corpus_text/ltr
+    min_text_length: 10
+    max_text_length: 32
+    curve_type: sine
+    curve_intensity: 0.35
+    overlap_intensity: 0.6
+    ink_bleed_intensity: 0.5
+    effect_type: engraved
+    effect_depth: 0.7
+    light_azimuth: 270.0
+    light_elevation: 30.0
+    text_color_mode: gradient
+    color_palette: pastels
+
+
+  # ============================================================================
+  # RIGHT TO LEFT - 2,500 images
+  # ============================================================================
+
+  # --- Baseline (no curve, no effect) - 312 images ---
+  - name: rtl_baseline_uniform_dark
+    proportion: 0.0156
+    text_direction: right_to_left
+    corpus_dir: data/corpus_text/rtl
+    min_text_length: 5
+    max_text_length: 25
+    curve_type: none
+    effect_type: none
+    text_color_mode: uniform
+    color_palette: realistic_dark
+
+  - name: rtl_baseline_perglyph_vibrant
+    proportion: 0.0156
+    text_direction: right_to_left
+    corpus_dir: data/corpus_text/rtl
+    min_text_length: 8
+    max_text_length: 30
+    curve_type: none
+    effect_type: none
+    text_color_mode: per_glyph
+    color_palette: vibrant
+
+  - name: rtl_baseline_gradient_pastels
+    proportion: 0.0156
+    text_direction: right_to_left
+    corpus_dir: data/corpus_text/rtl
+    min_text_length: 10
+    max_text_length: 35
+    curve_type: none
+    effect_type: none
+    text_color_mode: gradient
+    color_palette: pastels
+
+  - name: rtl_baseline_random_light
+    proportion: 0.0156
+    text_direction: right_to_left
+    corpus_dir: data/corpus_text/rtl
+    min_text_length: 5
+    max_text_length: 20
+    curve_type: none
+    effect_type: none
+    text_color_mode: random
+    color_palette: realistic_light
+
+  # --- Arc curves with all 3D effects - 625 images ---
+  - name: rtl_arc_raised_uniform
+    proportion: 0.0156
+    text_direction: right_to_left
+    corpus_dir: data/corpus_text/rtl
+    min_text_length: 5
+    max_text_length: 25
+    curve_type: arc
+    curve_intensity: 0.3
+    effect_type: raised
+    effect_depth: 0.6
+    light_azimuth: 135.0
+    light_elevation: 45.0
+    text_color_mode: uniform
+    color_palette: realistic_dark
+
+  - name: rtl_arc_embossed_perglyph
+    proportion: 0.0156
+    text_direction: right_to_left
+    corpus_dir: data/corpus_text/rtl
+    min_text_length: 7
+    max_text_length: 28
+    curve_type: arc
+    curve_intensity: 0.4
+    effect_type: embossed
+    effect_depth: 0.5
+    light_azimuth: 90.0
+    light_elevation: 30.0
+    text_color_mode: per_glyph
+    color_palette: vibrant
+
+  - name: rtl_arc_engraved_gradient
+    proportion: 0.0156
+    text_direction: right_to_left
+    corpus_dir: data/corpus_text/rtl
+    min_text_length: 8
+    max_text_length: 30
+    curve_type: arc
+    curve_intensity: 0.5
+    effect_type: engraved
+    effect_depth: 0.7
+    light_azimuth: 180.0
+    light_elevation: 60.0
+    text_color_mode: gradient
+    color_palette: pastels
+
+  - name: rtl_arc_none_random
+    proportion: 0.0156
+    text_direction: right_to_left
+    corpus_dir: data/corpus_text/rtl
+    min_text_length: 6
+    max_text_length: 22
+    curve_type: arc
+    curve_intensity: 0.35
+    effect_type: none
+    text_color_mode: random
+    color_palette: realistic_light
+
+  # --- Sine curves with all 3D effects - 625 images ---
+  - name: rtl_sine_raised_uniform
+    proportion: 0.0156
+    text_direction: right_to_left
+    corpus_dir: data/corpus_text/rtl
+    min_text_length: 5
+    max_text_length: 25
+    curve_type: sine
+    curve_intensity: 0.25
+    effect_type: raised
+    effect_depth: 0.6
+    light_azimuth: 270.0
+    light_elevation: 45.0
+    text_color_mode: uniform
+    color_palette: realistic_dark
+
+  - name: rtl_sine_embossed_perglyph
+    proportion: 0.0156
+    text_direction: right_to_left
+    corpus_dir: data/corpus_text/rtl
+    min_text_length: 8
+    max_text_length: 32
+    curve_type: sine
+    curve_intensity: 0.35
+    effect_type: embossed
+    effect_depth: 0.5
+    light_azimuth: 45.0
+    light_elevation: 50.0
+    text_color_mode: per_glyph
+    color_palette: vibrant
+
+  - name: rtl_sine_engraved_gradient
+    proportion: 0.0156
+    text_direction: right_to_left
+    corpus_dir: data/corpus_text/rtl
+    min_text_length: 7
+    max_text_length: 27
+    curve_type: sine
+    curve_intensity: 0.4
+    effect_type: engraved
+    effect_depth: 0.7
+    light_azimuth: 225.0
+    light_elevation: 40.0
+    text_color_mode: gradient
+    color_palette: pastels
+
+  - name: rtl_sine_none_random
+    proportion: 0.0156
+    text_direction: right_to_left
+    corpus_dir: data/corpus_text/rtl
+    min_text_length: 9
+    max_text_length: 29
+    curve_type: sine
+    curve_intensity: 0.3
+    effect_type: none
+    text_color_mode: random
+    color_palette: realistic_light
+
+  # --- Overlap and Ink Bleed combinations - 625 images ---
+  - name: rtl_overlap_light
+    proportion: 0.0156
+    text_direction: right_to_left
+    corpus_dir: data/corpus_text/rtl
+    min_text_length: 10
+    max_text_length: 30
+    curve_type: none
+    overlap_intensity: 0.25
+    ink_bleed_intensity: 0.0
+    text_color_mode: uniform
+    color_palette: realistic_dark
+
+  - name: rtl_overlap_moderate_bleed_light
+    proportion: 0.0156
+    text_direction: right_to_left
+    corpus_dir: data/corpus_text/rtl
+    min_text_length: 8
+    max_text_length: 25
+    curve_type: none
+    overlap_intensity: 0.5
+    ink_bleed_intensity: 0.3
+    text_color_mode: per_glyph
+    color_palette: vibrant
+
+  - name: rtl_overlap_heavy_bleed_moderate
+    proportion: 0.0156
+    text_direction: right_to_left
+    corpus_dir: data/corpus_text/rtl
+    min_text_length: 12
+    max_text_length: 35
+    curve_type: arc
+    curve_intensity: 0.2
+    overlap_intensity: 0.75
+    ink_bleed_intensity: 0.5
+    text_color_mode: gradient
+    color_palette: pastels
+
+  - name: rtl_bleed_heavy_only
+    proportion: 0.0156
+    text_direction: right_to_left
+    corpus_dir: data/corpus_text/rtl
+    min_text_length: 6
+    max_text_length: 20
+    curve_type: sine
+    curve_intensity: 0.3
+    overlap_intensity: 0.0
+    ink_bleed_intensity: 0.8
+    text_color_mode: random
+    color_palette: realistic_light
+
+  # --- Combined effects (curves + 3D + overlap + bleed) - 312 images ---
+  - name: rtl_kitchen_sink_1
+    proportion: 0.0156
+    text_direction: right_to_left
+    corpus_dir: data/corpus_text/rtl
+    min_text_length: 8
+    max_text_length: 28
+    curve_type: arc
+    curve_intensity: 0.4
+    overlap_intensity: 0.4
+    ink_bleed_intensity: 0.3
+    effect_type: embossed
+    effect_depth: 0.5
+    light_azimuth: 135.0
+    light_elevation: 45.0
+    text_color_mode: per_glyph
+    color_palette: vibrant
+
+  - name: rtl_kitchen_sink_2
+    proportion: 0.0156
+    text_direction: right_to_left
+    corpus_dir: data/corpus_text/rtl
+    min_text_length: 10
+    max_text_length: 32
+    curve_type: sine
+    curve_intensity: 0.35
+    overlap_intensity: 0.6
+    ink_bleed_intensity: 0.5
+    effect_type: engraved
+    effect_depth: 0.7
+    light_azimuth: 270.0
+    light_elevation: 30.0
+    text_color_mode: gradient
+    color_palette: pastels
+
+
+  # ============================================================================
+  # TOP TO BOTTOM - 2,500 images
+  # ============================================================================
+
+  # --- Baseline (no curve, no effect) - 312 images ---
+  - name: ttb_baseline_uniform_dark
+    proportion: 0.0156
+    text_direction: top_to_bottom
+    corpus_dir: data/corpus_text/ttb
+    min_text_length: 5
+    max_text_length: 25
+    curve_type: none
+    effect_type: none
+    text_color_mode: uniform
+    color_palette: realistic_dark
+
+  - name: ttb_baseline_perglyph_vibrant
+    proportion: 0.0156
+    text_direction: top_to_bottom
+    corpus_dir: data/corpus_text/ttb
+    min_text_length: 8
+    max_text_length: 30
+    curve_type: none
+    effect_type: none
+    text_color_mode: per_glyph
+    color_palette: vibrant
+
+  - name: ttb_baseline_gradient_pastels
+    proportion: 0.0156
+    text_direction: top_to_bottom
+    corpus_dir: data/corpus_text/ttb
+    min_text_length: 10
+    max_text_length: 35
+    curve_type: none
+    effect_type: none
+    text_color_mode: gradient
+    color_palette: pastels
+
+  - name: ttb_baseline_random_light
+    proportion: 0.0156
+    text_direction: top_to_bottom
+    corpus_dir: data/corpus_text/ttb
+    min_text_length: 5
+    max_text_length: 20
+    curve_type: none
+    effect_type: none
+    text_color_mode: random
+    color_palette: realistic_light
+
+  # --- Arc curves with all 3D effects - 625 images ---
+  - name: ttb_arc_raised_uniform
+    proportion: 0.0156
+    text_direction: top_to_bottom
+    corpus_dir: data/corpus_text/ttb
+    min_text_length: 5
+    max_text_length: 25
+    curve_type: arc
+    curve_intensity: 0.3
+    effect_type: raised
+    effect_depth: 0.6
+    light_azimuth: 135.0
+    light_elevation: 45.0
+    text_color_mode: uniform
+    color_palette: realistic_dark
+
+  - name: ttb_arc_embossed_perglyph
+    proportion: 0.0156
+    text_direction: top_to_bottom
+    corpus_dir: data/corpus_text/ttb
+    min_text_length: 7
+    max_text_length: 28
+    curve_type: arc
+    curve_intensity: 0.4
+    effect_type: embossed
+    effect_depth: 0.5
+    light_azimuth: 90.0
+    light_elevation: 30.0
+    text_color_mode: per_glyph
+    color_palette: vibrant
+
+  - name: ttb_arc_engraved_gradient
+    proportion: 0.0156
+    text_direction: top_to_bottom
+    corpus_dir: data/corpus_text/ttb
+    min_text_length: 8
+    max_text_length: 30
+    curve_type: arc
+    curve_intensity: 0.5
+    effect_type: engraved
+    effect_depth: 0.7
+    light_azimuth: 180.0
+    light_elevation: 60.0
+    text_color_mode: gradient
+    color_palette: pastels
+
+  - name: ttb_arc_none_random
+    proportion: 0.0156
+    text_direction: top_to_bottom
+    corpus_dir: data/corpus_text/ttb
+    min_text_length: 6
+    max_text_length: 22
+    curve_type: arc
+    curve_intensity: 0.35
+    effect_type: none
+    text_color_mode: random
+    color_palette: realistic_light
+
+  # --- Sine curves with all 3D effects - 625 images ---
+  - name: ttb_sine_raised_uniform
+    proportion: 0.0156
+    text_direction: top_to_bottom
+    corpus_dir: data/corpus_text/ttb
+    min_text_length: 5
+    max_text_length: 25
+    curve_type: sine
+    curve_intensity: 0.25
+    effect_type: raised
+    effect_depth: 0.6
+    light_azimuth: 270.0
+    light_elevation: 45.0
+    text_color_mode: uniform
+    color_palette: realistic_dark
+
+  - name: ttb_sine_embossed_perglyph
+    proportion: 0.0156
+    text_direction: top_to_bottom
+    corpus_dir: data/corpus_text/ttb
+    min_text_length: 8
+    max_text_length: 32
+    curve_type: sine
+    curve_intensity: 0.35
+    effect_type: embossed
+    effect_depth: 0.5
+    light_azimuth: 45.0
+    light_elevation: 50.0
+    text_color_mode: per_glyph
+    color_palette: vibrant
+
+  - name: ttb_sine_engraved_gradient
+    proportion: 0.0156
+    text_direction: top_to_bottom
+    corpus_dir: data/corpus_text/ttb
+    min_text_length: 7
+    max_text_length: 27
+    curve_type: sine
+    curve_intensity: 0.4
+    effect_type: engraved
+    effect_depth: 0.7
+    light_azimuth: 225.0
+    light_elevation: 40.0
+    text_color_mode: gradient
+    color_palette: pastels
+
+  - name: ttb_sine_none_random
+    proportion: 0.0156
+    text_direction: top_to_bottom
+    corpus_dir: data/corpus_text/ttb
+    min_text_length: 9
+    max_text_length: 29
+    curve_type: sine
+    curve_intensity: 0.3
+    effect_type: none
+    text_color_mode: random
+    color_palette: realistic_light
+
+  # --- Overlap and Ink Bleed combinations - 625 images ---
+  - name: ttb_overlap_light
+    proportion: 0.0156
+    text_direction: top_to_bottom
+    corpus_dir: data/corpus_text/ttb
+    min_text_length: 10
+    max_text_length: 30
+    curve_type: none
+    overlap_intensity: 0.25
+    ink_bleed_intensity: 0.0
+    text_color_mode: uniform
+    color_palette: realistic_dark
+
+  - name: ttb_overlap_moderate_bleed_light
+    proportion: 0.0156
+    text_direction: top_to_bottom
+    corpus_dir: data/corpus_text/ttb
+    min_text_length: 8
+    max_text_length: 25
+    curve_type: none
+    overlap_intensity: 0.5
+    ink_bleed_intensity: 0.3
+    text_color_mode: per_glyph
+    color_palette: vibrant
+
+  - name: ttb_overlap_heavy_bleed_moderate
+    proportion: 0.0156
+    text_direction: top_to_bottom
+    corpus_dir: data/corpus_text/ttb
+    min_text_length: 12
+    max_text_length: 35
+    curve_type: arc
+    curve_intensity: 0.2
+    overlap_intensity: 0.75
+    ink_bleed_intensity: 0.5
+    text_color_mode: gradient
+    color_palette: pastels
+
+  - name: ttb_bleed_heavy_only
+    proportion: 0.0156
+    text_direction: top_to_bottom
+    corpus_dir: data/corpus_text/ttb
+    min_text_length: 6
+    max_text_length: 20
+    curve_type: sine
+    curve_intensity: 0.3
+    overlap_intensity: 0.0
+    ink_bleed_intensity: 0.8
+    text_color_mode: random
+    color_palette: realistic_light
+
+  # --- Combined effects (curves + 3D + overlap + bleed) - 312 images ---
+  - name: ttb_kitchen_sink_1
+    proportion: 0.0156
+    text_direction: top_to_bottom
+    corpus_dir: data/corpus_text/ttb
+    min_text_length: 8
+    max_text_length: 28
+    curve_type: arc
+    curve_intensity: 0.4
+    overlap_intensity: 0.4
+    ink_bleed_intensity: 0.3
+    effect_type: embossed
+    effect_depth: 0.5
+    light_azimuth: 135.0
+    light_elevation: 45.0
+    text_color_mode: per_glyph
+    color_palette: vibrant
+
+  - name: ttb_kitchen_sink_2
+    proportion: 0.0156
+    text_direction: top_to_bottom
+    corpus_dir: data/corpus_text/ttb
+    min_text_length: 10
+    max_text_length: 32
+    curve_type: sine
+    curve_intensity: 0.35
+    overlap_intensity: 0.6
+    ink_bleed_intensity: 0.5
+    effect_type: engraved
+    effect_depth: 0.7
+    light_azimuth: 270.0
+    light_elevation: 30.0
+    text_color_mode: gradient
+    color_palette: pastels
+
+
+  # ============================================================================
+  # BOTTOM TO TOP - 2,500 images
+  # ============================================================================
+
+  # --- Baseline (no curve, no effect) - 312 images ---
+  - name: btt_baseline_uniform_dark
+    proportion: 0.0156
+    text_direction: bottom_to_top
+    corpus_dir: data/corpus_text/btt
+    min_text_length: 5
+    max_text_length: 25
+    curve_type: none
+    effect_type: none
+    text_color_mode: uniform
+    color_palette: realistic_dark
+
+  - name: btt_baseline_perglyph_vibrant
+    proportion: 0.0156
+    text_direction: bottom_to_top
+    corpus_dir: data/corpus_text/btt
+    min_text_length: 8
+    max_text_length: 30
+    curve_type: none
+    effect_type: none
+    text_color_mode: per_glyph
+    color_palette: vibrant
+
+  - name: btt_baseline_gradient_pastels
+    proportion: 0.0156
+    text_direction: bottom_to_top
+    corpus_dir: data/corpus_text/btt
+    min_text_length: 10
+    max_text_length: 35
+    curve_type: none
+    effect_type: none
+    text_color_mode: gradient
+    color_palette: pastels
+
+  - name: btt_baseline_random_light
+    proportion: 0.0156
+    text_direction: bottom_to_top
+    corpus_dir: data/corpus_text/btt
+    min_text_length: 5
+    max_text_length: 20
+    curve_type: none
+    effect_type: none
+    text_color_mode: random
+    color_palette: realistic_light
+
+  # --- Arc curves with all 3D effects - 625 images ---
+  - name: btt_arc_raised_uniform
+    proportion: 0.0156
+    text_direction: bottom_to_top
+    corpus_dir: data/corpus_text/btt
+    min_text_length: 5
+    max_text_length: 25
+    curve_type: arc
+    curve_intensity: 0.3
+    effect_type: raised
+    effect_depth: 0.6
+    light_azimuth: 135.0
+    light_elevation: 45.0
+    text_color_mode: uniform
+    color_palette: realistic_dark
+
+  - name: btt_arc_embossed_perglyph
+    proportion: 0.0156
+    text_direction: bottom_to_top
+    corpus_dir: data/corpus_text/btt
+    min_text_length: 7
+    max_text_length: 28
+    curve_type: arc
+    curve_intensity: 0.4
+    effect_type: embossed
+    effect_depth: 0.5
+    light_azimuth: 90.0
+    light_elevation: 30.0
+    text_color_mode: per_glyph
+    color_palette: vibrant
+
+  - name: btt_arc_engraved_gradient
+    proportion: 0.0156
+    text_direction: bottom_to_top
+    corpus_dir: data/corpus_text/btt
+    min_text_length: 8
+    max_text_length: 30
+    curve_type: arc
+    curve_intensity: 0.5
+    effect_type: engraved
+    effect_depth: 0.7
+    light_azimuth: 180.0
+    light_elevation: 60.0
+    text_color_mode: gradient
+    color_palette: pastels
+
+  - name: btt_arc_none_random
+    proportion: 0.0156
+    text_direction: bottom_to_top
+    corpus_dir: data/corpus_text/btt
+    min_text_length: 6
+    max_text_length: 22
+    curve_type: arc
+    curve_intensity: 0.35
+    effect_type: none
+    text_color_mode: random
+    color_palette: realistic_light
+
+  # --- Sine curves with all 3D effects - 625 images ---
+  - name: btt_sine_raised_uniform
+    proportion: 0.0156
+    text_direction: bottom_to_top
+    corpus_dir: data/corpus_text/btt
+    min_text_length: 5
+    max_text_length: 25
+    curve_type: sine
+    curve_intensity: 0.25
+    effect_type: raised
+    effect_depth: 0.6
+    light_azimuth: 270.0
+    light_elevation: 45.0
+    text_color_mode: uniform
+    color_palette: realistic_dark
+
+  - name: btt_sine_embossed_perglyph
+    proportion: 0.0156
+    text_direction: bottom_to_top
+    corpus_dir: data/corpus_text/btt
+    min_text_length: 8
+    max_text_length: 32
+    curve_type: sine
+    curve_intensity: 0.35
+    effect_type: embossed
+    effect_depth: 0.5
+    light_azimuth: 45.0
+    light_elevation: 50.0
+    text_color_mode: per_glyph
+    color_palette: vibrant
+
+  - name: btt_sine_engraved_gradient
+    proportion: 0.0156
+    text_direction: bottom_to_top
+    corpus_dir: data/corpus_text/btt
+    min_text_length: 7
+    max_text_length: 27
+    curve_type: sine
+    curve_intensity: 0.4
+    effect_type: engraved
+    effect_depth: 0.7
+    light_azimuth: 225.0
+    light_elevation: 40.0
+    text_color_mode: gradient
+    color_palette: pastels
+
+  - name: btt_sine_none_random
+    proportion: 0.0156
+    text_direction: bottom_to_top
+    corpus_dir: data/corpus_text/btt
+    min_text_length: 9
+    max_text_length: 29
+    curve_type: sine
+    curve_intensity: 0.3
+    effect_type: none
+    text_color_mode: random
+    color_palette: realistic_light
+
+  # --- Overlap and Ink Bleed combinations - 625 images ---
+  - name: btt_overlap_light
+    proportion: 0.0156
+    text_direction: bottom_to_top
+    corpus_dir: data/corpus_text/btt
+    min_text_length: 10
+    max_text_length: 30
+    curve_type: none
+    overlap_intensity: 0.25
+    ink_bleed_intensity: 0.0
+    text_color_mode: uniform
+    color_palette: realistic_dark
+
+  - name: btt_overlap_moderate_bleed_light
+    proportion: 0.0156
+    text_direction: bottom_to_top
+    corpus_dir: data/corpus_text/btt
+    min_text_length: 8
+    max_text_length: 25
+    curve_type: none
+    overlap_intensity: 0.5
+    ink_bleed_intensity: 0.3
+    text_color_mode: per_glyph
+    color_palette: vibrant
+
+  - name: btt_overlap_heavy_bleed_moderate
+    proportion: 0.0156
+    text_direction: bottom_to_top
+    corpus_dir: data/corpus_text/btt
+    min_text_length: 12
+    max_text_length: 35
+    curve_type: arc
+    curve_intensity: 0.2
+    overlap_intensity: 0.75
+    ink_bleed_intensity: 0.5
+    text_color_mode: gradient
+    color_palette: pastels
+
+  - name: btt_bleed_heavy_only
+    proportion: 0.0156
+    text_direction: bottom_to_top
+    corpus_dir: data/corpus_text/btt
+    min_text_length: 6
+    max_text_length: 20
+    curve_type: sine
+    curve_intensity: 0.3
+    overlap_intensity: 0.0
+    ink_bleed_intensity: 0.8
+    text_color_mode: random
+    color_palette: realistic_light
+
+  # --- Combined effects (curves + 3D + overlap + bleed) - 312 images ---
+  - name: btt_kitchen_sink_1
+    proportion: 0.0156
+    text_direction: bottom_to_top
+    corpus_dir: data/corpus_text/btt
+    min_text_length: 8
+    max_text_length: 28
+    curve_type: arc
+    curve_intensity: 0.4
+    overlap_intensity: 0.4
+    ink_bleed_intensity: 0.3
+    effect_type: embossed
+    effect_depth: 0.5
+    light_azimuth: 135.0
+    light_elevation: 45.0
+    text_color_mode: per_glyph
+    color_palette: vibrant
+
+  - name: btt_kitchen_sink_2
+    proportion: 0.0156
+    text_direction: bottom_to_top
+    corpus_dir: data/corpus_text/btt
+    min_text_length: 10
+    max_text_length: 32
+    curve_type: sine
+    curve_intensity: 0.35
+    overlap_intensity: 0.6
+    ink_bleed_intensity: 0.5
+    effect_type: engraved
+    effect_depth: 0.7
+    light_azimuth: 270.0
+    light_elevation: 30.0
+    text_color_mode: gradient
+    color_palette: pastels
