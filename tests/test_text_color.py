@@ -232,18 +232,23 @@ class TestContrast:
         contrast = img_array.max() - img_array.min()
         assert contrast > 50, f"Insufficient contrast: {contrast}"
 
-    def test_custom_background_color(self, generator, test_font):
-        """Custom background color should be applied."""
-        # Light blue background
+    def test_transparent_background(self, generator, test_font):
+        """Background should be transparent (RGBA) - background_color param is deprecated."""
+        # background_color parameter is now deprecated and ignored
         img, boxes = generator.render_left_to_right(
             "Test", test_font,
-            background_color=(173, 216, 230)
+            background_color=(173, 216, 230)  # This should be ignored
         )
 
-        img_array = np.array(img.convert('RGB'))
-        # Check that background has bluish tint
-        background_pixels = img_array[(img_array == [173, 216, 230]).all(axis=2)]
-        assert len(background_pixels) > 0, "Background color not applied"
+        # Verify image is RGBA mode
+        assert img.mode == 'RGBA', f"Expected RGBA mode, got {img.mode}"
+
+        # Verify alpha channel exists and has transparent pixels
+        img_array = np.array(img)
+        alpha_channel = img_array[:, :, 3]
+        # Should have some transparent pixels (alpha < 255)
+        transparent_pixels = np.sum(alpha_channel == 0)
+        assert transparent_pixels > 0, "Image should have transparent background"
 
 
 class TestIntegrationWithEffects:

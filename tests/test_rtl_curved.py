@@ -143,13 +143,15 @@ class TestRTLCurveIntegration:
         text = "Integration"
         font_path = "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf"
 
-        image, bboxes, returned_text = generator.generate_image(
+        image, metadata, returned_text = generator.generate_image(
             text, font_path, 32, direction='right_to_left',
             curve_type='arc', curve_intensity=0.4
         )
 
         assert isinstance(image, Image.Image)
-        assert len(bboxes) == len(text)
+        assert isinstance(metadata, dict)
+        assert 'char_bboxes' in metadata
+        assert len(metadata['char_bboxes']) == len(text)
         assert returned_text == text
 
     def test_rtl_vs_ltr_curves_differ(self, generator, test_font):

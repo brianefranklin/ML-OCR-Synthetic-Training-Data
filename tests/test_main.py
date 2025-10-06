@@ -261,14 +261,10 @@ def test_variable_text_length(test_environment):
     json_files = list(output_dir.glob("image_*.json"))
     assert len(json_files) > 0, "JSON label files were not created."
 
-    with open(labels_file, 'r') as f:
-        lines = f.readlines()
-    
-    # Check the data lines (skip header)
-    for line in lines[1:]:
-        import json
-        filename, json_data = line.strip().split(',', 1)
-        label_data = json.loads(json_data)
+    import json
+    for json_file in json_files:
+        with open(json_file, 'r', encoding='utf-8') as f:
+            label_data = json.load(f)
         text = label_data["text"]
         assert min_len <= len(text) <= max_len, f"Generated text \"{text}\" has length outside the specified range."
 
@@ -371,13 +367,12 @@ def test_right_to_left_text_generation(test_environment):
     json_files = list(output_dir.glob("image_*.json"))
     assert len(json_files) > 0, "JSON label files were not created."
 
-    with open(labels_file, 'r', encoding="utf-8") as f:
-        lines = f.readlines()
-    
     import json
-    filename, json_data = lines[1].strip().split(',', 1)
-    label_data = json.loads(json_data)
-    bboxes = label_data["bboxes"]
+    with open(json_files[0], 'r', encoding='utf-8') as f:
+        label_data = json.load(f)
+
+    filename = label_data["image_file"]
+    bboxes = label_data["char_bboxes"]
 
     # Check that bboxes are generally ordered from right to left
     # Due to augmentations, strict ordering may not hold for every pair
