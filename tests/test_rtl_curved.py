@@ -143,7 +143,7 @@ class TestRTLCurveIntegration:
         text = "Integration"
         font_path = "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf"
 
-        image, metadata, returned_text = generator.generate_image(
+        image, metadata, returned_text, augmentations_applied = generator.generate_image(
             text, font_path, 32, direction='right_to_left',
             curve_type='arc', curve_intensity=0.4
         )

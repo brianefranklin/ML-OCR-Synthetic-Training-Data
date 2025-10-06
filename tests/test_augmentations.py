@@ -163,9 +163,10 @@ def test_cutout(base_image):
 
 def test_apply_augmentations(base_image, dummy_bboxes, empty_background_list):
     """Test the main pipeline function to ensure it runs."""
-    augmented, bboxes = apply_augmentations(base_image, dummy_bboxes, empty_background_list)
+    augmented, bboxes, augmentations_applied = apply_augmentations(base_image, dummy_bboxes, empty_background_list)
     assert isinstance(augmented, Image.Image)
     assert len(bboxes) == len(dummy_bboxes)
+    assert isinstance(augmentations_applied, dict)
 
 def test_rotation_and_crop_bounds(base_image, dummy_bboxes):
     """
@@ -182,3 +183,133 @@ def test_rotation_and_crop_bounds(base_image, dummy_bboxes):
         assert y_min >= -1
         assert x_max <= img_width + 1
         assert y_max <= img_height + 1
+
+
+class TestDecompressionBombSafeguards:
+    """Test safeguards against decompression bomb errors in rotation."""
+
+    def test_excessive_padding_detection(self):
+        """Test that excessive padding is detected and rotation is skipped."""
+        # Create a small image
+        img = Image.new('RGB', (100, 50), color='white')
+        draw = ImageDraw.Draw(img)
+        draw.rectangle([10, 10, 90, 40], fill='black')
+
+        # Create bboxes that would cause massive padding
+        # Simulate RTL text with extreme bbox values
+        extreme_bboxes = [
+            [10.0, 10.0, 90.0, 40.0],
+            [10000.0, 10000.0, 11000.0, 10500.0]  # Extreme outlier
+        ]
+
+        # Should detect excessive padding and return original image
+        result_img, result_bboxes = rotate_image(img, extreme_bboxes)
+
+        # Image should be unchanged (safeguard triggered)
+        assert result_img.size == img.size
+        assert result_bboxes == extreme_bboxes
+
+    def test_max_dimension_check(self):
+        """Test that proposed image size is validated against MAX_DIMENSION."""
+        # Create moderate sized image
+        img = Image.new('RGB', (200, 100), color='white')
+
+        # Create bboxes that would result in very large dimensions
+        large_bboxes = [
+            [0.0, 0.0, 100.0, 50.0],
+            [5000.0, 5000.0, 5100.0, 5050.0]  # Would create huge canvas
+        ]
+
+        result_img, result_bboxes = rotate_image(img, large_bboxes)
+
+        # Should return original image due to size limits
+        assert result_img.size == img.size
+        assert result_bboxes == large_bboxes
+
+    def test_max_pixels_check(self):
+        """Test that total pixel count is validated against MAX_PIXELS."""
+        # Create image
+        img = Image.new('RGB', (300, 200), color='white')
+
+        # Create bboxes that would exceed pixel limit
+        pixel_bomb_bboxes = [
+            [0.0, 0.0, 100.0, 50.0],
+            [15000.0, 15000.0, 15100.0, 15050.0]  # Would create >178M pixels
+        ]
+
+        result_img, result_bboxes = rotate_image(img, pixel_bomb_bboxes)
+
+        # Should return original image
+        assert result_img.size == img.size
+
+    def test_normal_rotation_still_works(self):
+        """Test that normal rotation still works with safeguards in place."""
+        # Create image with reasonable bboxes
+        img = Image.new('RGB', (200, 100), color='white')
+        draw = ImageDraw.Draw(img)
+        draw.rectangle([50, 30, 150, 70], fill='black')
+
+        normal_bboxes = [
+            [50.0, 30.0, 100.0, 70.0],
+            [100.0, 30.0, 150.0, 70.0]
+        ]
+
+        result_img, result_bboxes = rotate_image(img, normal_bboxes)
+
+        # Rotation should have been applied
+        # Image size might change due to rotation
+        assert result_img is not None
+        assert len(result_bboxes) == len(normal_bboxes)
+
+    def test_rtl_text_safeguard(self):
+        """Test safeguards work with RTL text scenarios."""
+        # Simulate RTL rendering scenario
+        img = Image.new('RGB', (400, 100), color='white')
+
+        # RTL bboxes (right to left ordering)
+        rtl_bboxes = [
+            [300.0, 20.0, 380.0, 80.0],
+            [220.0, 20.0, 290.0, 80.0],
+            [140.0, 20.0, 210.0, 80.0],
+            [60.0, 20.0, 130.0, 80.0]
+        ]
+
+        result_img, result_bboxes = rotate_image(img, rtl_bboxes)
+
+        # Should complete without errors
+        assert result_img is not None
+        assert len(result_bboxes) == 4
+
+    def test_crop_size_validation(self):
+        """Test that crop size is validated before cropping."""
+        img = Image.new('RGB', (200, 100), color='white')
+
+        # Create scenario where crop would be too large
+        crop_bomb_bboxes = [
+            [0.0, 0.0, 50.0, 30.0],
+            [12000.0, 0.0, 12050.0, 30.0]  # Would create huge crop
+        ]
+
+        result_img, result_bboxes = rotate_image(img, crop_bomb_bboxes)
+
+        # Safeguard should prevent the crop
+        assert result_img.size == img.size
+
+    def test_empty_bboxes_with_safeguards(self):
+        """Test that empty bboxes work with safeguards."""
+        img = Image.new('RGB', (100, 50), color='white')
+
+        result_img, result_bboxes = rotate_image(img, [])
+
+        assert result_img.size == img.size
+        assert result_bboxes == []
+
+    def test_single_bbox_with_safeguards(self):
+        """Test that single bbox works with safeguards."""
+        img = Image.new('RGB', (100, 50), color='white')
+        single_bbox = [[10.0, 10.0, 90.0, 40.0]]
+
+        result_img, result_bboxes = rotate_image(img, single_bbox)
+
+        assert result_img is not None
+        assert len(result_bboxes) == 1

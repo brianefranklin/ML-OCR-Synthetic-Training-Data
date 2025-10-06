@@ -259,9 +259,15 @@ def test_data_quality(test_environment):
         "--output-dir", test_environment["output_dir"],
         "--num-images", "10",
         "--min-text-length", "20",
-        "--max-text-length", "50"
+        "--max-text-length", "50",
+        # Note: removed --backgrounds-dir parameter (RGBA pipeline uses transparent backgrounds)
+        "--text-color-mode", "per_glyph",
+        "--color-palette", "vibrant",
+        "--effect-type", "embossed",
+        "--effect-depth", "0.5",
+        "--overlap-intensity", "0.2",
+        "--ink-bleed-intensity", "0.2"
     ]
-
     result = subprocess.run(command, capture_output=True, text=True, check=False)
     assert result.returncode == 0, f"Script failed: {result.stderr}"
 
@@ -286,8 +292,8 @@ def test_data_quality(test_environment):
             alpha = np.array(img)[:, :, 3]
             non_transparent_mask = alpha > 0
 
-            # Convert RGB channels to grayscale only for non-transparent pixels
-            rgb = np.array(img.convert('RGB'))
+            # Convert RGB channels to grayscale
+            rgb = np.array(img)[:, :, :3]
             grayscale = np.dot(rgb, [0.2989, 0.5870, 0.1140])
 
             # Only analyze non-transparent pixels
@@ -331,12 +337,16 @@ def test_data_quality(test_environment):
         print(f"  {metric}: {percentage:.1%}")
 
     # Assert quality thresholds
-    # Note: Thresholds are very lenient due to aggressive augmentations, RGBA transparency, and canvas placement
-    assert results['sufficient_contrast'] >= 0.3, f"Only {results['sufficient_contrast']:.1%} have sufficient contrast"
-    assert results['sufficient_entropy'] >= 0.1, f"Only {results['sufficient_entropy']:.1%} have sufficient entropy"
-    assert results['has_text_pixels'] >= 0.5, f"Only {results['has_text_pixels']:.1%} have visible text pixels"
-    # Text ratio can be very low with large canvas and small text
-    # Just ensure at least some images have reasonable ratios
+    # Note: Thresholds account for RGBA transparency and canvas placement
+    # With transparent backgrounds, we only analyze non-transparent regions
+    # Contrast: At least 50% should have good contrast (relaxed from 0.3 to 0.5 due to better RGBA handling)
+    assert results['sufficient_contrast'] >= 0.5, f"Only {results['sufficient_contrast']:.1%} have sufficient contrast (expected >=50%)"
+    # Entropy: At least 30% should have good information content (increased from 0.1 due to better handling)
+    assert results['sufficient_entropy'] >= 0.3, f"Only {results['sufficient_entropy']:.1%} have sufficient entropy (expected >=30%)"
+    # Text pixels: At least 70% should have visible text (increased from 0.5)
+    assert results['has_text_pixels'] >= 0.7, f"Only {results['has_text_pixels']:.1%} have visible text pixels (expected >=70%)"
+    # Text ratio: At least 30% should have reasonable text-to-background ratio
+    assert results['reasonable_text_ratio'] >= 0.3, f"Only {results['reasonable_text_ratio']:.1%} have reasonable text ratio (expected >=30%)"
 
 def test_edge_case_very_short_corpus(test_environment):
     """Tests handling of corpus shorter than min-text-length."""

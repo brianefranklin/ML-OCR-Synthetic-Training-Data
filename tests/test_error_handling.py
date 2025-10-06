@@ -208,3 +208,5 @@ def test_whitespace_only_corpus(test_environment):
 
     # Should fail gracefully
     assert result.returncode != 0 or "Corpus is too short" in result.stderr
+
+

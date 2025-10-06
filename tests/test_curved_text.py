@@ -442,7 +442,7 @@ class TestIntegrationWithPipeline:
     def test_curved_text_through_generate_image(self, generator, test_font):
         """Test curved text through the full generate_image pipeline."""
         # This tests that curve parameters work end-to-end
-        augmented_image, bboxes, text = generator.generate_image(
+        augmented_image, metadata, text, augmentations_applied = generator.generate_image(
             "Integration Test",
             test_font,
             font_size=32,
@@ -452,13 +452,13 @@ class TestIntegrationWithPipeline:
         )
 
         assert augmented_image is not None
-        assert len(bboxes) > 0
+        assert len(metadata['char_bboxes']) > 0
         assert text == "Integration Test"
 
     def test_curved_text_with_rotation(self, generator, test_font):
         """Test that curved text works with rotation augmentation."""
         # Generate curved text with augmentations enabled
-        augmented_image, bboxes, text = generator.generate_image(
+        augmented_image, metadata, text, augmentations_applied = generator.generate_image(
             "Rotated Curve",
             test_font,
             font_size=32,
@@ -469,12 +469,12 @@ class TestIntegrationWithPipeline:
 
         # Should complete without errors
         assert augmented_image is not None
-        assert len(bboxes) > 0
+        assert len(metadata['char_bboxes']) > 0
 
     def test_different_curve_types_pipeline(self, generator, test_font):
         """Test different curve types through pipeline."""
         for curve_type in ['none', 'arc', 'sine']:
-            augmented_image, bboxes, text = generator.generate_image(
+            augmented_image, metadata, text, augmentations_applied = generator.generate_image(
                 "Pipeline Test",
                 test_font,
                 font_size=32,
@@ -484,13 +484,13 @@ class TestIntegrationWithPipeline:
             )
 
             assert augmented_image is not None
-            assert len(bboxes) > 0
+            assert len(metadata['char_bboxes']) > 0
 
     def test_fallback_to_straight_for_non_ltr(self, generator, test_font):
         """Test that non-LTR directions fall back to straight rendering."""
         # Curved text currently only works for LTR
         for direction in ['right_to_left', 'top_to_bottom', 'bottom_to_top']:
-            augmented_image, bboxes, text = generator.generate_image(
+            augmented_image, metadata, text, augmentations_applied = generator.generate_image(
                 "Direction Test",
                 test_font,
                 font_size=32,
@@ -501,7 +501,7 @@ class TestIntegrationWithPipeline:
 
             # Should complete without errors (falls back to straight)
             assert augmented_image is not None
-            assert len(bboxes) > 0
+            assert len(metadata['char_bboxes']) > 0
 
 
 class TestPerformance:

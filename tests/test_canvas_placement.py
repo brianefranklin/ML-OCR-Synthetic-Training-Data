@@ -53,7 +53,7 @@ class TestCanvasPlacement:
         assert canvas_img.size[1] > sample_text_image.size[1]
 
     def test_place_on_canvas_white_background(self, sample_text_image):
-        """Canvas background should be white."""
+        """Canvas background should be transparent (RGBA mode)."""
         from canvas_placement import place_on_canvas
 
         canvas_img, metadata = place_on_canvas(
@@ -62,12 +62,15 @@ class TestCanvasPlacement:
             canvas_size=(400, 300)
         )
 
-        # Check corners are white
+        # Canvas should be RGBA mode
+        assert canvas_img.mode == 'RGBA'
+
+        # Check corners are transparent (alpha = 0)
         pixels = np.array(canvas_img)
-        assert np.array_equal(pixels[0, 0], [255, 255, 255])
-        assert np.array_equal(pixels[-1, -1], [255, 255, 255])
-        assert np.array_equal(pixels[0, -1], [255, 255, 255])
-        assert np.array_equal(pixels[-1, 0], [255, 255, 255])
+        assert pixels[0, 0, 3] == 0, "Top-left corner should be transparent"
+        assert pixels[-1, -1, 3] == 0, "Bottom-right corner should be transparent"
+        assert pixels[0, -1, 3] == 0, "Top-right corner should be transparent"
+        assert pixels[-1, 0, 3] == 0, "Bottom-left corner should be transparent"
 
     def test_place_on_canvas_metadata_structure(self, sample_text_image, sample_char_bboxes):
         """Metadata should contain all required fields."""
@@ -510,11 +513,253 @@ class TestIntegration:
         assert len(label_data['char_bboxes']) == 4
 
 
-class TestBatchConfigSupport:
-    """Test batch configuration support for canvas placement."""
+class TestEndToEndIntegration:
+    """Test canvas placement through end-to-end generation pipeline."""
 
-    def test_batch_config_canvas_parameters(self):
-        """Batch config should support canvas placement parameters."""
-        # This will be tested after implementation
-        # Placeholder for future batch config integration
-        pass
+    @pytest.fixture
+    def integration_environment(self, tmp_path):
+        """Set up environment for integration tests."""
+        import shutil
+        import random
+
+        input_dir = tmp_path / "input"
+        output_dir = tmp_path / "output"
+        fonts_dir = input_dir / "fonts"
+        text_dir = input_dir / "text"
+
+        fonts_dir.mkdir(parents=True)
+        text_dir.mkdir(parents=True)
+        output_dir.mkdir()
+
+        # Create corpus file
+        corpus_path = text_dir / "corpus.txt"
+        with open(corpus_path, "w", encoding="utf-8") as f:
+            f.write("The quick brown fox jumps over the lazy dog. " * 50)
+
+        # Copy fonts
+        source_font_dir = Path(__file__).resolve().parent.parent / "data" / "fonts"
+        font_files = list(source_font_dir.glob("**/*.ttf")) + list(source_font_dir.glob("**/*.otf"))
+
+        if font_files:
+            random_fonts = random.sample(font_files, min(3, len(font_files)))
+            for font_file in random_fonts:
+                shutil.copy(font_file, fonts_dir)
+
+        return {
+            "text_file": str(corpus_path),
+            "fonts_dir": str(fonts_dir),
+            "output_dir": str(output_dir),
+            "tmp_path": tmp_path
+        }
+
+    def test_generate_image_returns_canvas_metadata(self, integration_environment):
+        """Test that generate_image returns canvas metadata in full pipeline."""
+        import subprocess
+        import yaml
+
+        project_root = Path(__file__).resolve().parent.parent
+        script_path = project_root / "src" / "main.py"
+
+        batch_config_data = {
+            "total_images": 1,
+            "batches": [
+                {
+                    "name": "integration_test",
+                    "proportion": 1.0,
+                    "text_direction": "left_to_right",
+                    "corpus_file": integration_environment["text_file"]
+                }
+            ]
+        }
+
+        batch_config_path = integration_environment["tmp_path"] / "batch_config.yaml"
+        with open(batch_config_path, "w") as f:
+            yaml.dump(batch_config_data, f)
+
+        command = [
+            "python3", str(script_path),
+            "--batch-config", str(batch_config_path),
+            "--fonts-dir", integration_environment["fonts_dir"],
+            "--output-dir", integration_environment["output_dir"]
+        ]
+
+        result = subprocess.run(command, capture_output=True, text=True, check=False)
+        assert result.returncode == 0, f"Script failed: {result.stderr}"
+
+        # Check generated JSON has canvas metadata
+        json_files = list(Path(integration_environment["output_dir"]).glob("image_*.json"))
+        assert len(json_files) == 1
+
+        with open(json_files[0], 'r') as f:
+            data = json.load(f)
+
+        # Verify all canvas metadata fields are present
+        assert 'canvas_size' in data
+        assert 'text_placement' in data
+        assert 'line_bbox' in data
+        assert 'char_bboxes' in data
+
+    def test_canvas_metadata_after_augmentations(self, integration_environment):
+        """Test that canvas metadata is correct even after augmentations."""
+        import subprocess
+        import yaml
+
+        project_root = Path(__file__).resolve().parent.parent
+        script_path = project_root / "src" / "main.py"
+
+        batch_config_data = {
+            "total_images": 2,
+            "batches": [
+                {
+                    "name": "augmented_test",
+                    "proportion": 1.0,
+                    "text_direction": "left_to_right",
+                    "corpus_file": integration_environment["text_file"],
+                    "curve_type": "arc",
+                    "curve_intensity": 0.3,
+                    "overlap_intensity": 0.2,
+                    "effect_type": "embossed",
+                    "effect_depth": 0.5
+                }
+            ]
+        }
+
+        batch_config_path = integration_environment["tmp_path"] / "batch_config.yaml"
+        with open(batch_config_path, "w") as f:
+            yaml.dump(batch_config_data, f)
+
+        command = [
+            "python3", str(script_path),
+            "--batch-config", str(batch_config_path),
+            "--fonts-dir", integration_environment["fonts_dir"],
+            "--output-dir", integration_environment["output_dir"]
+        ]
+
+        result = subprocess.run(command, capture_output=True, text=True, check=False)
+        assert result.returncode == 0
+
+        json_files = list(Path(integration_environment["output_dir"]).glob("image_*.json"))
+
+        for json_file in json_files:
+            with open(json_file, 'r') as f:
+                data = json.load(f)
+
+            # Canvas metadata should exist
+            canvas_size = data['canvas_size']
+            text_placement = data['text_placement']
+            line_bbox = data['line_bbox']
+            char_bboxes = data['char_bboxes']
+
+            # Basic validation
+            assert len(canvas_size) == 2
+            assert canvas_size[0] > 0 and canvas_size[1] > 0
+            assert len(text_placement) == 2
+            assert len(line_bbox) == 4
+            assert len(char_bboxes) == len(data['text'])
+
+    def test_canvas_with_all_directions(self, integration_environment):
+        """Test canvas placement works with all text directions."""
+        import subprocess
+        import yaml
+
+        project_root = Path(__file__).resolve().parent.parent
+        script_path = project_root / "src" / "main.py"
+
+        for direction in ['left_to_right', 'right_to_left', 'top_to_bottom', 'bottom_to_top']:
+            output_dir = Path(integration_environment["output_dir"]) / direction
+            output_dir.mkdir(exist_ok=True)
+
+            batch_config_data = {
+                "total_images": 1,
+                "batches": [
+                    {
+                        "name": f"{direction}_test",
+                        "proportion": 1.0,
+                        "text_direction": direction,
+                        "corpus_file": integration_environment["text_file"]
+                    }
+                ]
+            }
+
+            batch_config_path = integration_environment["tmp_path"] / f"batch_{direction}.yaml"
+            with open(batch_config_path, "w") as f:
+                yaml.dump(batch_config_data, f)
+
+            command = [
+                "python3", str(script_path),
+                "--batch-config", str(batch_config_path),
+                "--fonts-dir", integration_environment["fonts_dir"],
+                "--output-dir", str(output_dir)
+            ]
+
+            result = subprocess.run(command, capture_output=True, text=True, check=False)
+            assert result.returncode == 0, f"Failed for {direction}: {result.stderr}"
+
+            # Verify output
+            json_files = list(output_dir.glob("image_*.json"))
+            assert len(json_files) == 1
+
+            with open(json_files[0], 'r') as f:
+                data = json.load(f)
+
+            assert 'canvas_size' in data
+            assert 'line_bbox' in data
+            assert 'char_bboxes' in data
+
+    def test_line_bbox_contains_text_after_canvas_placement(self, integration_environment):
+        """Test that line_bbox correctly encompasses text after canvas placement."""
+        import subprocess
+        import yaml
+
+        project_root = Path(__file__).resolve().parent.parent
+        script_path = project_root / "src" / "main.py"
+
+        batch_config_data = {
+            "total_images": 3,
+            "batches": [
+                {
+                    "name": "bbox_test",
+                    "proportion": 1.0,
+                    "corpus_file": integration_environment["text_file"]
+                }
+            ]
+        }
+
+        batch_config_path = integration_environment["tmp_path"] / "batch_config.yaml"
+        with open(batch_config_path, "w") as f:
+            yaml.dump(batch_config_data, f)
+
+        command = [
+            "python3", str(script_path),
+            "--batch-config", str(batch_config_path),
+            "--fonts-dir", integration_environment["fonts_dir"],
+            "--output-dir", integration_environment["output_dir"]
+        ]
+
+        result = subprocess.run(command, capture_output=True, text=True, check=False)
+        assert result.returncode == 0
+
+        json_files = list(Path(integration_environment["output_dir"]).glob("image_*.json"))
+
+        for json_file in json_files:
+            with open(json_file, 'r') as f:
+                data = json.load(f)
+
+            line_bbox = data['line_bbox']
+            char_bboxes = data['char_bboxes']
+
+            if not char_bboxes:
+                continue
+
+            # Calculate bounding box of all characters
+            all_x_min = min(bbox[0] for bbox in char_bboxes)
+            all_y_min = min(bbox[1] for bbox in char_bboxes)
+            all_x_max = max(bbox[2] for bbox in char_bboxes)
+            all_y_max = max(bbox[3] for bbox in char_bboxes)
+
+            # Line bbox should encompass all characters (with tolerance)
+            tolerance = 50
+            assert line_bbox[0] <= all_x_min + tolerance
+            assert line_bbox[1] <= all_y_min + tolerance
+            assert line_bbox[2] >= all_x_max - tolerance
+            assert line_bbox[3] >= all_y_max - tolerance

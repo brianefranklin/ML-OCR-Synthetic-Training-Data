@@ -73,6 +73,27 @@ def rotate_image(image, bboxes):
 
     # Add padding to the image to ensure the bounding box is within the image
     overall_bbox = [min(b[0] for b in new_bboxes), min(b[1] for b in new_bboxes), max(b[2] for b in new_bboxes), max(b[3] for b in new_bboxes)]
+
+    # Safeguard: Check if bboxes extend unreasonably far from image boundaries
+    MAX_DIMENSION = 20000  # Maximum reasonable dimension (20K pixels per side)
+    MAX_PIXELS = 178_000_000  # PIL's decompression bomb limit
+    # Allow bbox to extend at most 3x the image dimension from boundaries
+    max_offset_x = new_w * 3
+    max_offset_y = new_h * 3
+
+    # Check if any bbox extends too far from rotated image boundaries
+    if (overall_bbox[2] > new_w + max_offset_x or overall_bbox[3] > new_h + max_offset_y or
+        overall_bbox[0] < -max_offset_x or overall_bbox[1] < -max_offset_y):
+        logging.warning(f"rotate_image: Bboxes extend too far from image boundaries (bbox: {overall_bbox}, image: {new_w}x{new_h}). Skipping rotation.")
+        return image, bboxes
+
+    # Check overall bbox dimensions
+    bbox_width = overall_bbox[2] - overall_bbox[0]
+    bbox_height = overall_bbox[3] - overall_bbox[1]
+    if bbox_width > MAX_DIMENSION or bbox_height > MAX_DIMENSION or (bbox_width * bbox_height) > MAX_PIXELS:
+        logging.warning(f"rotate_image: Overall bbox size ({bbox_width:.0f}x{bbox_height:.0f}) exceeds safe limits. Skipping rotation.")
+        return image, bboxes
+
     padding_x = max(0, -overall_bbox[0])
     padding_y = max(0, -overall_bbox[1])
 
@@ -85,8 +106,6 @@ def rotate_image(image, bboxes):
     # Additional safeguard: Validate that resulting image size is reasonable
     proposed_width = new_w + int(padding_x)
     proposed_height = new_h + int(padding_y)
-    MAX_DIMENSION = 20000  # Maximum reasonable dimension (20K pixels per side)
-    MAX_PIXELS = 178_000_000  # PIL's decompression bomb limit
 
     if proposed_width > MAX_DIMENSION or proposed_height > MAX_DIMENSION or (proposed_width * proposed_height) > MAX_PIXELS:
         logging.warning(f"rotate_image: Proposed image size ({proposed_width}x{proposed_height} = {proposed_width*proposed_height} pixels) exceeds safe limits. Skipping rotation.")
@@ -349,31 +368,42 @@ def apply_augmentations(image, char_bboxes, background_images):
     # Start with a clean image and original bboxes
     augmented_image = image
     augmented_bboxes = char_bboxes
+    augmentations_applied = {}
 
     # Core text-affecting augmentations
     if random.random() < 0.3:
         augmented_image, augmented_bboxes = perspective_transform(augmented_image, augmented_bboxes)
+        augmentations_applied['perspective_transform'] = True
     if random.random() < 0.2:
         augmented_image, augmented_bboxes = elastic_distortion(augmented_image, augmented_bboxes)
+        augmentations_applied['elastic_distortion'] = True
     if random.random() < 0.4:
         augmented_image, augmented_bboxes = rotate_image(augmented_image, augmented_bboxes)
+        augmentations_applied['rotate'] = True
     if random.random() < 0.3:
         augmented_image = erode_dilate(augmented_image)
+        augmentations_applied['erode_dilate'] = True
     if random.random() < 0.3:
         augmented_image = add_shadow(augmented_image)
+        augmentations_applied['shadow'] = True
 
     # Background and lighting
     if random.random() < 0.6:
         augmented_image = add_background(augmented_image, background_images)
+        augmentations_applied['background'] = True
     
     augmented_image = adjust_brightness_contrast(augmented_image)
+    augmentations_applied['brightness_contrast'] = True
 
     # Post-processing noise and blur
     if random.random() < 0.5:
         augmented_image = blur_image(augmented_image)
+        augmentations_applied['blur'] = True
     if random.random() < 0.2:
         augmented_image = add_noise(augmented_image)
+        augmentations_applied['noise'] = True
     if random.random() < 0.15:
         augmented_image = cutout(augmented_image)
+        augmentations_applied['cutout'] = True
 
-    return augmented_image, augmented_bboxes
+    return augmented_image, augmented_bboxes, augmentations_applied

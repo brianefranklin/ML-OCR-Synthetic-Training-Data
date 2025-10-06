@@ -444,14 +444,14 @@ class TestCLI:
         """Color should work through generate_image pipeline."""
         font_path = "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf"
 
-        img, bboxes, text = generator.generate_image(
+        img, metadata, text, augmentations_applied = generator.generate_image(
             "Test", font_path, 32, 'left_to_right',
             text_color_mode='uniform',
             color_palette='vibrant'
         )
 
         assert img is not None
-        assert len(bboxes) == 4
+        assert len(metadata['char_bboxes']) == 4
         assert text == "Test"
 
 

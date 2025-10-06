@@ -6,7 +6,7 @@ Places text images on larger canvases with configurable placement strategies.
 import random
 import json
 import math
-from typing import List, Tuple, Dict, Union
+from typing import List, Tuple, Dict, Union, Optional
 from PIL import Image
 import numpy as np
 
@@ -156,8 +156,10 @@ def place_on_canvas(
 
     canvas_width, canvas_height = canvas_size
 
-    # Create background canvas
-    canvas = Image.new('RGB', canvas_size, color=background_color)
+    # Create background canvas in RGBA mode to preserve transparency
+    # Use transparent background color
+    transparent_bg = background_color + (0,) if len(background_color) == 3 else background_color
+    canvas = Image.new('RGBA', canvas_size, color=transparent_bg)
 
     # Calculate text placement
     x_offset, y_offset = calculate_text_placement(
@@ -209,7 +211,8 @@ def place_on_canvas(
 def create_label_json(
     image_file: str,
     text: str,
-    metadata: Dict
+    metadata: Dict,
+    generation_params: Optional[Dict] = None
 ) -> Dict:
     """
     Create JSON label data structure.
@@ -218,11 +221,12 @@ def create_label_json(
         image_file: Name of the image file
         text: The rendered text string
         metadata: Metadata from place_on_canvas
+        generation_params: Dictionary of parameters used for generation
 
     Returns:
         Dictionary ready for JSON serialization
     """
-    return {
+    label_data = {
         'image_file': image_file,
         'text': text,
         'canvas_size': metadata['canvas_size'],
@@ -230,13 +234,17 @@ def create_label_json(
         'line_bbox': metadata['line_bbox'],
         'char_bboxes': metadata['char_bboxes']
     }
+    if generation_params:
+        label_data['generation_params'] = generation_params
+    return label_data
 
 
 def save_label_json(
     output_path: str,
     image_file: str,
     text: str,
-    metadata: Dict
+    metadata: Dict,
+    generation_params: Optional[Dict] = None
 ) -> None:
     """
     Save label data to JSON file.
@@ -246,8 +254,9 @@ def save_label_json(
         image_file: Name of the image file
         text: The rendered text string
         metadata: Metadata from place_on_canvas
+        generation_params: Dictionary of parameters used for generation
     """
-    label_data = create_label_json(image_file, text, metadata)
+    label_data = create_label_json(image_file, text, metadata, generation_params)
 
     # Convert numpy types to native Python types for JSON serialization
     def convert_to_native(obj):

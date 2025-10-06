@@ -310,7 +310,7 @@ class TestCanvasCompositing:
             canvas_size=(400, 300)
         )
 
-        assert canvas_img.mode == 'RGB'
+        assert canvas_img.mode == 'RGBA'
         assert canvas_img.size == (400, 300)
 
     def test_no_white_halos(self, generator, test_font):
@@ -333,16 +333,17 @@ class TestCanvasCompositing:
 
         canvas_array = np.array(canvas_img)
 
-        # Should have red pixels (text)
+        # Should have red pixels (text - with high alpha)
         red_pixels = (canvas_array[:, :, 0] > 200) & \
                      (canvas_array[:, :, 1] < 50) & \
-                     (canvas_array[:, :, 2] < 50)
+                     (canvas_array[:, :, 2] < 50) & \
+                     (canvas_array[:, :, 3] > 200)
 
         assert np.any(red_pixels), "Should have red text pixels"
 
-        # Should have white pixels (background)
-        white_pixels = np.all(canvas_array == [255, 255, 255], axis=2)
-        assert np.any(white_pixels), "Should have white background"
+        # Should have transparent background pixels (alpha = 0)
+        transparent_pixels = canvas_array[:, :, 3] == 0
+        assert np.any(transparent_pixels), "Should have transparent background"
 
     def test_proper_alpha_blending(self, generator, test_font):
         """Semi-transparent pixels should blend correctly."""
@@ -351,16 +352,21 @@ class TestCanvasCompositing:
         img, boxes = generator.render_left_to_right("Test", test_font)
         char_bboxes = [box.bbox for box in boxes]
 
-        # Place on white canvas
+        # Place on canvas
         canvas_img, metadata = place_on_canvas(
             img,
             char_bboxes,
             canvas_size=(400, 300)
         )
 
-        # Should not have pure transparency artifacts
-        # (All pixels should be opaque in final RGB image)
-        assert canvas_img.mode == 'RGB'
+        # Canvas should be RGBA with transparent background
+        assert canvas_img.mode == 'RGBA'
+
+        # Should have semi-transparent pixels (anti-aliasing)
+        canvas_array = np.array(canvas_img)
+        alpha_channel = canvas_array[:, :, 3]
+        semi_transparent = (alpha_channel > 0) & (alpha_channel < 255)
+        assert np.any(semi_transparent), "Should have anti-aliased semi-transparent pixels"
 
 
 class TestFullPipeline:
@@ -370,12 +376,12 @@ class TestFullPipeline:
         """generate_image should work with RGBA pipeline."""
         font_path = "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf"
 
-        final_img, metadata, text = generator.generate_image(
+        final_img, metadata, text, augmentations_applied = generator.generate_image(
             "Test", font_path, 32, 'left_to_right'
         )
 
-        # Final image should be RGB (composited on canvas)
-        assert final_img.mode == 'RGB'
+        # Final image should be RGBA (canvas now uses RGBA mode)
+        assert final_img.mode == 'RGBA'
 
         # Should have metadata
         assert 'canvas_size' in metadata
@@ -386,14 +392,14 @@ class TestFullPipeline:
         """White text should work through entire pipeline."""
         font_path = "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf"
 
-        final_img, metadata, text = generator.generate_image(
+        final_img, metadata, text, augmentations_applied = generator.generate_image(
             "Test", font_path, 32, 'left_to_right',
             text_color_mode='uniform',
             custom_colors=[(255, 255, 255)]
         )
 
         # Should produce valid image
-        assert final_img.mode == 'RGB'
+        assert final_img.mode == 'RGBA'
         assert final_img.size[0] > 0 and final_img.size[1] > 0
 
         # Should have metadata

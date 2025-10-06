@@ -37,6 +37,10 @@ temp/
 # Training Data
 data/raw_text/
 output/
+output.nosync
+data/corpus_text
+data/
+
 
 # Build artifacts
 build/
@@ -48,6 +52,3 @@ tests/__pycache__
 /tests/__pycache__
 src/__pycache__
 *.pyc
-/data/corpus_test
-/data/corpus_text
-/output.nosync

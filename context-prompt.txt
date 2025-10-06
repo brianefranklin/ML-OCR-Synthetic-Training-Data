@@ -11,9 +11,19 @@ This script creates images for an optical character recognition (OCR) training p
 
   1. Configuration (`batch_config.py` and `batch_configs/`)
 
-  The script is highly configurable through YAML files located in the `batch_configs/` directory. The `batch_config.py` module is responsible for parsing these files and setting up the generation parameters, such as image dimensions, font choices, text content, and the types and ranges of augmentations to be applied.
+  The script is highly configurable through YAML files located in the `batch_configs/` directory. The `batch_config.py` module is responsible for parsing these files and setting up the generation parameters. This is a powerful feature that allows for:
+    * Proportional Generation: Allocate percentages of the total image count to different batches with specific settings.
+    * Per-Batch Parameters: Each batch can have its own unique settings for text direction, fonts, corpus, augmentations, and more.
+    * Interleaved Generation: The script generates images from different batches in an interleaved manner, ensuring a balanced and diverse dataset from the start.
 
-  2. Text Rendering and Layout (`canvas_placement.py`)
+  2. Corpus Management (`corpus_manager.py`)
+
+  To handle massive text datasets efficiently, the `corpus_manager.py` module provides a robust solution for text extraction. It is optimized for terabyte-scale corpora and parallel processing with minimal memory footprint. Key features include:
+    * Sequential Streaming: Instead of loading entire files into memory, the manager streams text sequentially, making it incredibly fast and memory-efficient.
+    * Round-Robin File Rotation: It rotates through multiple corpus files, ensuring a diverse selection of text.
+    * Weighted Sampling: You can assign weights to different corpus files to control the frequency of text from each source.
+
+  3. Text Rendering and Layout (`canvas_placement.py`)
 
   The script first renders text onto a blank canvas. This is a highly configurable step, with the `canvas_placement.py` module handling the positioning of the text.
 
@@ -28,7 +38,7 @@ This script creates images for an optical character recognition (OCR) training p
       bounding box). This is the most critical piece of information for training the OCR model, as it 
      tells the model exactly where each character is located in the image.
 
-  3. Simulating Real-World Text Imperfections
+  4. Simulating Real-World Text Imperfections
 
   To make the training data more realistic, the script applies several effects during the rendering 
   phase, using modules from src/:
@@ -39,13 +49,14 @@ This script creates images for an optical character recognition (OCR) training p
    * Ink Bleed (`glyph_overlap.py`): This effect simulates the way ink spreads on paper, especially in 
      older or lower-quality prints. It's achieved by applying a Gaussian blur and other image filters.
    * 3D Effects (`text_3d_effects.py`): The script can add 3D effects to the text to mimic embossing, 
-     engraving, or drop shadows. This helps the OCR model learn to read text that isn't flat.
+     engraving, or drop shadows.
    * Color Variation (`text_color.py`): The text color can be varied in several ways:
        * Uniform: All characters have the same color.
        * Per-Glyph: Each character has a different, random color.
        * Gradient: A smooth color gradient is applied across the text.
+       * Random: Randomly chooses between uniform and per-glyph.
 
-  4. Augmentations for Robustness (`augmentations.py`)
+  5. Augmentations for Robustness (`augmentations.py`)
 
   After the initial text is rendered, the apply_augmentations function from src/augmentations.py 
   applies a random series of transformations to the image. This is crucial for training a robust OCR 
@@ -70,15 +81,10 @@ This script creates images for an optical character recognition (OCR) training p
   Throughout the augmentation process, the character bounding boxes are continuously recalculated to 
   ensure they remain accurate.
 
-  5. Output
+  6. Output
 
   The final output of the script consists of two main parts:
 
    1. Generated Images: A set of PNG images, each containing a unique, synthetically generated line of 
       text with various augmentations.
-   2. Label File (`labels.csv`): A CSV file that contains the ground truth for each image. Each row in the 
-      CSV file corresponds to an image and stores the image's filename along with a JSON object containing 
-      the text and the list of character bounding boxes.
-
-  This combination of highly-augmented images and precise character-level annotations provides the 
-  necessary data to train a powerful and accurate OCR model.
+   2. Label Files (JSON): For each generated image, a corresponding JSON file is created (e.g., `image_00001.json`). This file contains the ground truth for the image, including the text, canvas size, and a list of character bounding boxes.

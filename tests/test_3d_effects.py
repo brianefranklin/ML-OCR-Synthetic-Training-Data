@@ -704,13 +704,13 @@ class TestIntegration:
         """3D effects should work through generate_image()."""
         font_path = "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf"
 
-        img, bboxes, text = generator.generate_image(
+        img, metadata, text, augmentations_applied = generator.generate_image(
             "Test", font_path, 32, 'left_to_right',
             effect_type='embossed', effect_depth=0.5
         )
 
         assert img is not None
-        assert len(bboxes) == 4
+        assert len(metadata['char_bboxes']) == 4
         assert text == "Test"
 
     def test_batch_config_integration(self, generator, test_font):

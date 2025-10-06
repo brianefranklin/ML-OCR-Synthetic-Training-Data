@@ -458,5 +458,199 @@ class TestCorpusManagerRealWorldScenarios:
             assert text is not None
 
 
+class TestCorpusManagerBatchConfigIntegration:
+    """Test corpus manager integration with batch configuration."""
+
+    def test_batch_config_with_corpus_dir(self, tmp_path):
+        """Test that batch config corpus_dir parameter works."""
+        import subprocess
+        import yaml
+        import shutil
+
+        # Create directory structure
+        corpus_dir = tmp_path / "corpus_text" / "ltr"
+        fonts_dir = tmp_path / "fonts"
+        output_dir = tmp_path / "output"
+
+        corpus_dir.mkdir(parents=True)
+        fonts_dir.mkdir(parents=True)
+        output_dir.mkdir()
+
+        # Create multiple corpus files
+        (corpus_dir / "file1.txt").write_text("The quick brown fox. " * 50, encoding='utf-8')
+        (corpus_dir / "file2.txt").write_text("Hello world from corpus. " * 50, encoding='utf-8')
+
+        # Copy a font
+        font_source = Path(__file__).resolve().parent.parent / "data" / "fonts"
+        font_files = list(font_source.glob("*.ttf"))
+        if font_files:
+            shutil.copy(font_files[0], fonts_dir)
+
+        # Create batch config with corpus_dir
+        batch_config_data = {
+            "total_images": 5,
+            "batches": [
+                {
+                    "name": "ltr_batch",
+                    "proportion": 1.0,
+                    "text_direction": "left_to_right",
+                    "corpus_dir": str(corpus_dir),
+                    "text_pattern": "*.txt"
+                }
+            ]
+        }
+
+        batch_config_path = tmp_path / "batch_config.yaml"
+        with open(batch_config_path, "w") as f:
+            yaml.dump(batch_config_data, f)
+
+        # Run generation
+        project_root = Path(__file__).resolve().parent.parent
+        script_path = project_root / "src" / "main.py"
+
+        command = [
+            "python3", str(script_path),
+            "--batch-config", str(batch_config_path),
+            "--fonts-dir", str(fonts_dir),
+            "--output-dir", str(output_dir)
+        ]
+
+        result = subprocess.run(command, capture_output=True, text=True, check=False)
+        assert result.returncode == 0, f"Script failed: {result.stderr}"
+
+        # Verify output
+        image_files = list(output_dir.glob("image_*.png"))
+        assert len(image_files) == 5
+
+    def test_batch_config_corpus_pattern(self, tmp_path):
+        """Test that batch config corpus_pattern parameter works."""
+        import subprocess
+        import yaml
+        import shutil
+
+        corpus_dir = tmp_path / "corpus_text"
+        fonts_dir = tmp_path / "fonts"
+        output_dir = tmp_path / "output"
+
+        corpus_dir.mkdir(parents=True)
+        fonts_dir.mkdir(parents=True)
+        output_dir.mkdir()
+
+        # Create files with different patterns
+        (corpus_dir / "wiki_1.txt").write_text("Wikipedia article one. " * 50, encoding='utf-8')
+        (corpus_dir / "wiki_2.txt").write_text("Wikipedia article two. " * 50, encoding='utf-8')
+        (corpus_dir / "news_1.txt").write_text("News article one. " * 50, encoding='utf-8')
+
+        # Copy a font
+        font_source = Path(__file__).resolve().parent.parent / "data" / "fonts"
+        font_files = list(font_source.glob("*.ttf"))
+        if font_files:
+            shutil.copy(font_files[0], fonts_dir)
+
+        # Create batch config with corpus_pattern
+        batch_config_data = {
+            "total_images": 3,
+            "batches": [
+                {
+                    "name": "wiki_batch",
+                    "proportion": 1.0,
+                    "text_direction": "left_to_right",
+                    "corpus_dir": str(corpus_dir),
+                    "text_pattern": "wiki_*.txt"
+                }
+            ]
+        }
+
+        batch_config_path = tmp_path / "batch_config.yaml"
+        with open(batch_config_path, "w") as f:
+            yaml.dump(batch_config_data, f)
+
+        # Run generation
+        project_root = Path(__file__).resolve().parent.parent
+        script_path = project_root / "src" / "main.py"
+
+        command = [
+            "python3", str(script_path),
+            "--batch-config", str(batch_config_path),
+            "--fonts-dir", str(fonts_dir),
+            "--output-dir", str(output_dir)
+        ]
+
+        result = subprocess.run(command, capture_output=True, text=True, check=False)
+        assert result.returncode == 0, f"Script failed: {result.stderr}"
+
+        # Should succeed with wiki files only
+        image_files = list(output_dir.glob("image_*.png"))
+        assert len(image_files) == 3
+
+    def test_batch_config_multiple_corpus_dirs(self, tmp_path):
+        """Test multiple batches with different corpus directories."""
+        import subprocess
+        import yaml
+        import shutil
+
+        # Create directory structure
+        ltr_dir = tmp_path / "corpus_text" / "ltr"
+        rtl_dir = tmp_path / "corpus_text" / "rtl"
+        fonts_dir = tmp_path / "fonts"
+        output_dir = tmp_path / "output"
+
+        ltr_dir.mkdir(parents=True)
+        rtl_dir.mkdir(parents=True)
+        fonts_dir.mkdir(parents=True)
+        output_dir.mkdir()
+
+        # Create corpus files
+        (ltr_dir / "ltr_corpus.txt").write_text("Left to right text. " * 100, encoding='utf-8')
+        (rtl_dir / "rtl_corpus.txt").write_text("Right to left text. " * 100, encoding='utf-8')
+
+        # Copy a font
+        font_source = Path(__file__).resolve().parent.parent / "data" / "fonts"
+        font_files = list(font_source.glob("*.ttf"))
+        if font_files:
+            shutil.copy(font_files[0], fonts_dir)
+
+        # Create batch config with multiple corpus dirs
+        batch_config_data = {
+            "total_images": 10,
+            "batches": [
+                {
+                    "name": "ltr_batch",
+                    "proportion": 0.5,
+                    "text_direction": "left_to_right",
+                    "corpus_dir": str(ltr_dir)
+                },
+                {
+                    "name": "rtl_batch",
+                    "proportion": 0.5,
+                    "text_direction": "right_to_left",
+                    "corpus_dir": str(rtl_dir)
+                }
+            ]
+        }
+
+        batch_config_path = tmp_path / "batch_config.yaml"
+        with open(batch_config_path, "w") as f:
+            yaml.dump(batch_config_data, f)
+
+        # Run generation
+        project_root = Path(__file__).resolve().parent.parent
+        script_path = project_root / "src" / "main.py"
+
+        command = [
+            "python3", str(script_path),
+            "--batch-config", str(batch_config_path),
+            "--fonts-dir", str(fonts_dir),
+            "--output-dir", str(output_dir)
+        ]
+
+        result = subprocess.run(command, capture_output=True, text=True, check=False)
+        assert result.returncode == 0, f"Script failed: {result.stderr}"
+
+        # Verify total output
+        image_files = list(output_dir.glob("image_*.png"))
+        assert len(image_files) == 10
+
+
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])

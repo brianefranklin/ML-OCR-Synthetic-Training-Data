@@ -19,13 +19,6 @@ import bidi.algorithm
 from augmentations import apply_augmentations
 
 
-# Font blacklist - fonts known to cause issues
-FONT_BLACKLIST = {
-    'KumarOne-Regular.ttf',
-    'KumarOneOutline-Regular.ttf',
-    'NotoColorEmojiCompatTest-Regular.ttf',
-}
-
 
 @dataclass
 class CharacterBox:
@@ -1536,13 +1529,14 @@ class OCRDataGenerator:
             # Use standard rendering
             image, char_boxes = self.render_text(text, font, direction,
                                                 overlap_intensity, ink_bleed_intensity,
-                                                effect_type, effect_depth, light_azimuth, light_elevation)
+                                                effect_type, effect_depth, light_azimuth, light_elevation,
+                                                text_color_mode, color_palette, custom_colors, background_color)
 
         # Extract just the bbox coordinates
         char_bboxes = [box.bbox for box in char_boxes]
 
         # Apply augmentations
-        augmented_image, augmented_bboxes = apply_augmentations(
+        augmented_image, augmented_bboxes, augmentations_applied = apply_augmentations(
             image, char_bboxes, self.background_images
         )
 
@@ -1568,11 +1562,11 @@ class OCRDataGenerator:
                 background_color=(255, 255, 255)
             )
 
-            return final_image, metadata, text
+            return final_image, metadata, text, augmentations_applied
         else:
             # Return without canvas placement (legacy format)
             metadata = {'char_bboxes': augmented_bboxes}
-            return augmented_image, metadata, text
+            return augmented_image, metadata, text, augmentations_applied
 
 
 def setup_logging(log_level: str, log_file: str) -> None:
@@ -1653,12 +1647,7 @@ import functools
 
 @functools.lru_cache(maxsize=None)
 def can_font_render_text(font_path, text, character_set):
-    # Check blacklist first
     font_name = os.path.basename(font_path)
-    if font_name in FONT_BLACKLIST:
-        logging.debug(f"Skipping blacklisted font {font_name}")
-        return False
-
     try:
         font = ImageFont.truetype(font_path, size=24)
         for char in text:
@@ -1775,7 +1764,7 @@ def generate_with_batches(batch_config, font_files, background_images, args):
 
             try:
                 # Generate image with augmentations and canvas placement
-                final_image, metadata, text = generator.generate_image(
+                final_image, metadata, text, augmentations_applied = generator.generate_image(
                     text_line, font_path, font_size, task['text_direction'],
                     curve_type=task.get('curve_type', 'none'),
                     curve_intensity=task.get('curve_intensity', 0.0),
@@ -1800,11 +1789,32 @@ def generate_with_batches(batch_config, font_files, background_images, args):
                 image_path = os.path.join(args.output_dir, image_filename)
                 final_image.save(image_path)
 
+                # Create generation_params dictionary
+                generation_params = {
+                    'text': text,
+                    'font_path': font_path,
+                    'font_size': font_size,
+                    'text_direction': task['text_direction'],
+                    'curve_type': task.get('curve_type', 'none'),
+                    'curve_intensity': task.get('curve_intensity', 0.0),
+                    'overlap_intensity': task.get('overlap_intensity', 0.0),
+                    'ink_bleed_intensity': task.get('ink_bleed_intensity', 0.0),
+                    'effect_type': task.get('effect_type', 'none'),
+                    'effect_depth': task.get('effect_depth', 0.5),
+                    'light_azimuth': task.get('light_azimuth', 135.0),
+                    'light_elevation': task.get('light_elevation', 45.0),
+                    'text_color_mode': task.get('text_color_mode', 'uniform'),
+                    'color_palette': task.get('color_palette', 'realistic_dark'),
+                    'custom_colors': task.get('custom_colors'),
+                    'background_color': task.get('background_color', 'auto'),
+                    'augmentations': augmentations_applied
+                }
+
                 # Save JSON label
                 from canvas_placement import save_label_json
                 json_filename = f'image_{image_counter:05d}.json'
                 json_path = os.path.join(args.output_dir, json_filename)
-                save_label_json(json_path, image_filename, text, metadata)
+                save_label_json(json_path, image_filename, text, metadata, generation_params)
 
                 image_counter += 1
                 successful_count += 1
@@ -1919,6 +1929,9 @@ def main():
     if args.clear_output:
         if not clear_output_directory(args.output_dir, args.force):
             return
+        if args.num_images == 0:
+            logging.info("Output directory cleared. Exiting as num_images is 0.")
+            return
 
     # --- Validate Essential Arguments ---
     # Handle corpus specification priority: explicit CLI args override config
@@ -1959,11 +1972,6 @@ def main():
     font_files = []
     for font_path in font_candidates:
         font_name = os.path.basename(font_path)
-
-        # Check blacklist first
-        if font_name in FONT_BLACKLIST:
-            logging.debug(f"Skipping blacklisted font {font_name}")
-            continue
 
         try:
             # Try to load the font to validate it
@@ -2026,12 +2034,12 @@ def main():
     logging.info("Extracting sample text for font validation...")
     sample_text_chunks = []
     for _ in range(10):  # Sample 10 chunks
-        chunk = corpus_manager.extract_text_segment(100, 500)
+        chunk = corpus_manager.extract_text_segment(1, 50)
         if chunk:
             sample_text_chunks.append(chunk)
 
     if not sample_text_chunks:
-        logging.error("Unable to extract sample text from corpus files")
+        logging.error(f"Corpus must contain at least {args.min_text_length} characters to proceed.")
         sys.exit(1)
 
     sample_corpus = ' '.join(sample_text_chunks)
@@ -2129,7 +2137,7 @@ def main():
 
             try:
                 # Generate image with augmentations and canvas placement
-                final_image, metadata, text = generator.generate_image(
+                final_image, metadata, text, augmentations_applied = generator.generate_image(
                     text_line, font_path, font_size, args.text_direction,
                     overlap_intensity=args.overlap_intensity,
                     ink_bleed_intensity=args.ink_bleed_intensity,
@@ -2166,7 +2174,11 @@ def main():
                 logging.error(f"Failed to generate image: {e}")
                 continue
 
-        logging.info(f"Successfully generated {image_counter} images with JSON labels in {args.output_dir}")
+        if image_counter > 0:
+            logging.info(f"Successfully generated {image_counter} images with JSON labels in {args.output_dir}")
+        else:
+            logging.error("Failed to generate any images. The corpus may be too small for the specified text length.")
+            sys.exit(1)
 
 
 if __name__ == "__main__":

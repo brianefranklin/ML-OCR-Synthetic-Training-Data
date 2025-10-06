@@ -1,7 +1,4 @@
-"""
-Test suite for batch generation image count validation.
-Ensures that the number of generated images matches expected count within tolerance.
-"""
+
 
 import pytest
 import subprocess
@@ -50,7 +47,8 @@ def test_batch_count_within_10_percent_small(test_environment):
             {
                 "name": "test_batch",
                 "proportion": 1.0,
-                "text_direction": "left_to_right"
+                "text_direction": "left_to_right",
+                "corpus_file": test_environment["text_file"]
             }
         ]
     }
@@ -64,7 +62,6 @@ def test_batch_count_within_10_percent_small(test_environment):
         str(script_path),
         "--batch-config", str(batch_config_path),
         "--fonts-dir", test_environment["fonts_dir"],
-        "--text-file", test_environment["text_file"],
         "--output-dir", str(output_dir)
     ]
 
@@ -92,16 +89,26 @@ def test_batch_count_within_10_percent_medium(test_environment):
     # Medium batch: 50 images
     expected_count = 50
     batch_config_data = {
-        "total_images": expected_count,
-        "batches": [
-            {
-                "name": "test_batch",
-                "proportion": 1.0,
-                "text_direction": "left_to_right"
-            }
-        ]
-    }
 
+        "total_images": expected_count,
+
+        "batches": [
+
+            {
+
+                "name": "test_batch",
+
+                "proportion": 1.0,
+
+                "text_direction": "left_to_right",
+
+                "corpus_file": test_environment["text_file"]
+
+            }
+
+        ]
+
+    }
     batch_config_path = test_environment["tmp_path"] / "batch_config.yaml"
     with open(batch_config_path, "w") as f:
         yaml.dump(batch_config_data, f)
@@ -111,7 +118,6 @@ def test_batch_count_within_10_percent_medium(test_environment):
         str(script_path),
         "--batch-config", str(batch_config_path),
         "--fonts-dir", test_environment["fonts_dir"],
-        "--text-file", test_environment["text_file"],
         "--output-dir", str(output_dir)
     ]
 
@@ -144,7 +150,8 @@ def test_batch_count_within_10_percent_large(test_environment):
             {
                 "name": "test_batch",
                 "proportion": 1.0,
-                "text_direction": "left_to_right"
+                "text_direction": "left_to_right",
+                "corpus_file": test_environment["text_file"]
             }
         ]
     }
@@ -158,7 +165,6 @@ def test_batch_count_within_10_percent_large(test_environment):
         str(script_path),
         "--batch-config", str(batch_config_path),
         "--fonts-dir", test_environment["fonts_dir"],
-        "--text-file", test_environment["text_file"],
         "--output-dir", str(output_dir)
     ]
 
@@ -191,17 +197,20 @@ def test_batch_count_multiple_batches(test_environment):
             {
                 "name": "batch_1",
                 "proportion": 0.5,
-                "text_direction": "left_to_right"
+                "text_direction": "left_to_right",
+                "corpus_file": test_environment["text_file"]
             },
             {
                 "name": "batch_2",
                 "proportion": 0.3,
-                "text_direction": "left_to_right"
+                "text_direction": "left_to_right",
+                "corpus_file": test_environment["text_file"]
             },
             {
                 "name": "batch_3",
                 "proportion": 0.2,
-                "text_direction": "left_to_right"
+                "text_direction": "left_to_right",
+                "corpus_file": test_environment["text_file"]
             }
         ]
     }
@@ -215,7 +224,6 @@ def test_batch_count_multiple_batches(test_environment):
         str(script_path),
         "--batch-config", str(batch_config_path),
         "--fonts-dir", test_environment["fonts_dir"],
-        "--text-file", test_environment["text_file"],
         "--output-dir", str(output_dir)
     ]
 
@@ -255,7 +263,8 @@ def test_batch_count_with_effects(test_environment):
                 "effect_type": "embossed",
                 "effect_depth": 0.5,
                 "text_color_mode": "per_glyph",
-                "color_palette": "vibrant"
+                "color_palette": "vibrant",
+                "corpus_file": test_environment["text_file"]
             }
         ]
     }
@@ -269,7 +278,6 @@ def test_batch_count_with_effects(test_environment):
         str(script_path),
         "--batch-config", str(batch_config_path),
         "--fonts-dir", test_environment["fonts_dir"],
-        "--text-file", test_environment["text_file"],
         "--output-dir", str(output_dir)
     ]
 
