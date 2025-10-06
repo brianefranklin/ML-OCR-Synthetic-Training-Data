@@ -1687,33 +1687,58 @@ def generate_with_batches(batch_config, font_files, background_images, args):
         if task is None:
             break
 
-        # Load corpus for this batch if not already loaded
+        # Get or create corpus manager for this batch
+        from corpus_manager import CorpusManager
+
         batch_name = task['batch_name']
         if batch_name not in batch_corpora:
-            corpus_file = task['corpus_file'] or args.text_file
-            with open(corpus_file, 'r') as cf:
-                batch_corpora[batch_name] = cf.read().strip()
+            # Support corpus_file, corpus_dir, or corpus_pattern
+            corpus_spec = task.get('corpus_file') or task.get('corpus_dir') or task.get('corpus_pattern')
 
-        corpus = batch_corpora[batch_name]
+            if not corpus_spec:
+                # Fall back to CLI args
+                if args.text_file:
+                    corpus_spec = args.text_file
+                else:
+                    corpus_spec = args.text_dir
 
-        # Validate corpus for this batch's fonts
-        sample_chars = extract_sample_characters(corpus, max_samples=100)
+            # Create corpus manager based on what we have
+            if corpus_spec and os.path.isdir(corpus_spec):
+                # Directory mode
+                pattern = task.get('text_pattern', '*.txt')
+                batch_corpora[batch_name] = CorpusManager.from_directory(
+                    corpus_spec,
+                    pattern=pattern,
+                    weights=task.get('corpus_weights')
+                )
+            elif corpus_spec and os.path.isfile(corpus_spec):
+                # File mode
+                batch_corpora[batch_name] = CorpusManager([corpus_spec])
+            else:
+                # Pattern mode
+                batch_corpora[batch_name] = CorpusManager.from_pattern(
+                    corpus_spec,
+                    weights=task.get('corpus_weights')
+                )
+
+        corpus_mgr = batch_corpora[batch_name]
+
         font_path = task['font_path']
 
         # Initialize generator with task-specific background images
         generator = OCRDataGenerator([font_path], background_images)
 
-        # Extract text
-        text_line = generator.extract_text_segment(
-            corpus, task['min_text_length'], task['max_text_length']
+        # Extract text from corpus manager
+        text_line = corpus_mgr.extract_text_segment(
+            task['min_text_length'], task['max_text_length']
         )
 
         if not text_line:
             logging.warning(f"Could not generate text for batch '{batch_name}'. Skipping.")
             continue
 
-        # Check if font can render this corpus
-        if can_font_render_text(task['font_path'], text_line, frozenset(corpus)):
+        # Check if font can render this text
+        if can_font_render_text(task['font_path'], text_line, frozenset(text_line)):
             # Generate font size
             font_size = random.randint(28, 40)
 
@@ -1782,7 +1807,11 @@ def main():
     # --- Argument Parsing ---
     parser = argparse.ArgumentParser(description='Synthetic Data Foundry for OCR')
     parser.add_argument('--text-file', type=str, default=config.get('text_file'),
-                       help='Path to the text corpus file.')
+                       help='Path to a single text corpus file (backwards compatible).')
+    parser.add_argument('--text-dir', type=str, default=config.get('text_dir'),
+                       help='Path to directory containing corpus text files (for large-scale generation).')
+    parser.add_argument('--text-pattern', type=str, default=config.get('text_pattern', '*.txt'),
+                       help='Glob pattern for corpus files when using --text-dir (default: *.txt).')
     parser.add_argument('--fonts-dir', type=str, default=config.get('fonts_dir'),
                        help='Path to the directory containing font files.')
     parser.add_argument('--output-dir', type=str, default=config.get('output_dir'),
@@ -1847,8 +1876,12 @@ def main():
             return
 
     # --- Validate Essential Arguments ---
-    if not args.text_file:
-        logging.error("Error: Text file not specified in config.json or command line.")
+    # Handle corpus specification priority: explicit CLI args override config
+    if args.text_dir:
+        # If text_dir is explicitly specified, ignore text_file
+        args.text_file = None
+    elif not args.text_file and not args.text_dir:
+        logging.error("Error: Either --text-file or --text-dir must be specified.")
         sys.exit(1)
     if not args.fonts_dir or not os.path.isdir(args.fonts_dir):
         logging.error("Error: Fonts directory not specified or is not a valid directory.")
@@ -1900,31 +1933,42 @@ def main():
                            if f.endswith(('.png', '.jpg', '.jpeg'))]
         logging.info(f"Found {len(background_images)} background images.")
 
-    # Load text corpus
-    with open(args.text_file, 'r') as text_file:
-        corpus = text_file.read()
+    # Initialize corpus manager
+    from corpus_manager import CorpusManager
 
-    # Strip whitespace and validate corpus
-    corpus = corpus.strip()
-    if not corpus or len(corpus) < args.min_text_length:
-        logging.error(f"Corpus must contain at least {args.min_text_length} characters. Found: {len(corpus)}")
+    if args.text_file:
+        # Single file mode (backwards compatible)
+        logging.info(f"Loading corpus from file: {args.text_file}")
+        corpus_manager = CorpusManager.from_file_or_directory(args.text_file)
+    else:
+        # Directory mode (optimized for terabyte-scale)
+        logging.info(f"Loading corpus from directory: {args.text_dir}")
+        corpus_manager = CorpusManager.from_directory(args.text_dir, pattern=args.text_pattern)
+
+    # For backwards compatibility, also load a sample corpus for font validation
+    # Extract sample text from corpus manager for character set detection
+    logging.info("Extracting sample text for font validation...")
+    sample_text_chunks = []
+    for _ in range(10):  # Sample 10 chunks
+        chunk = corpus_manager.extract_text_segment(100, 500)
+        if chunk:
+            sample_text_chunks.append(chunk)
+
+    if not sample_text_chunks:
+        logging.error("Unable to extract sample text from corpus files")
         sys.exit(1)
-    logging.debug(f"Corpus length: {len(corpus)}")
 
-    if args.max_text_length > len(corpus):
-        args.max_text_length = len(corpus)
-
-    # Extract sample characters from corpus for font validation
-    sample_chars = extract_sample_characters(corpus, max_samples=100)
+    sample_corpus = ' '.join(sample_text_chunks)
+    sample_chars = extract_sample_characters(sample_corpus, max_samples=100)
     logging.debug(f"Extracted {len(sample_chars)} unique characters for font validation")
 
     # Validate fonts against corpus characters
     if sample_chars and font_files:
         compatible_fonts = []
     font_paths = [os.path.join(args.fonts_dir, f) for f in os.listdir(args.fonts_dir) if f.lower().endswith(('.ttf', '.otf'))]
-    with open(args.text_file, 'r', encoding='utf-8') as f:
-        text_corpus = f.read()
-    character_set = frozenset(text_corpus)
+
+    # Use sample corpus for font validation
+    character_set = frozenset(sample_corpus)
 
     if not font_paths:
         logging.error("No valid fonts found in the specified directory.")
@@ -1933,7 +1977,7 @@ def main():
     # Filter fonts based on character set coverage
     compatible_fonts = []
     for font_path in font_paths:
-        if can_font_render_text(font_path, text_corpus, character_set):
+        if can_font_render_text(font_path, sample_corpus, character_set):
             compatible_fonts.append(font_path)
 
         if not compatible_fonts:
@@ -1941,7 +1985,7 @@ def main():
             sys.exit(1)
 
         font_files = compatible_fonts
-        logging.info(f"Found {len(font_files)} fonts compatible with corpus characters")
+    logging.info(f"Found {len(font_files)} fonts compatible with corpus characters")
 
     logging.info("Script finished.")
 
@@ -1970,20 +2014,15 @@ def main():
 
         logging.info(f"Generating up to {args.num_images} images (starting from image_{image_counter:05d})...")
 
-        # Check if corpus has enough content
-        if len(corpus) < args.min_text_length:
-            logging.error(f"Corpus is too short (length: {len(corpus)}). Need at least {args.min_text_length} characters.")
-            return
-
         for i in range(args.num_images):
             # --- Time Limit Check ---
             if args.max_execution_time and (time.time() - start_time) > args.max_execution_time:
                 logging.info(f"\nTime limit of {args.max_execution_time} seconds reached. Stopping generation.")
                 break
 
-            # Extract text segment from corpus
-            text_line = generator.extract_text_segment(
-                corpus, args.min_text_length, args.max_text_length
+            # Extract text segment from corpus manager
+            text_line = corpus_manager.extract_text_segment(
+                args.min_text_length, args.max_text_length
             )
 
             if not text_line:

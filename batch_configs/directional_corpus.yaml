@@ -1,0 +1,47 @@
+# Directional Corpus Batch Configuration
+# 1000 images with 25% for each text direction
+# Each direction uses corpus from its corresponding directory
+
+total_images: 1000
+seed: 42  # For reproducibility
+
+batches:
+  # Left to Right (25%)
+  - name: ltr_batch
+    proportion: 0.25
+    text_direction: left_to_right
+    corpus_dir: data/corpus_text/ltr
+    text_pattern: "*.txt"
+    min_text_length: 5
+    max_text_length: 25
+    font_filter: "*.{ttf,otf}"
+
+  # Right to Left (25%)
+  - name: rtl_batch
+    proportion: 0.25
+    text_direction: right_to_left
+    corpus_dir: data/corpus_text/rtl
+    text_pattern: "*.txt"
+    min_text_length: 5
+    max_text_length: 25
+    font_filter: "*.{ttf,otf}"
+
+  # Top to Bottom (25%)
+  - name: ttb_batch
+    proportion: 0.25
+    text_direction: top_to_bottom
+    corpus_dir: data/corpus_text/ttb
+    text_pattern: "*.txt"
+    min_text_length: 5
+    max_text_length: 25
+    font_filter: "*.{ttf,otf}"
+
+  # Bottom to Top (25%)
+  - name: btt_batch
+    proportion: 0.25
+    text_direction: bottom_to_top
+    corpus_dir: data/corpus_text/btt
+    text_pattern: "*.txt"
+    min_text_length: 5
+    max_text_length: 25
+    font_filter: "*.{ttf,otf}"

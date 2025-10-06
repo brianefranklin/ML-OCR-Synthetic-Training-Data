@@ -24,7 +24,11 @@ class BatchSpecification:
     name: str
     proportion: float
     text_direction: str = "left_to_right"
-    corpus_file: Optional[str] = None
+    corpus_file: Optional[str] = None  # Single file (backwards compatible)
+    corpus_dir: Optional[str] = None   # Directory of corpus files
+    corpus_pattern: Optional[str] = None  # Glob pattern for corpus files
+    corpus_weights: Dict[str, float] = field(default_factory=dict)  # Weights for corpus file selection
+    text_pattern: str = "*.txt"  # Pattern for files in corpus_dir
     font_filter: str = "*.{ttf,otf}"
     font_weights: Dict[str, float] = field(default_factory=dict)
     min_text_length: int = 5
@@ -109,6 +113,10 @@ class BatchConfig:
                 proportion=batch_data.get('proportion', 1.0),
                 text_direction=batch_data.get('text_direction', 'left_to_right'),
                 corpus_file=batch_data.get('corpus_file'),
+                corpus_dir=batch_data.get('corpus_dir'),
+                corpus_pattern=batch_data.get('corpus_pattern'),
+                corpus_weights=batch_data.get('corpus_weights', {}),
+                text_pattern=batch_data.get('text_pattern', '*.txt'),
                 font_filter=batch_data.get('font_filter', '*.{ttf,otf}'),
                 font_weights=batch_data.get('font_weights', {}),
                 min_text_length=batch_data.get('min_text_length', 5),
@@ -241,6 +249,10 @@ class BatchManager:
             'font_path': font_path,
             'text_direction': direction,
             'corpus_file': batch.corpus_file,
+            'corpus_dir': batch.corpus_dir,
+            'corpus_pattern': batch.corpus_pattern,
+            'corpus_weights': batch.corpus_weights,
+            'text_pattern': batch.text_pattern,
             'min_text_length': batch.min_text_length,
             'max_text_length': batch.max_text_length,
             'curve_type': curve_type,
