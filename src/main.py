@@ -1641,66 +1641,19 @@ def extract_sample_characters(text: str, max_samples: int = 100) -> str:
     return ''.join(unique_chars)
 
 
-def can_font_render_text(font_path: str, sample_text: str, min_coverage: float = 0.9) -> Tuple[bool, float]:
-    """
-    Check if a font can render the given sample text adequately.
+import functools
 
-    Uses a pragmatic heuristic approach: renders each character and checks if
-    the result has visible content. Accepts system font fallback rendering,
-    which is acceptable for OCR training data generation.
-
-    Args:
-        font_path: Path to font file
-        sample_text: Sample characters to test
-        min_coverage: Minimum fraction of characters that must render successfully (default 0.9)
-
-    Returns:
-        Tuple of (can_render, coverage_ratio)
-    """
-    if not sample_text:
-        return True, 1.0
-
+@functools.lru_cache(maxsize=None)
+def can_font_render_text(font_path, text, character_set):
     try:
-        # Load font at a reasonable test size
-        font = ImageFont.truetype(font_path, size=32)
-
-        rendered_count = 0
-        total_count = len(sample_text)
-
-        for char in sample_text:
-            # Create a small test image
-            test_img = Image.new('L', (60, 60), 255)
-            test_draw = ImageDraw.Draw(test_img)
-
-            # Get bounding box
-            bbox = test_draw.textbbox((15, 15), char, font=font)
-            width = bbox[2] - bbox[0]
-            height = bbox[3] - bbox[1]
-
-            # Render the character
-            test_draw.text((15, 15), char, font=font, fill=0)
-
-            # Check if character rendered with visible content
-            # Count darker pixels (actual glyph content)
-            pixels = list(test_img.getdata())
-            dark_pixels = sum(1 for p in pixels if p < 240)
-
-            # Heuristic: A real glyph (even fallback) should have:
-            # 1. Non-zero bounding box dimensions
-            # 2. At least a few dark pixels indicating actual rendering
-            # Very permissive threshold to accept system font fallback
-            if width > 0 and height > 0 and dark_pixels >= 3:
-                rendered_count += 1
-            else:
-                logging.debug(f"Character '{char}' may not render properly: "
-                            f"bbox={width}x{height}, dark_pixels={dark_pixels}")
-
-        coverage = rendered_count / total_count if total_count > 0 else 0.0
-        return coverage >= min_coverage, coverage
-
+        font = ImageFont.truetype(font_path, size=24)
+        for char in text:
+            if char not in character_set:
+                return False
+        return True
     except Exception as e:
-        logging.debug(f"Error testing font {os.path.basename(font_path)}: {e}")
-        return False, 0.0
+        logging.warning(f"Skipping font {os.path.basename(font_path)} due to error: {e}")
+        return False
 
 
 def generate_with_batches(batch_config, font_files, background_images, args):
@@ -1747,13 +1700,6 @@ def generate_with_batches(batch_config, font_files, background_images, args):
         sample_chars = extract_sample_characters(corpus, max_samples=100)
         font_path = task['font_path']
 
-        # Check if font can render this corpus
-        can_render, coverage = can_font_render_text(font_path, sample_chars, min_coverage=0.9)
-        if not can_render:
-            logging.warning(f"Skipping task {task['progress']} for batch '{batch_name}': "
-                          f"font {os.path.basename(font_path)} has {coverage*100:.1f}% coverage")
-            continue
-
         # Initialize generator with task-specific background images
         generator = OCRDataGenerator([font_path], background_images)
 
@@ -1766,50 +1712,59 @@ def generate_with_batches(batch_config, font_files, background_images, args):
             logging.warning(f"Could not generate text for batch '{batch_name}'. Skipping.")
             continue
 
-        # Generate font size
-        font_size = random.randint(28, 40)
+        # Check if font can render this corpus
+        if can_font_render_text(task['font_path'], text_line, frozenset(corpus)):
+            # Generate font size
+            font_size = random.randint(28, 40)
 
-        try:
-            # Generate image with augmentations and canvas placement
-            final_image, metadata, text = generator.generate_image(
-                text_line, font_path, font_size, task['text_direction'],
-                curve_type=task.get('curve_type', 'none'),
-                curve_intensity=task.get('curve_intensity', 0.0),
-                overlap_intensity=task.get('overlap_intensity', 0.0),
-                ink_bleed_intensity=task.get('ink_bleed_intensity', 0.0),
-                effect_type=task.get('effect_type', 'none'),
-                effect_depth=task.get('effect_depth', 0.5),
-                light_azimuth=task.get('light_azimuth', 135.0),
-                light_elevation=task.get('light_elevation', 45.0),
-                text_color_mode=task.get('text_color_mode', 'uniform'),
-                color_palette=task.get('color_palette', 'realistic_dark'),
-                custom_colors=task.get('custom_colors'),
-                background_color=task.get('background_color', 'auto'),
-                canvas_enabled=True,
-                canvas_min_padding=task.get('canvas_min_padding', 10),
-                canvas_placement=task.get('canvas_placement', 'weighted_random'),
-                canvas_max_megapixels=task.get('canvas_max_megapixels', 12.0)
-            )
+            try:
+                # Generate image with augmentations and canvas placement
+                final_image, metadata, text = generator.generate_image(
+                    text_line, font_path, font_size, task['text_direction'],
+                    curve_type=task.get('curve_type', 'none'),
+                    curve_intensity=task.get('curve_intensity', 0.0),
+                    overlap_intensity=task.get('overlap_intensity', 0.0),
+                    ink_bleed_intensity=task.get('ink_bleed_intensity', 0.0),
+                    effect_type=task.get('effect_type', 'none'),
+                    effect_depth=task.get('effect_depth', 0.5),
+                    light_azimuth=task.get('light_azimuth', 135.0),
+                    light_elevation=task.get('light_elevation', 45.0),
+                    text_color_mode=task.get('text_color_mode', 'uniform'),
+                    color_palette=task.get('color_palette', 'realistic_dark'),
+                    custom_colors=task.get('custom_colors'),
+                    background_color=task.get('background_color', 'auto'),
+                    canvas_enabled=True,
+                    canvas_min_padding=task.get('canvas_min_padding', 10),
+                    canvas_placement=task.get('canvas_placement', 'weighted_random'),
+                    canvas_max_megapixels=task.get('canvas_max_megapixels', 12.0)
+                )
 
-            # Save image
-            image_filename = f'image_{image_counter:05d}.png'
-            image_path = os.path.join(args.output_dir, image_filename)
-            final_image.save(image_path)
+                # Save image
+                image_filename = f'image_{image_counter:05d}.png'
+                image_path = os.path.join(args.output_dir, image_filename)
+                final_image.save(image_path)
 
-            # Save JSON label
-            from canvas_placement import save_label_json
-            json_filename = f'image_{image_counter:05d}.json'
-            json_path = os.path.join(args.output_dir, json_filename)
-            save_label_json(json_path, image_filename, text, metadata)
+                # Save JSON label
+                from canvas_placement import save_label_json
+                json_filename = f'image_{image_counter:05d}.json'
+                json_path = os.path.join(args.output_dir, json_filename)
+                save_label_json(json_path, image_filename, text, metadata)
 
-            image_counter += 1
+                image_counter += 1
 
-            logging.debug(f"Batch '{batch_name}' ({task['progress']}): "
-                        f"{os.path.basename(font_path)}, direction={task['text_direction']}")
+                logging.debug(f"Batch '{batch_name}' ({task['progress']}): "
+                            f"{os.path.basename(font_path)}, direction={task['text_direction']}")
 
-        except Exception as e:
-            logging.error(f"Failed to generate image for batch '{batch_name}': {e}")
-            continue
+            except OSError as e:
+                if "execution context too long" in str(e):
+                    logging.warning(f"Skipping font {font_path} due to FreeType error: {e}")
+                    continue
+                else:
+                    logging.error(f"Failed to generate image for batch '{batch_name}': {e}")
+                    continue
+            except Exception as e:
+                logging.error(f"Failed to generate image for batch '{batch_name}': {e}")
+                continue
 
     logging.info(f"\n{batch_manager.get_progress_summary()}")
     logging.info(f"Successfully generated {image_counter} images in {args.output_dir}")
@@ -1966,13 +1921,20 @@ def main():
     # Validate fonts against corpus characters
     if sample_chars and font_files:
         compatible_fonts = []
-        for font_path in font_files:
-            can_render, coverage = can_font_render_text(font_path, sample_chars, min_coverage=0.9)
-            if can_render:
-                compatible_fonts.append(font_path)
-                logging.debug(f"Font {os.path.basename(font_path)}: {coverage*100:.1f}% coverage")
-            else:
-                logging.warning(f"Skipping font {os.path.basename(font_path)}: insufficient glyph coverage ({coverage*100:.1f}%)")
+    font_paths = [os.path.join(args.fonts_dir, f) for f in os.listdir(args.fonts_dir) if f.lower().endswith(('.ttf', '.otf'))]
+    with open(args.text_file, 'r', encoding='utf-8') as f:
+        text_corpus = f.read()
+    character_set = frozenset(text_corpus)
+
+    if not font_paths:
+        logging.error("No valid fonts found in the specified directory.")
+        return
+
+    # Filter fonts based on character set coverage
+    compatible_fonts = []
+    for font_path in font_paths:
+        if can_font_render_text(font_path, text_corpus, character_set):
+            compatible_fonts.append(font_path)
 
         if not compatible_fonts:
             logging.error(f"No fonts can render the corpus text. Found {len(font_files)} valid fonts but none support the required characters.")
@@ -2096,5 +2058,5 @@ def main():
         logging.info(f"Successfully generated {image_counter} images with JSON labels in {args.output_dir}")
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()
