@@ -196,8 +196,8 @@ class BatchManager:
                 matching_fonts.append(font_path)
 
         if not matching_fonts:
-            logging.warning(f"Batch '{batch.name}': no fonts match filter '{batch.font_filter}', "
-                          f"using all fonts")
+            logging.debug(f"Batch '{batch.name}': no fonts match filter '{batch.font_filter}', "
+                         f"using all fonts")
             matching_fonts = self.all_fonts.copy()
 
         return matching_fonts
@@ -268,12 +268,25 @@ class BatchManager:
             'custom_colors': batch.custom_colors,
             'background_color': batch.background_color,
             'augmentation_params': batch.augmentation_params,
-            'progress': f"{alloc['generated_count']+1}/{alloc['target_count']}"
+            'progress': f"{alloc['generated_count']+1}/{alloc['target_count']}",
+            'batch_index': self.batch_allocations.index(alloc)  # Track which batch this is
         }
 
-        alloc['generated_count'] += 1
+        # Don't increment generated_count here - only increment on successful generation
+        # This allows retry logic to work properly
 
         return task
+
+    def mark_task_success(self, task: Dict[str, Any]) -> None:
+        """
+        Mark a task as successfully completed.
+
+        Args:
+            task: The task that was completed successfully
+        """
+        batch_index = task.get('batch_index')
+        if batch_index is not None and 0 <= batch_index < len(self.batch_allocations):
+            self.batch_allocations[batch_index]['generated_count'] += 1
 
     def get_progress_summary(self) -> str:
         """Get progress summary for all batches."""

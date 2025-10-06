@@ -171,10 +171,15 @@ class CorpusManager:
         if len(self.current_file_buffer) >= min_buffer_size:
             return True
 
+        # Track files tried to prevent infinite loop with empty files
+        files_tried = 0
+        max_files_to_try = len(self.corpus_files) * 2  # Try each file twice
+
         # Open file if not already open
         if self.current_file_handle is None:
             if not self._open_next_file():
                 return False
+            files_tried += 1
 
         # Read more data into buffer
         while len(self.current_file_buffer) < min_buffer_size:
@@ -183,8 +188,15 @@ class CorpusManager:
             if not chunk:
                 # File exhausted, try next file
                 self._close_current_file()
+
+                # Check if we've tried too many files (all might be empty)
+                if files_tried >= max_files_to_try:
+                    logging.warning(f"Unable to fill buffer after trying {files_tried} files")
+                    return False
+
                 if not self._open_next_file():
                     return False
+                files_tried += 1
                 continue
 
             self.current_file_buffer += chunk
@@ -237,13 +249,16 @@ class CorpusManager:
 
     def _open_next_file(self) -> bool:
         """
-        Open next corpus file in weighted round-robin order.
+        Open next corpus file in round-robin order.
 
         Returns:
             True if file opened successfully, False otherwise
         """
-        # Weighted random selection for next file
-        file_idx = random.choices(self.file_order, weights=self.weights)[0]
+        # Round-robin selection: cycle through files in order
+        # Use self.current_file_idx to track position in rotation
+        file_idx = self.file_order[self.current_file_idx]
+        self.current_file_idx = (self.current_file_idx + 1) % len(self.file_order)
+
         filepath = self.corpus_files[file_idx]
 
         try:
@@ -270,12 +285,18 @@ class CorpusManager:
 
     def close(self):
         """Clean up resources."""
-        self._close_current_file()
-        self.current_file_buffer = ""
+        if hasattr(self, 'current_file_handle'):
+            self._close_current_file()
+        if hasattr(self, 'current_file_buffer'):
+            self.current_file_buffer = ""
 
     def __del__(self):
         """Cleanup on deletion."""
-        self.close()
+        try:
+            self.close()
+        except (AttributeError, Exception):
+            # Ignore errors during cleanup (object may be partially initialized)
+            pass
 
     @staticmethod
     def from_directory(directory: Union[str, Path],

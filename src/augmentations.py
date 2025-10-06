@@ -76,9 +76,25 @@ def rotate_image(image, bboxes):
     padding_x = max(0, -overall_bbox[0])
     padding_y = max(0, -overall_bbox[1])
 
+    # Safeguard: Detect unreasonable padding that would create massive images
+    MAX_PADDING = 10000  # Maximum reasonable padding in pixels
+    if padding_x > MAX_PADDING or padding_y > MAX_PADDING:
+        logging.warning(f"rotate_image: Excessive padding detected (x={padding_x:.0f}, y={padding_y:.0f}). Skipping rotation to prevent decompression bomb. Bbox: {overall_bbox}")
+        return image, bboxes  # Return original image without rotation
+
+    # Additional safeguard: Validate that resulting image size is reasonable
+    proposed_width = new_w + int(padding_x)
+    proposed_height = new_h + int(padding_y)
+    MAX_DIMENSION = 20000  # Maximum reasonable dimension (20K pixels per side)
+    MAX_PIXELS = 178_000_000  # PIL's decompression bomb limit
+
+    if proposed_width > MAX_DIMENSION or proposed_height > MAX_DIMENSION or (proposed_width * proposed_height) > MAX_PIXELS:
+        logging.warning(f"rotate_image: Proposed image size ({proposed_width}x{proposed_height} = {proposed_width*proposed_height} pixels) exceeds safe limits. Skipping rotation.")
+        return image, bboxes  # Return original image without rotation
+
     # Create padded image matching original mode
     pad_color = (255, 255, 255, 0) if image.mode == 'RGBA' else 'white'
-    padded_image = Image.new(image.mode, (new_w + int(padding_x), new_h + int(padding_y)), color=pad_color)
+    padded_image = Image.new(image.mode, (proposed_width, proposed_height), color=pad_color)
     padded_image.paste(rotated_image, (int(padding_x), int(padding_y)))
 
     # Adjust bounding boxes for the padded image
@@ -88,6 +104,14 @@ def rotate_image(image, bboxes):
 
     # Crop the padded image
     overall_padded_bbox = [min(b[0] for b in padded_bboxes), min(b[1] for b in padded_bboxes), max(b[2] for b in padded_bboxes), max(b[3] for b in padded_bboxes)]
+
+    # Validate crop box before cropping
+    crop_width = overall_padded_bbox[2] - overall_padded_bbox[0]
+    crop_height = overall_padded_bbox[3] - overall_padded_bbox[1]
+    if crop_width > MAX_DIMENSION or crop_height > MAX_DIMENSION or (crop_width * crop_height) > MAX_PIXELS:
+        logging.warning(f"rotate_image: Crop size ({crop_width:.0f}x{crop_height:.0f}) exceeds safe limits. Skipping rotation.")
+        return image, bboxes
+
     cropped_image = padded_image.crop(overall_padded_bbox)
 
     # Adjust bounding boxes to be relative to the cropped image

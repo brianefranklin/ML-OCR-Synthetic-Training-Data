@@ -19,6 +19,14 @@ import bidi.algorithm
 from augmentations import apply_augmentations
 
 
+# Font blacklist - fonts known to cause issues
+FONT_BLACKLIST = {
+    'KumarOne-Regular.ttf',
+    'KumarOneOutline-Regular.ttf',
+    'NotoColorEmojiCompatTest-Regular.ttf',
+}
+
+
 @dataclass
 class CharacterBox:
     """Represents a character with its bounding box."""
@@ -1645,6 +1653,12 @@ import functools
 
 @functools.lru_cache(maxsize=None)
 def can_font_render_text(font_path, text, character_set):
+    # Check blacklist first
+    font_name = os.path.basename(font_path)
+    if font_name in FONT_BLACKLIST:
+        logging.debug(f"Skipping blacklisted font {font_name}")
+        return False
+
     try:
         font = ImageFont.truetype(font_path, size=24)
         for char in text:
@@ -1652,7 +1666,7 @@ def can_font_render_text(font_path, text, character_set):
                 return False
         return True
     except Exception as e:
-        logging.warning(f"Skipping font {os.path.basename(font_path)} due to error: {e}")
+        logging.warning(f"Skipping font {font_name} due to error: {e}")
         return False
 
 
@@ -1679,13 +1693,23 @@ def generate_with_batches(batch_config, font_files, background_images, args):
     # Track corpora per batch
     batch_corpora = {}
 
-    logging.info(f"Starting batch generation of {batch_config.total_images} images")
+    # Track generation attempts and successes
+    successful_count = 0
+    target_count = batch_config.total_images
+    attempt_count = 0
+    max_attempts = target_count * 3  # Allow up to 3x attempts (safety limit)
+    failed_attempts = 0
 
-    # Interleaved generation
-    while True:
+    logging.info(f"Starting batch generation of {target_count} images")
+
+    # Keep generating until we reach target (with safety limit)
+    while successful_count < target_count and attempt_count < max_attempts:
         task = batch_manager.get_next_task()
         if task is None:
+            # All batches have reached their targets
             break
+
+        attempt_count += 1
 
         # Get or create corpus manager for this batch
         from corpus_manager import CorpusManager
@@ -1735,10 +1759,17 @@ def generate_with_batches(batch_config, font_files, background_images, args):
 
         if not text_line:
             logging.warning(f"Could not generate text for batch '{batch_name}'. Skipping.")
+            failed_attempts += 1
             continue
 
         # Check if font can render this text
-        if can_font_render_text(task['font_path'], text_line, frozenset(text_line)):
+        if not can_font_render_text(task['font_path'], text_line, frozenset(text_line)):
+            logging.debug(f"Font {os.path.basename(font_path)} cannot render text for batch '{batch_name}'. Trying different task.")
+            failed_attempts += 1
+            continue
+
+        # Font can render text, proceed with generation
+        if True:
             # Generate font size
             font_size = random.randint(28, 40)
 
@@ -1776,23 +1807,37 @@ def generate_with_batches(batch_config, font_files, background_images, args):
                 save_label_json(json_path, image_filename, text, metadata)
 
                 image_counter += 1
+                successful_count += 1
+
+                # Mark task as successfully completed in batch manager
+                batch_manager.mark_task_success(task)
 
                 logging.debug(f"Batch '{batch_name}' ({task['progress']}): "
                             f"{os.path.basename(font_path)}, direction={task['text_direction']}")
 
             except OSError as e:
+                failed_attempts += 1
                 if "execution context too long" in str(e):
-                    logging.warning(f"Skipping font {font_path} due to FreeType error: {e}")
+                    logging.warning(f"Skipping font {os.path.basename(font_path)} due to FreeType error: {e}")
                     continue
                 else:
                     logging.error(f"Failed to generate image for batch '{batch_name}': {e}")
                     continue
             except Exception as e:
+                failed_attempts += 1
                 logging.error(f"Failed to generate image for batch '{batch_name}': {e}")
                 continue
 
+    # Report final statistics
     logging.info(f"\n{batch_manager.get_progress_summary()}")
-    logging.info(f"Successfully generated {image_counter} images in {args.output_dir}")
+    logging.info(f"Successfully generated {successful_count}/{target_count} images "
+                f"({attempt_count} attempts, {failed_attempts} failures)")
+
+    if successful_count < target_count:
+        logging.warning(f"Generated {successful_count} images, but target was {target_count}. "
+                       f"{target_count - successful_count} images missing due to errors.")
+
+    logging.info(f"Images saved to {args.output_dir}")
 
 
 def main():
@@ -1913,12 +1958,19 @@ def main():
     # Validate fonts by attempting to load them
     font_files = []
     for font_path in font_candidates:
+        font_name = os.path.basename(font_path)
+
+        # Check blacklist first
+        if font_name in FONT_BLACKLIST:
+            logging.debug(f"Skipping blacklisted font {font_name}")
+            continue
+
         try:
             # Try to load the font to validate it
             ImageFont.truetype(font_path, size=20)
             font_files.append(font_path)
         except Exception as e:
-            logging.warning(f"Skipping invalid font {os.path.basename(font_path)}: {e}")
+            logging.warning(f"Skipping invalid font {font_name}: {e}")
 
     if not font_files:
         logging.error(f"No valid font files found in {args.fonts_dir}")
@@ -1936,14 +1988,38 @@ def main():
     # Initialize corpus manager
     from corpus_manager import CorpusManager
 
-    if args.text_file:
+    # If using batch config, load it now and get corpus from first batch for font validation
+    batch_config = None
+    if args.batch_config:
+        from batch_config import BatchConfig
+        logging.info(f"Loading batch configuration from {args.batch_config}")
+        batch_config = BatchConfig.from_yaml(args.batch_config)
+
+        # Get corpus from first batch for font validation
+        first_batch = batch_config.batches[0]
+        if first_batch.corpus_dir:
+            logging.info(f"Loading corpus for font validation from batch: {first_batch.corpus_dir}")
+            corpus_manager = CorpusManager.from_directory(
+                first_batch.corpus_dir,
+                pattern=first_batch.text_pattern
+            )
+        elif first_batch.corpus_file:
+            logging.info(f"Loading corpus for font validation from batch: {first_batch.corpus_file}")
+            corpus_manager = CorpusManager([first_batch.corpus_file])
+        else:
+            logging.error("First batch in config has no corpus_dir or corpus_file specified")
+            sys.exit(1)
+    elif args.text_file:
         # Single file mode (backwards compatible)
         logging.info(f"Loading corpus from file: {args.text_file}")
         corpus_manager = CorpusManager.from_file_or_directory(args.text_file)
-    else:
+    elif args.text_dir:
         # Directory mode (optimized for terabyte-scale)
         logging.info(f"Loading corpus from directory: {args.text_dir}")
         corpus_manager = CorpusManager.from_directory(args.text_dir, pattern=args.text_pattern)
+    else:
+        logging.error("Error: Either --text-file, --text-dir, or --batch-config must be specified.")
+        sys.exit(1)
 
     # For backwards compatibility, also load a sample corpus for font validation
     # Extract sample text from corpus manager for character set detection
@@ -1990,12 +2066,8 @@ def main():
     logging.info("Script finished.")
 
     # --- Check for Batch Configuration ---
-    if args.batch_config:
-        from batch_config import BatchConfig, BatchManager
-
-        logging.info(f"Loading batch configuration from {args.batch_config}")
-        batch_config = BatchConfig.from_yaml(args.batch_config)
-
+    if batch_config:
+        # Batch config was already loaded earlier for corpus validation
         # Use batch manager for generation
         generate_with_batches(batch_config, font_files, background_images, args)
         return
