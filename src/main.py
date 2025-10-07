@@ -23,11 +23,17 @@ from generation_orchestrator import generate_with_batches, set_font_health_manag
 
 def setup_logging(log_level: str, log_file: str) -> None:
     """Configure logging with both file and console output."""
+    # Create parent directory for log file if it doesn't exist
+    log_dir = os.path.dirname(log_file)
+    if log_dir and not os.path.exists(log_dir):
+        os.makedirs(log_dir, exist_ok=True)
+
     logging.basicConfig(
         level=getattr(logging, log_level.upper()),
         format='%(asctime)s - %(levelname)s - %(message)s',
         filename=log_file,
-        filemode='w'
+        filemode='w',
+        force=True
     )
 
     # Add console handler
@@ -108,8 +114,8 @@ def main():
     parser.add_argument('--log-level', type=str, default=config.get('log_level', 'INFO'),
                        choices=['DEBUG', 'INFO', 'WARNING', 'ERROR'],
                        help='Set the logging level.')
-    parser.add_argument('--log-file', type=str, default=config.get('log_file', 'generation.log'),
-                       help='Path to the log file.')
+    parser.add_argument('--log-dir', type=str, default=config.get('log_dir', 'logs'),
+                       help='Directory for log files (timestamped log files will be created here).')
     parser.add_argument('--clear-output', action='store_true',
                        help='If set, clears the output directory before generating new images.')
     parser.add_argument('--force', action='store_true',
@@ -142,8 +148,16 @@ def main():
 
     args = parser.parse_args()
 
+    # --- Generate Timestamp for This Run ---
+    run_timestamp = time.strftime('%Y-%m-%d_%H-%M-%S')
+
     # --- Configure Logging ---
-    setup_logging(args.log_level, args.log_file)
+    # Create timestamped log file in log directory
+    if not os.path.exists(args.log_dir):
+        os.makedirs(args.log_dir, exist_ok=True)
+
+    log_file_path = os.path.join(args.log_dir, f'generation_{run_timestamp}.log')
+    setup_logging(args.log_level, log_file_path)
     logging.info("Script started.")
 
     # --- Clear Output Directory (if requested) ---
@@ -174,15 +188,17 @@ def main():
         os.makedirs(args.output_dir)
 
     # Initialize Font Health Manager
+    # Save font health to timestamped file in log directory
+    font_health_path = os.path.join(args.log_dir, f'font_health_{run_timestamp}.json')
     font_health_manager = FontHealthManager(
-        health_file=os.path.join(args.output_dir, "font_health.json"),
+        health_file=font_health_path,
         min_health_threshold=30.0,
         success_increment=1.0,
         failure_decrement=10.0,
         cooldown_base_seconds=300.0,  # 5 minutes
         auto_save_interval=50
     )
-    logging.info("Font health tracking enabled")
+    logging.info(f"Font health tracking enabled (saving to {font_health_path})")
 
     # Set the global font health manager in other modules
     set_font_utils_health_manager(font_health_manager)
