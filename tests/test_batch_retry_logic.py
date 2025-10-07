@@ -184,7 +184,8 @@ class TestRetryLogicReporting:
         project_root = Path(__file__).resolve().parent.parent
         script_path = project_root / "src" / "main.py"
 
-        log_file = test_environment["tmp_path"] / "generation.log"
+        log_dir = test_environment["tmp_path"] / "logs"
+        log_dir.mkdir(exist_ok=True)
         target_count = 5
 
         batch_config_data = {
@@ -207,11 +208,16 @@ class TestRetryLogicReporting:
             "--batch-config", str(batch_config_path),
             "--fonts-dir", test_environment["fonts_dir"],
             "--output-dir", test_environment["output_dir"],
-            "--log-file", str(log_file)
+            "--log-dir", str(log_dir)
         ]
 
         result = subprocess.run(command, capture_output=True, text=True, check=False)
         assert result.returncode == 0
+
+        # Find the timestamped log file
+        log_files = list(log_dir.glob("generation_*.log"))
+        assert len(log_files) >= 1, f"Expected at least 1 log file, found {len(log_files)}"
+        log_file = log_files[0]
 
         # Check log file for statistics
         with open(log_file, 'r') as f:
@@ -226,7 +232,8 @@ class TestRetryLogicReporting:
         project_root = Path(__file__).resolve().parent.parent
         script_path = project_root / "src" / "main.py"
 
-        log_file = test_environment["tmp_path"] / "generation.log"
+        log_dir = test_environment["tmp_path"] / "logs"
+        log_dir.mkdir(exist_ok=True)
 
         batch_config_data = {
             "total_images": 6,
@@ -253,11 +260,16 @@ class TestRetryLogicReporting:
             "--batch-config", str(batch_config_path),
             "--fonts-dir", test_environment["fonts_dir"],
             "--output-dir", test_environment["output_dir"],
-            "--log-file", str(log_file)
+            "--log-dir", str(log_dir)
         ]
 
         result = subprocess.run(command, capture_output=True, text=True, check=False)
         assert result.returncode == 0
+
+        # Find the timestamped log file
+        log_files = list(log_dir.glob("generation_*.log"))
+        assert len(log_files) >= 1, f"Expected at least 1 log file, found {len(log_files)}"
+        log_file = log_files[0]
 
         with open(log_file, 'r') as f:
             log_content = f.read()

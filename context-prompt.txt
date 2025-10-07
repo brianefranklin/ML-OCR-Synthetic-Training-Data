@@ -81,10 +81,31 @@ This script creates images for an optical character recognition (OCR) training p
   Throughout the augmentation process, the character bounding boxes are continuously recalculated to 
   ensure they remain accurate.
 
-  6. Output
+  6. Font Health Management (`font_health_manager.py`)
 
-  The final output of the script consists of two main parts:
+  The script includes an intelligent font health tracking system that monitors font reliability during
+  generation. This system:
+   * Tracks Success/Failure Rates: Monitors each font's performance and assigns health scores.
+   * Automatic Cooldown: Temporarily removes problematic fonts from the pool to avoid repeated failures.
+   * Persistent State: Saves font health data to timestamped JSON files for analysis and debugging.
+   * Adaptive Selection: Prioritizes healthy fonts while allowing unhealthy fonts to recover over time.
 
-   1. Generated Images: A set of PNG images, each containing a unique, synthetically generated line of 
-      text with various augmentations.
-   2. Label Files (JSON): For each generated image, a corresponding JSON file is created (e.g., `image_00001.json`). This file contains the ground truth for the image, including the text, canvas size, and a list of character bounding boxes.
+  7. Logging and Monitoring
+
+  The script maintains comprehensive logs and tracking data:
+   * Timestamped Log Files: Each run creates a unique log file: `logs/generation_YYYY-MM-DD_HH-MM-SS.log`
+   * Font Health Reports: Parallel timestamped file: `logs/font_health_YYYY-MM-DD_HH-MM-SS.json`
+   * Same Timestamp: Both files share the same timestamp from script start for easy correlation.
+   * Log Directory: Configurable via `--log-dir` parameter (defaults to `logs/`).
+
+  8. Output
+
+  The final output of the script consists of multiple parts:
+
+   1. Generated Images: A set of PNG images, each containing a unique, synthetically generated line of
+      text with various augmentations (saved to `--output-dir`).
+   2. Label Files (JSON): For each generated image, a corresponding JSON file is created
+      (e.g., `image_00001.json`). This file contains the ground truth for the image, including the
+      text, canvas size, and a list of character bounding boxes.
+   3. Timestamped Logs: Execution logs saved to `logs/generation_YYYY-MM-DD_HH-MM-SS.log`.
+   4. Font Health Data: Font reliability tracking saved to `logs/font_health_YYYY-MM-DD_HH-MM-SS.json`.

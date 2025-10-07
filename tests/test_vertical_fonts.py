@@ -12,17 +12,18 @@ def test_environment(tmp_path):
     output_dir = tmp_path / "output"
     fonts_dir = input_dir / "fonts"
     text_dir = input_dir / "text"
-    log_file = tmp_path / "generation.log"
+    log_dir = tmp_path / "logs"
 
     fonts_dir.mkdir(parents=True)
     text_dir.mkdir(parents=True)
     output_dir.mkdir()
+    log_dir.mkdir()
 
     return {
         "text_dir": str(text_dir),
         "fonts_dir": str(fonts_dir),
         "output_dir": str(output_dir),
-        "log_file": str(log_file)
+        "log_dir": str(log_dir)
     }
 
 @pytest.mark.parametrize("language, corpus, font_name", [
@@ -57,14 +58,20 @@ def test_top_to_bottom_text_generation(test_environment, language, corpus, font_
         "--output-dir", test_environment["output_dir"],
         "--num-images", "1",
         "--text-direction", "top_to_bottom",
-        "--log-file", test_environment["log_file"]
+        "--log-dir", test_environment["log_dir"]
     ]
 
     result = subprocess.run(command, capture_output=True, text=True, check=False)
     if result.returncode != 0:
-        with open(test_environment["log_file"], "r") as f:
-            log_contents = f.read()
-        assert result.returncode == 0, f"Script failed with error:\n{log_contents}"
+        # Find the timestamped log file
+        log_dir = Path(test_environment["log_dir"])
+        log_files = list(log_dir.glob("generation_*.log"))
+        if log_files:
+            with open(log_files[0], "r") as f:
+                log_contents = f.read()
+            assert result.returncode == 0, f"Script failed with error:\n{log_contents}"
+        else:
+            assert result.returncode == 0, f"Script failed with error:\n{result.stderr}"
 
     output_dir = Path(test_environment["output_dir"])
     json_files = list(output_dir.glob("image_*.json"))
@@ -125,14 +132,20 @@ def test_bottom_to_top_text_generation(test_environment):
         "--output-dir", test_environment["output_dir"],
         "--num-images", "1",
         "--text-direction", "bottom_to_top",
-        "--log-file", test_environment["log_file"]
+        "--log-dir", test_environment["log_dir"]
     ]
 
     result = subprocess.run(command, capture_output=True, text=True, check=False)
     if result.returncode != 0:
-        with open(test_environment["log_file"], "r") as f:
-            log_contents = f.read()
-        assert result.returncode == 0, f"Script failed with error:\n{log_contents}"
+        # Find the timestamped log file
+        log_dir = Path(test_environment["log_dir"])
+        log_files = list(log_dir.glob("generation_*.log"))
+        if log_files:
+            with open(log_files[0], "r") as f:
+                log_contents = f.read()
+            assert result.returncode == 0, f"Script failed with error:\n{log_contents}"
+        else:
+            assert result.returncode == 0, f"Script failed with error:\n{result.stderr}"
 
     output_dir = Path(test_environment["output_dir"])
     json_files = list(output_dir.glob("image_*.json"))
