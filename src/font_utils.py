@@ -39,7 +39,7 @@ def extract_sample_characters(text: str, max_samples: int = 100) -> str:
     seen = set()
     unique_chars = []
     for char in text:
-        if char not in seen and not char.isspace():
+        if char not in seen:
             seen.add(char)
             unique_chars.append(char)
             if len(unique_chars) >= max_samples:

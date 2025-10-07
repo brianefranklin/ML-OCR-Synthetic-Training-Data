@@ -257,7 +257,13 @@ def main():
             sys.exit(1)
 
         # Sample character set for validation
-        sample_corpus = corpus_manager.extract_text_segment(0, 10000)
+        sample_corpus = corpus_manager.extract_text_segment(1, 10000)
+        if not sample_corpus:
+            # Fallback: try shorter segment
+            sample_corpus = corpus_manager.extract_text_segment(1, 100)
+        if not sample_corpus:
+            logging.error("Corpus must contain at least 1 character of text.")
+            sys.exit(1)
         character_set = frozenset(extract_sample_characters(sample_corpus))
         logging.info(f"Corpus loaded with {len(character_set)} unique characters")
 
