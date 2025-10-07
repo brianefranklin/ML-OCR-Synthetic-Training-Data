@@ -1,0 +1,3 @@
+easyocr
+python-Levenshtein
+tqdm

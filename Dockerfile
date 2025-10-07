@@ -15,6 +15,7 @@ RUN apt-get update && apt-get upgrade -y && apt-get install -y \
     gnupg \
     python3 \
     python3-pip \
+    build-essential \
     libgl1-mesa-glx \
     libraqm-dev \
     libfribidi-dev \
@@ -59,14 +60,14 @@ WORKDIR /home/vscode
 
 # --- START: PERSIST GEMINI HISTORY ---
 # Remove the default directory and link it to the persistent workspace location
-RUN rm -rf /home/vscode/.gemini && \
-    ln -s /home/vscode/workspace/gemini_persistent_history/.gemini/ /home/vscode/
+#RUN rm -rf /home/vscode/.gemini && \
+#    ln -s /home/vscode/workspace/gemini_persistent_history/.gemini/ /home/vscode/
 # --- END: PERSIST GEMINI HISTORY ---
 
 # --- START: PERSIST CLAUDE HISTORY ---
 # Remove the default directory and link it to the persistent workspace location
-RUN rm -rf /home/vscode/.claude && \
-    ln -s /home/vscode/workspace/claude_persistent_history/.claude/ /home/vscode/
+#RUN rm -rf /home/vscode/.claude && \
+#    ln -s /home/vscode/workspace/claude_persistent_history/.claude/ /home/vscode/
 # --- END: PERSIST CLAUDE HISTORY ---
     
 
