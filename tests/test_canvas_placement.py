@@ -467,7 +467,7 @@ class TestIntegration:
 
     def test_full_pipeline_with_canvas_placement(self, tmp_path):
         """Test complete pipeline from generation to JSON output."""
-        from main import OCRDataGenerator
+        from generator import OCRDataGenerator
         from canvas_placement import place_on_canvas, save_label_json
         from PIL import ImageFont
 

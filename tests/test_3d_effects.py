@@ -10,7 +10,7 @@ import pytest
 from PIL import Image, ImageFont
 import numpy as np
 from pathlib import Path
-from main import OCRDataGenerator
+from generator import OCRDataGenerator
 
 
 @pytest.fixture

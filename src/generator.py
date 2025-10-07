@@ -6,6 +6,7 @@ Supports multiple text directions: left-to-right, right-to-left, top-to-bottom, 
 """
 
 import random
+import logging
 from typing import List, Tuple, Dict, Optional, Union
 from dataclasses import dataclass
 from PIL import Image, ImageDraw, ImageFont

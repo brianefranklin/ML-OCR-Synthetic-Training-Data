@@ -31,6 +31,10 @@ def extract_sample_characters(text: str, max_samples: int = 100) -> str:
     Returns:
         String containing unique sample characters
     """
+    # Handle None or empty input
+    if not text:
+        return ""
+
     # Get unique characters, preserving order
     seen = set()
     unique_chars = []
@@ -63,6 +67,10 @@ def can_font_render_text(font_path, text, character_set):
     Returns:
         True if font can render text, False otherwise
     """
+    # Handle None or empty text
+    if not text or not character_set:
+        return False
+
     font_name = os.path.basename(font_path)
 
     # Check font health first

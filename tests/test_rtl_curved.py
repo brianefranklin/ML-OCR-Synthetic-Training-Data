@@ -7,7 +7,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'src'))
 
 import pytest
 from PIL import Image, ImageFont
-from main import OCRDataGenerator
+from generator import OCRDataGenerator
 
 @pytest.fixture
 def generator():
