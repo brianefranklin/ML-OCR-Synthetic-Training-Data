@@ -20,6 +20,62 @@ def flatten_dict(d, parent_key='', sep='.'):
             items.append((new_key, v))
     return dict(items)
 
+def create_text_boxplot(scores, width=50):
+    """
+    Creates an enhanced, colorized, text-based box-and-whisker plot.
+    """
+    if len(scores) == 0:
+        return ""
+
+    # ANSI color codes for a more readable plot
+    class Colors:
+        RESET = '\033[0m'
+        BLUE = '\033[94m'   # For the box
+        GREEN = '\033[92m'  # For the median
+        YELLOW = '\033[93m' # For the whiskers
+        CYAN = '\033[96m'   # For labels and axis
+
+    min_val, q1_val, median_val, q3_val, max_val = np.percentile(scores, [0, 25, 50, 75, 100])
+
+    # Scale the stat values to the plot width (scores are 0-1)
+    pos_min = int(min_val * width)
+    pos_q1 = int(q1_val * width)
+    pos_median = int(median_val * width)
+    pos_q3 = int(q3_val * width)
+    pos_max = int(max_val * width)
+
+    # Build the plot line by drawing components in order of precedence
+    plot_line = [' '] * (width + 1)
+    
+    # 1. Draw whisker
+    for i in range(pos_min, pos_max + 1):
+        plot_line[i] = Colors.YELLOW + '-' + Colors.RESET
+        
+    # 2. Draw box over the whisker
+    for i in range(pos_q1, pos_q3 + 1):
+        plot_line[i] = Colors.BLUE + '█' + Colors.RESET
+        
+    # 3. Draw median and min/max markers over the box/whisker
+    plot_line[pos_median] = Colors.GREEN + '|' + Colors.RESET
+    plot_line[pos_min] = Colors.YELLOW + '>' + Colors.RESET
+    plot_line[pos_max] = Colors.YELLOW + '<' + Colors.RESET
+
+    plot_str = "".join(plot_line)
+    
+    # Create colorized axis and labels for context
+    axis_line = Colors.CYAN + '+' + '-' * width + '+' + Colors.RESET
+    labels_line = Colors.CYAN + '0.0' + ' ' * (width // 2 - 2) + '0.5' + ' ' * (width - (width // 2) - 4) + '1.0' + Colors.RESET
+
+    # Assemble the final multi-line string for printing
+    output = [
+        "Score Distribution Box Plot:",
+        f"Min: {min_val:.3f}, Q1: {q1_val:.3f}, Median: {median_val:.3f}, Q3: {q3_val:.3f}, Max: {max_val:.3f}",
+        labels_line,
+        axis_line,
+        plot_str,
+        axis_line
+    ]
+    return "\n".join(output)
 
 def analyze_parameter_correlations(results, poor_threshold=0.5, min_count=5, max_correlation_depth=3):
     """
@@ -171,6 +227,10 @@ def analyze_ocr_results(input_file, top_n=10, max_corr=3):
     print(f"Average Similarity:    {np.mean(scores):.4f}")
     print(f"Median Similarity:     {np.median(scores):.4f}")
     print(f"Standard Deviation:    {np.std(scores):.4f}\n")
+
+    if total_files > 0:
+        print(create_text_boxplot(scores))
+        print("\n")
 
     perfect_scores = np.sum(scores >= 0.99)
     good_scores = np.sum((scores >= 0.8) & (scores < 0.99))
