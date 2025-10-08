@@ -5,6 +5,17 @@ import os
 from collections import Counter, defaultdict
 from itertools import combinations
 
+# ANSI color codes for a more readable report, defined globally
+class Colors:
+    RESET = '\033[0m'
+    BOLD = '\033[1m'
+    RED = '\033[91m'
+    GREEN = '\033[92m'
+    YELLOW = '\033[93m'
+    BLUE = '\033[94m'
+    MAGENTA = '\033[95m'
+    CYAN = '\033[96m'
+
 def flatten_dict(d, parent_key='', sep='.'):
     """
     Recursively flattens a nested dictionary.
@@ -34,14 +45,6 @@ def create_text_boxplot(scores, width=50):
     """
     if len(scores) == 0:
         return ""
-
-    # ANSI color codes for a more readable plot
-    class Colors:
-        RESET = '\033[0m'
-        BLUE = '\033[94m'   # For the box
-        GREEN = '\033[92m'  # For the median
-        YELLOW = '\033[93m' # For the whiskers
-        CYAN = '\033[96m'   # For labels and axis
 
     min_val, q1_val, median_val, q3_val, max_val = np.percentile(scores, [0, 25, 50, 75, 100])
 
@@ -76,7 +79,7 @@ def create_text_boxplot(scores, width=50):
 
     # Assemble the final multi-line string for printing
     output = [
-        "Score Distribution Box Plot:",
+        f"{Colors.BOLD}Score Distribution Box Plot:{Colors.RESET}",
         f"Min: {min_val:.3f}, Q1: {q1_val:.3f}, Median: {median_val:.3f}, Q3: {q3_val:.3f}, Max: {max_val:.3f}",
         labels_line,
         axis_line,
@@ -90,9 +93,13 @@ def analyze_parameter_correlations(results, poor_threshold=0.5, min_count=5, max
     Analyzes correlations between truth data parameters (including nested ones)
     and poor OCR scores, for combinations of N parameters.
     """
-    print("\n" + "="*80)
-    print(" " * 22 + "PARAMETER CORRELATION ANALYSIS")
-    print("="*80)
+    header_color = Colors.BOLD + Colors.MAGENTA
+    subheader_color = Colors.CYAN
+    highlight_color = Colors.YELLOW
+
+    print("\n" + header_color + "="*80 + Colors.RESET)
+    print(header_color + " " * 22 + "PARAMETER CORRELATION ANALYSIS" + Colors.RESET)
+    print(header_color + "="*80 + Colors.RESET)
     
     # --- PRE-ANALYSIS: Find and filter out constant parameters ---
     param_values = defaultdict(set)
@@ -103,7 +110,7 @@ def analyze_parameter_correlations(results, poor_threshold=0.5, min_count=5, max
 
     constant_keys = {key for key, values in param_values.items() if len(values) == 1}
 
-    # Keys to explicitly ignore for other reasons (e.g., they are unique identifiers)
+    # Keys to explicitly ignore for other reasons
     explicit_keys_to_ignore = {
         'text', 'generation_params.text', 'image_file', 'canvas_size', 
         'text_placement', 'line_bbox', 'char_bboxes'
@@ -112,12 +119,12 @@ def analyze_parameter_correlations(results, poor_threshold=0.5, min_count=5, max
     keys_to_ignore = constant_keys.union(explicit_keys_to_ignore)
 
     if constant_keys:
-        print("\n--- [ Constant Parameter Detection ] ---\n")
+        print(f"\n{subheader_color}--- [ Constant Parameter Detection ] ---{Colors.RESET}\n")
         print("The following parameters have the same value across all results and will be excluded from correlation analysis:\n")
         for key in sorted(list(constant_keys)):
             if key not in explicit_keys_to_ignore:
                 value = next(iter(param_values[key]))
-                print(f"  - '{key}': (always '{value}')")
+                print(f"  - {highlight_color}'{key}'{Colors.RESET}: (always '{value}')")
         print()
     
     poor_results = [r for r in results if r['similarity_score_float'] < poor_threshold]
@@ -127,7 +134,7 @@ def analyze_parameter_correlations(results, poor_threshold=0.5, min_count=5, max
         return
 
     # --- 1. SINGLE PARAMETER ANALYSIS ---
-    print("\n--- [ Single Parameter Impact on Performance ] ---\n")
+    print(f"\n{subheader_color}--- [ Single Parameter Impact on Performance ] ---{Colors.RESET}\n")
     print(f"Analyzing parameters for the {len(results)} total results...")
     print(f"A parameter value is flagged if its average score is low and it appears at least {min_count} times.\n")
 
@@ -136,7 +143,6 @@ def analyze_parameter_correlations(results, poor_threshold=0.5, min_count=5, max
     for res in results:
         all_keys.update(res.get('flat_truth_data', {}).keys())
     
-    # Analyze only keys that are not constant or explicitly ignored
     variable_keys = sorted([k for k in all_keys if k not in keys_to_ignore])
 
     for key in variable_keys:
@@ -158,25 +164,23 @@ def analyze_parameter_correlations(results, poor_threshold=0.5, min_count=5, max
         
         if significant_findings:
             found_single_param_issues = True
-            print(f"[*] Parameter '{param}':")
+            print(f"[*] Parameter '{highlight_color}{param}{Colors.RESET}':")
             significant_findings.sort()
             for avg_score, value, count in significant_findings:
-                print(f"    - When value is '{value}', avg score is {avg_score:.3f} (from {count} examples)")
+                print(f"    - When value is '{value}', avg score is {Colors.RED}{avg_score:.3f}{Colors.RESET} (from {count} examples)")
             print()
 
     if not found_single_param_issues:
         print("No single parameters were strongly correlated with poor performance.\n")
 
     # --- 2. MULTI-PARAMETER COMBINATION ANALYSIS ---
-    # This loop will handle pairs (n=2), triplets (n=3), and so on.
     for n in range(2, max_correlation_depth + 1):
         level_name = {2: "Paired", 3: "Triple", 4: "Quadruple"}.get(n, f"{n}-Parameter")
-        print(f"\n--- [ {level_name} Parameter Analysis for Poor Performance ] ---\n")
+        print(f"\n{subheader_color}--- [ {level_name} Parameter Analysis for Poor Performance ] ---{Colors.RESET}\n")
         print(f"Finding common {n}-parameter combinations in the {len(poor_results)} worst-performing results...\n")
 
         combo_counts = Counter()
         for res in poor_results:
-            # Filter params to only include variable keys before creating combinations
             params = sorted([item for item in res.get('flat_truth_data', {}).items() if item[0] not in keys_to_ignore])
             
             for combo in combinations(params, n):
@@ -192,8 +196,10 @@ def analyze_parameter_correlations(results, poor_threshold=0.5, min_count=5, max
         for combo, count in combo_counts.most_common(10):
             if count > 1:
                 found_combos = True
-                details = " AND ".join(combo)
-                print(f"  - Occurrences: {count:3d} -> {details}")
+                print(f"  - Occurrences: {Colors.BOLD}{count:3d}{Colors.RESET}")
+                for param_detail in combo:
+                    print(f"    -> {highlight_color}{param_detail}{Colors.RESET}")
+                print()  # Add a blank line for better readability between groups
         
         if not found_combos:
             print("No combinations occurred frequently enough to report.")
@@ -236,15 +242,18 @@ def analyze_ocr_results(input_file, top_n=10, max_corr=3):
     scores = np.array([res['similarity_score_float'] for res in results])
     
     # --- PRINT Main REPORT ---
-    print("\n" + "="*80)
-    print(" " * 25 + "OCR PERFORMANCE ANALYSIS REPORT")
-    print("="*80)
+    header_color = Colors.BOLD + Colors.MAGENTA
+    subheader_color = Colors.CYAN
+    
+    print("\n" + header_color + "="*80 + Colors.RESET)
+    print(header_color + " " * 25 + "OCR PERFORMANCE ANALYSIS REPORT" + Colors.RESET)
+    print(header_color + "="*80 + Colors.RESET)
     print(f"Analyzed results from: {os.path.basename(input_file)}\n")
 
     total_files = len(results)
-    print("-" * 40)
-    print("Overall Statistics")
-    print("-" * 40)
+    print(f"{subheader_color}{'-' * 40}{Colors.RESET}")
+    print(f"{Colors.BOLD}Overall Statistics{Colors.RESET}")
+    print(f"{subheader_color}{'-' * 40}{Colors.RESET}")
     print(f"Total Files Processed: {total_files}")
     print(f"Files with Errors:     {error_count}")
     print(f"Average Similarity:    {np.mean(scores):.4f}")
@@ -260,32 +269,32 @@ def analyze_ocr_results(input_file, top_n=10, max_corr=3):
     medium_scores = np.sum((scores >= 0.5) & (scores < 0.8))
     poor_scores = np.sum(scores < 0.5)
 
-    print("-" * 40)
-    print("Performance Distribution")
-    print("-" * 40)
-    print(f"Perfect (>= 99%): {perfect_scores:5d} ({perfect_scores/total_files:7.2%})")
-    print(f"Good (80% - 99%): {good_scores:5d} ({good_scores/total_files:7.2%})")
-    print(f"Medium (50% - 80%): {medium_scores:5d} ({medium_scores/total_files:7.2%})")
-    print(f"Poor (< 50%):     {poor_scores:5d} ({poor_scores/total_files:7.2%})\n")
+    print(f"{subheader_color}{'-' * 40}{Colors.RESET}")
+    print(f"{Colors.BOLD}Performance Distribution{Colors.RESET}")
+    print(f"{subheader_color}{'-' * 40}{Colors.RESET}")
+    print(f"{Colors.GREEN}Perfect (>= 99%): {perfect_scores:5d} ({perfect_scores/total_files:7.2%}){Colors.RESET}")
+    print(f"{Colors.CYAN}Good (80% - 99%): {good_scores:5d} ({good_scores/total_files:7.2%}){Colors.RESET}")
+    print(f"{Colors.YELLOW}Medium (50% - 80%): {medium_scores:5d} ({medium_scores/total_files:7.2%}){Colors.RESET}")
+    print(f"{Colors.RED}Poor (< 50%):     {poor_scores:5d} ({poor_scores/total_files:7.2%}){Colors.RESET}\n")
 
     results.sort(key=lambda x: x['similarity_score_float'])
     worst_examples = results[:top_n]
 
-    print("-" * 80)
-    print(f"Top {len(worst_examples)} Worst Performing Examples")
-    print("-" * 80)
+    print(f"{header_color}{'-' * 80}{Colors.RESET}")
+    print(f"{Colors.BOLD}Top {len(worst_examples)} Worst Performing Examples{Colors.RESET}")
+    print(f"{header_color}{'-' * 80}{Colors.RESET}")
     for i, ex in enumerate(worst_examples):
         score = ex['similarity_score_float']
         truth = ex['truth_data'].get('text', 'N/A')
         ocr_text = ex['test_data'].get('easyocr_text', 'N/A')
-        print(f"{i+1}. Image: {ex['image_name']}")
-        print(f"   Score: {score:.4f}")
-        print(f"   Truth: '{truth}'")
-        print(f"   OCR:   '{ocr_text}'\n")
+        print(f"{i+1}. {Colors.BOLD}Image: {ex['image_name']}{Colors.RESET}")
+        print(f"   Score: {Colors.RED}{score:.4f}{Colors.RESET}")
+        print(f"   {Colors.GREEN}Truth: '{truth}'{Colors.RESET}")
+        print(f"   {Colors.RED}OCR:   '{ocr_text}'{Colors.RESET}\n")
     
     # --- RUN THE NEW ANALYSIS ---
     analyze_parameter_correlations(results, max_correlation_depth=max_corr)
-    print("="*80)
+    print(header_color + "="*80 + Colors.RESET)
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Analyze and summarize OCR evaluation results.")
