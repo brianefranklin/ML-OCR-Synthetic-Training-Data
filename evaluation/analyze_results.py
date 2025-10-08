@@ -101,7 +101,7 @@ def analyze_parameter_correlations(results, poor_threshold=0.5, min_count=5, max
     print(header_color + " " * 22 + "PARAMETER CORRELATION ANALYSIS" + Colors.RESET)
     print(header_color + "="*80 + Colors.RESET)
     
-    # --- PRE-ANALYSIS: Find and filter out constant parameters ---
+    # --- PRE-ANALYSIS: Find constant parameters and separate numerical/categorical ---
     param_values = defaultdict(set)
     for res in results:
         for key, value in res.get('flat_truth_data', {}).items():
@@ -110,12 +110,10 @@ def analyze_parameter_correlations(results, poor_threshold=0.5, min_count=5, max
 
     constant_keys = {key for key, values in param_values.items() if len(values) == 1}
 
-    # Keys to explicitly ignore for other reasons
     explicit_keys_to_ignore = {
         'text', 'generation_params.text', 'image_file', 'canvas_size', 
         'text_placement', 'line_bbox', 'char_bboxes'
     }
-
     keys_to_ignore = constant_keys.union(explicit_keys_to_ignore)
 
     if constant_keys:
@@ -128,40 +126,34 @@ def analyze_parameter_correlations(results, poor_threshold=0.5, min_count=5, max
         print()
     
     poor_results = [r for r in results if r['similarity_score_float'] < poor_threshold]
-
     if not poor_results:
         print("No results fell into the 'poor performance' category. No correlation analysis to run.")
         return
 
-    # --- 1. SINGLE PARAMETER ANALYSIS ---
-    print(f"\n{subheader_color}--- [ Single Parameter Impact on Performance ] ---{Colors.RESET}\n")
-    print(f"Analyzing parameters for the {len(results)} total results...")
-    print(f"A parameter value is flagged if its average score is low and it appears at least {min_count} times.\n")
-
-    param_stats = defaultdict(lambda: defaultdict(list))
-    all_keys = set()
-    for res in results:
-        all_keys.update(res.get('flat_truth_data', {}).keys())
-    
+    all_keys = {k for res in results for k in res.get('flat_truth_data', {})}
     variable_keys = sorted([k for k in all_keys if k not in keys_to_ignore])
 
+    categorical_params_stats = defaultdict(lambda: defaultdict(list))
+    numerical_params_values = {}
     for key in variable_keys:
-        for res in results:
-            if key in res.get('flat_truth_data', {}):
-                value = res['flat_truth_data'][key]
-                value_str = str(value)
-                score = res['similarity_score_float']
-                param_stats[key][value_str].append(score)
+        values = [res['flat_truth_data'][key] for res in results if key in res.get('flat_truth_data', {})]
+        if all(isinstance(v, (int, float)) for v in values):
+            numerical_params_values[key] = values
+        else:
+            for res in results:
+                if key in res.get('flat_truth_data', {}):
+                    value_str = str(res['flat_truth_data'][key])
+                    score = res['similarity_score_float']
+                    categorical_params_stats[key][value_str].append(score)
 
+    # --- 1. CATEGORICAL PARAMETER ANALYSIS ---
+    print(f"\n{subheader_color}--- [ Categorical Parameter Impact on Performance ] ---{Colors.RESET}\n")
     found_single_param_issues = False
-    for param, values in param_stats.items():
+    for param, values in categorical_params_stats.items():
         significant_findings = []
         for value, scores in values.items():
-            if len(scores) >= min_count:
-                avg_score = np.mean(scores)
-                if avg_score < poor_threshold:
-                    significant_findings.append((avg_score, value, len(scores)))
-        
+            if len(scores) >= min_count and np.mean(scores) < poor_threshold:
+                significant_findings.append((np.mean(scores), value, len(scores)))
         if significant_findings:
             found_single_param_issues = True
             print(f"[*] Parameter '{highlight_color}{param}{Colors.RESET}':")
@@ -169,11 +161,66 @@ def analyze_parameter_correlations(results, poor_threshold=0.5, min_count=5, max
             for avg_score, value, count in significant_findings:
                 print(f"    - When value is '{value}', avg score is {Colors.RED}{avg_score:.3f}{Colors.RESET} (from {count} examples)")
             print()
-
     if not found_single_param_issues:
-        print("No single parameters were strongly correlated with poor performance.\n")
+        print("No categorical parameters were strongly correlated with poor performance.\n")
 
-    # --- 2. MULTI-PARAMETER COMBINATION ANALYSIS ---
+    # --- 2. NUMERICAL PARAMETER RANGE ANALYSIS ---
+    print(f"\n{subheader_color}--- [ Numerical Parameter Range Impact ] ---{Colors.RESET}\n")
+    numerical_thresholds = {}
+    found_numerical_issues = False
+    skipped_low_variance_stats = {}
+    for param, values in numerical_params_values.items():
+        if len(set(values)) < 4 or len(values) < min_count * 2: continue
+        
+        q1_thresh, q3_thresh = np.percentile(values, [25, 75])
+        
+        # If Q1 and Q3 are the same, the data is too concentrated for this analysis.
+        if q1_thresh == q3_thresh:
+            value_counts = Counter(values)
+            most_common_val, most_common_count = value_counts.most_common(1)[0]
+            stats = {
+                "unique_count": len(set(values)),
+                "most_common_val": most_common_val,
+                "most_common_count": most_common_count,
+                "most_common_pct": (most_common_count / len(values)) * 100,
+                "mean": np.mean(values),
+                "min": np.min(values),
+                "max": np.max(values)
+            }
+            skipped_low_variance_stats[param] = stats
+            continue
+            
+        numerical_thresholds[param] = {'q1': q1_thresh, 'q3': q3_thresh}
+        
+        low_scores = [r['similarity_score_float'] for r in results if r.get('flat_truth_data', {}).get(param, q1_thresh + 1) <= q1_thresh]
+        high_scores = [r['similarity_score_float'] for r in results if r.get('flat_truth_data', {}).get(param, q3_thresh - 1) >= q3_thresh]
+        
+        significant_findings = []
+        if len(low_scores) >= min_count and np.mean(low_scores) < poor_threshold:
+            found_numerical_issues = True
+            significant_findings.append(f"    - When value <= {q1_thresh:.3f} (bottom 25%), avg score is {Colors.RED}{np.mean(low_scores):.3f}{Colors.RESET} (from {len(low_scores)} examples)")
+        if len(high_scores) >= min_count and np.mean(high_scores) < poor_threshold:
+            found_numerical_issues = True
+            significant_findings.append(f"    - When value >= {q3_thresh:.3f} (top 25%), avg score is {Colors.RED}{np.mean(high_scores):.3f}{Colors.RESET} (from {len(high_scores)} examples)")
+        
+        if significant_findings:
+            print(f"[*] Parameter '{highlight_color}{param}{Colors.RESET}':")
+            for finding in significant_findings: print(finding)
+            print()
+
+    if not found_numerical_issues:
+        print("No numerical parameter ranges were strongly correlated with poor performance.\n")
+
+    if skipped_low_variance_stats:
+        print(f"{subheader_color}--- [ Low Variance Numerical Parameters ] ---{Colors.RESET}\n")
+        print("The following numerical parameters were skipped from range analysis because their values are heavily concentrated, making quartile analysis uninformative:\n")
+        for param, stats in skipped_low_variance_stats.items():
+            print(f"  - {highlight_color}{param}{Colors.RESET}")
+            print(f"    -> Most common value '{Colors.BOLD}{stats['most_common_val']}{Colors.RESET}' occurs {stats['most_common_count']} times ({stats['most_common_pct']:.1f}% of total).")
+            print(f"    -> Stats: {stats['unique_count']} unique values | Min: {stats['min']:.2f}, Max: {stats['max']:.2f}, Mean: {stats['mean']:.2f}")
+        print()
+
+    # --- 3. MULTI-PARAMETER COMBINATION ANALYSIS ---
     for n in range(2, max_correlation_depth + 1):
         level_name = {2: "Paired", 3: "Triple", 4: "Quadruple"}.get(n, f"{n}-Parameter")
         print(f"\n{subheader_color}--- [ {level_name} Parameter Analysis for Poor Performance ] ---{Colors.RESET}\n")
@@ -181,11 +228,20 @@ def analyze_parameter_correlations(results, poor_threshold=0.5, min_count=5, max
 
         combo_counts = Counter()
         for res in poor_results:
-            params = sorted([item for item in res.get('flat_truth_data', {}).items() if item[0] not in keys_to_ignore])
+            conditions = []
+            flat_data = res.get('flat_truth_data', {})
+            for key, value in flat_data.items():
+                if key in categorical_params_stats:
+                    conditions.append(f"{key}: {value}")
+                elif key in numerical_thresholds:
+                    if value <= numerical_thresholds[key]['q1']:
+                        conditions.append(f"{key} <= {numerical_thresholds[key]['q1']:.3f}")
+                    elif value >= numerical_thresholds[key]['q3']:
+                        conditions.append(f"{key} >= {numerical_thresholds[key]['q3']:.3f}")
             
-            for combo in combinations(params, n):
-                key = tuple(f"{p[0]}: {p[1]}" for p in combo)
-                combo_counts[key] += 1
+            conditions.sort()
+            for combo in combinations(conditions, n):
+                combo_counts[combo] += 1
         
         if not combo_counts:
             print(f"Could not find any {n}-parameter combinations to analyze.")
@@ -199,11 +255,9 @@ def analyze_parameter_correlations(results, poor_threshold=0.5, min_count=5, max
                 print(f"  - Occurrences: {Colors.BOLD}{count:3d}{Colors.RESET}")
                 for param_detail in combo:
                     print(f"    -> {highlight_color}{param_detail}{Colors.RESET}")
-                print()  # Add a blank line for better readability between groups
-        
+                print()
         if not found_combos:
             print("No combinations occurred frequently enough to report.")
-
 
 def analyze_ocr_results(input_file, top_n=10, max_corr=3):
     """
@@ -241,7 +295,6 @@ def analyze_ocr_results(input_file, top_n=10, max_corr=3):
 
     scores = np.array([res['similarity_score_float'] for res in results])
     
-    # --- PRINT Main REPORT ---
     header_color = Colors.BOLD + Colors.MAGENTA
     subheader_color = Colors.CYAN
     
@@ -292,7 +345,6 @@ def analyze_ocr_results(input_file, top_n=10, max_corr=3):
         print(f"   {Colors.GREEN}Truth: '{truth}'{Colors.RESET}")
         print(f"   {Colors.RED}OCR:   '{ocr_text}'{Colors.RESET}\n")
     
-    # --- RUN THE NEW ANALYSIS ---
     analyze_parameter_correlations(results, max_correlation_depth=max_corr)
     print(header_color + "="*80 + Colors.RESET)
 
