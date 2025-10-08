@@ -20,6 +20,14 @@ def flatten_dict(d, parent_key='', sep='.'):
             items.append((new_key, v))
     return dict(items)
 
+def make_value_hashable(value):
+    """
+    Recursively converts lists within a value to tuples to make them hashable.
+    """
+    if isinstance(value, list):
+        return tuple(make_value_hashable(v) for v in value)
+    return value
+
 def create_text_boxplot(scores, width=50):
     """
     Creates an enhanced, colorized, text-based box-and-whisker plot.
@@ -86,17 +94,37 @@ def analyze_parameter_correlations(results, poor_threshold=0.5, min_count=5, max
     print(" " * 22 + "PARAMETER CORRELATION ANALYSIS")
     print("="*80)
     
+    # --- PRE-ANALYSIS: Find and filter out constant parameters ---
+    param_values = defaultdict(set)
+    for res in results:
+        for key, value in res.get('flat_truth_data', {}).items():
+            hashable_value = make_value_hashable(value)
+            param_values[key].add(hashable_value)
+
+    constant_keys = {key for key, values in param_values.items() if len(values) == 1}
+
+    # Keys to explicitly ignore for other reasons (e.g., they are unique identifiers)
+    explicit_keys_to_ignore = {
+        'text', 'generation_params.text', 'image_file', 'canvas_size', 
+        'text_placement', 'line_bbox', 'char_bboxes'
+    }
+
+    keys_to_ignore = constant_keys.union(explicit_keys_to_ignore)
+
+    if constant_keys:
+        print("\n--- [ Constant Parameter Detection ] ---\n")
+        print("The following parameters have the same value across all results and will be excluded from correlation analysis:\n")
+        for key in sorted(list(constant_keys)):
+            if key not in explicit_keys_to_ignore:
+                value = next(iter(param_values[key]))
+                print(f"  - '{key}': (always '{value}')")
+        print()
+    
     poor_results = [r for r in results if r['similarity_score_float'] < poor_threshold]
 
     if not poor_results:
         print("No results fell into the 'poor performance' category. No correlation analysis to run.")
         return
-
-    # Keys to explicitly ignore in the correlation analysis
-    keys_to_ignore = {
-        'text', 'generation_params.text', 'image_file', 'canvas_size', 
-        'text_placement', 'line_bbox', 'char_bboxes'
-    }
 
     # --- 1. SINGLE PARAMETER ANALYSIS ---
     print("\n--- [ Single Parameter Impact on Performance ] ---\n")
@@ -108,10 +136,10 @@ def analyze_parameter_correlations(results, poor_threshold=0.5, min_count=5, max
     for res in results:
         all_keys.update(res.get('flat_truth_data', {}).keys())
     
-    for key in keys_to_ignore:
-        all_keys.discard(key)
+    # Analyze only keys that are not constant or explicitly ignored
+    variable_keys = sorted([k for k in all_keys if k not in keys_to_ignore])
 
-    for key in sorted(list(all_keys)):
+    for key in variable_keys:
         for res in results:
             if key in res.get('flat_truth_data', {}):
                 value = res['flat_truth_data'][key]
@@ -148,15 +176,10 @@ def analyze_parameter_correlations(results, poor_threshold=0.5, min_count=5, max
 
         combo_counts = Counter()
         for res in poor_results:
-            params = sorted(res.get('flat_truth_data', {}).items())
+            # Filter params to only include variable keys before creating combinations
+            params = sorted([item for item in res.get('flat_truth_data', {}).items() if item[0] not in keys_to_ignore])
             
-            # Generate all combinations of size 'n' from the parameters
             for combo in combinations(params, n):
-                # Filter out any combinations that include an ignored key
-                if any(p[0] in keys_to_ignore for p in combo):
-                    continue
-                
-                # Create a canonical key for the combination
                 key = tuple(f"{p[0]}: {p[1]}" for p in combo)
                 combo_counts[key] += 1
         
