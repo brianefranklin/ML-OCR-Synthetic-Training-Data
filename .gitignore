@@ -29,6 +29,7 @@ claude_persistent_history/
 *.log
 tmp/
 temp/
+evaluation/*.jsonl
 
 # Font files
 *.ttf
