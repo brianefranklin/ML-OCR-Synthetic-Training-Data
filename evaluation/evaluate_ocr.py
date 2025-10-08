@@ -7,14 +7,30 @@ from Levenshtein import distance as levenshtein_distance
 import multiprocessing
 import torch
 import datetime
+import warnings # Import the warnings module
 
-# Define a global variable for the reader.
-# This will be initialized once in the main process and inherited by worker processes.
+# This will be a global variable within each worker process.
 reader = None
+
+def init_worker(languages, use_gpu):
+    """
+    Initializer for each worker process in the pool.
+    Loads the EasyOCR model into the global 'reader' variable for that specific process.
+    """
+    global reader
+    # Suppress the specific UserWarning from PyTorch's DataLoader about 'pin_memory'.
+    # This warning is not relevant when running on CPU and just clutters the output.
+    warnings.filterwarnings(
+        "ignore",
+        category=UserWarning,
+        message=".*'pin_memory' argument is set as true*"
+    )
+    # Each worker loads the model from the cache into its own memory.
+    reader = easyocr.Reader(languages, gpu=use_gpu)
 
 def process_file(args):
     """
-    Processes a single file using the globally inherited reader instance.
+    Processes a single file using the reader instance specific to its worker process.
     Args:
         args (tuple): A tuple containing (json_filename, input_dir).
     """
@@ -32,8 +48,7 @@ def process_file(args):
     true_text = truth_data_content.get('text', '')
 
     try:
-        # The 'reader' is a global variable inherited from the main process.
-        # It is already initialized and the models are loaded in memory.
+        # The 'reader' global is guaranteed to be initialized in this worker process.
         results = reader.readtext(image_path, detail=0)
         easyocr_text = " ".join(results)
 
@@ -56,8 +71,6 @@ def process_file(args):
         }
 
     except Exception as e:
-        # It's good practice to log or print the specific error for debugging
-        # print(f"Error processing {image_filename}: {e}")
         return {
             'image_name': image_filename,
             'truth_data': truth_data_content,
@@ -73,28 +86,30 @@ def evaluate_ocr(input_dir, output_path, languages=['en'], use_gpu=False, worker
     Processes images using EasyOCR, compares with truth data, and saves the evaluation
     to a JSON Lines file.
     """
-    global reader
-
     json_files = [f for f in os.listdir(input_dir) if f.endswith('.json')]
     if not json_files:
         print(f"No JSON files found in '{input_dir}'.")
         return
     print(f"Found {len(json_files)} JSON files to process.")
 
-    # Initialize the reader ONCE in the main process.
-    # Worker processes will inherit this instance, avoiding re-loading models into memory.
-    print("Initializing EasyOCR and loading models into memory...")
-    reader = easyocr.Reader(languages, gpu=use_gpu)
-    print("Initialization complete. Starting parallel processing...")
-
     if workers is None:
         workers = multiprocessing.cpu_count()
+        
+    print("\n" + "="*60)
+    print("SETUP PHASE: PREPARING FOR OCR PROCESSING")
+    print("Each worker process will now load the OCR model into memory.")
+    print("="*60)
     
     pool_args = [(json_filename, input_dir) for json_filename in json_files]
 
     with open(output_path, 'w', encoding='utf-8') as f:
-        # The Pool is created without an initializer, as the workers will inherit the global 'reader'.
-        with multiprocessing.Pool(processes=workers) as pool:
+        # Use an initializer to ensure each worker has its own reader instance.
+        initargs = (languages, use_gpu)
+        with multiprocessing.Pool(processes=workers, initializer=init_worker, initargs=initargs) as pool:
+            
+            print(f"\nPARALLEL PROCESSING PHASE: Starting with {workers} worker(s).")
+            print("="*60)
+            
             for result in tqdm(pool.imap_unordered(process_file, pool_args), total=len(json_files), desc="Processing Files"):
                 if result:
                     f.write(json.dumps(result) + '\n')
@@ -105,7 +120,6 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Evaluate OCR accuracy against ground truth.")
     parser.add_argument("--input_dir", type=str, required=True, help="Path to the directory containing image and JSON files.")
     
-    # Group for mutually exclusive output options
     output_group = parser.add_mutually_exclusive_group()
     output_group.add_argument("--output_file", type=str, help="Path to a specific output JSON Lines file.")
     output_group.add_argument("--output_dir", type=str, help="Path to an output directory for a timestamped log file.")
@@ -118,16 +132,13 @@ if __name__ == "__main__":
 
     output_path = ""
     if args.output_dir:
-        # Create directory if it doesn't exist
         os.makedirs(args.output_dir, exist_ok=True)
-        # Generate timestamped filename
         timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
         filename = f"ocr_evaluation_{timestamp}.jsonl"
         output_path = os.path.join(args.output_dir, filename)
     elif args.output_file:
         output_path = args.output_file
     else:
-        # Default behavior if neither is specified
         output_path = "evaluation.jsonl"
     
     use_gpu_flag = args.gpu and torch.cuda.is_available()
