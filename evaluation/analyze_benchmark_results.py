@@ -276,7 +276,7 @@ def analyze_ocr_results(input_file, top_n=10, max_corr=3):
             try:
                 data = json.loads(line)
                 score_str = data.get('test_data', {}).get('similarity_score', '0.0')
-                if "ERROR" in data.get('test_data', {}).get('easyocr_text', ''):
+                if "ERROR" in data.get('test_data', {}).get('ocr_text', ''):
                     error_count += 1
                     data['similarity_score_float'] = 0.0
                 else:
@@ -298,8 +298,13 @@ def analyze_ocr_results(input_file, top_n=10, max_corr=3):
     header_color = Colors.BOLD + Colors.MAGENTA
     subheader_color = Colors.CYAN
     
+    model_name = results[0].get('test_data', {}).get('model_name', 'Unknown Model')
+    report_title = "OCR PERFORMANCE ANALYSIS REPORT"
+    model_title = f"MODEL: {model_name}"
+
     print("\n" + header_color + "="*80 + Colors.RESET)
-    print(header_color + " " * 25 + "OCR PERFORMANCE ANALYSIS REPORT" + Colors.RESET)
+    print(header_color + report_title.center(80) + Colors.RESET)
+    print(header_color + model_title.center(80) + Colors.RESET)
     print(header_color + "="*80 + Colors.RESET)
     print(f"Analyzed results from: {os.path.basename(input_file)}\n")
 
@@ -339,7 +344,7 @@ def analyze_ocr_results(input_file, top_n=10, max_corr=3):
     for i, ex in enumerate(worst_examples):
         score = ex['similarity_score_float']
         truth = ex['truth_data'].get('text', 'N/A')
-        ocr_text = ex['test_data'].get('easyocr_text', 'N/A')
+        ocr_text = ex['test_data'].get('ocr_text', 'N/A')
         print(f"{i+1}. {Colors.BOLD}Image: {ex['image_name']}{Colors.RESET}")
         print(f"   Score: {Colors.RED}{score:.4f}{Colors.RESET}")
         print(f"   {Colors.GREEN}Truth: '{truth}'{Colors.RESET}")

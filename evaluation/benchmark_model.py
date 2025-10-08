@@ -8,6 +8,7 @@ import multiprocessing
 import torch
 import datetime
 import warnings # Import the warnings module
+import random
 
 # This will be a global variable within each worker process.
 reader = None
@@ -49,11 +50,23 @@ def process_file(args):
 
     try:
         # The 'reader' global is guaranteed to be initialized in this worker process.
-        results = reader.readtext(image_path, detail=0)
-        easyocr_text = " ".join(results)
+        results = reader.readtext(image_path, detail=1)
+        
+        # Extract text and format raw results
+        ocr_text_parts = []
+        formatted_results = []
+        for (bbox, text, conf) in results:
+            ocr_text_parts.append(text)
+            formatted_results.append({
+                'box': [[int(coord) for coord in point] for point in bbox],
+                'text': text,
+                'confidence': float(conf)
+            })
+        
+        ocr_text = " ".join(ocr_text_parts)
 
-        dist = levenshtein_distance(true_text, easyocr_text)
-        max_len = max(len(true_text), len(easyocr_text))
+        dist = levenshtein_distance(true_text, ocr_text)
+        max_len = max(len(true_text), len(ocr_text))
         if max_len == 0:
             # Handle case where both strings are empty
             similarity_score = 1.0
@@ -64,9 +77,10 @@ def process_file(args):
             'image_name': image_filename,
             'truth_data': truth_data_content,
             'test_data': {
-                'easyocr_text': easyocr_text,
+                'model_name': 'EasyOCR',
+                'ocr_text': ocr_text,
                 'similarity_score': f"{similarity_score:.4f}",
-                'raw_easyocr_results': results
+                'raw_ocr_results': formatted_results
             }
         }
 
@@ -75,18 +89,29 @@ def process_file(args):
             'image_name': image_filename,
             'truth_data': truth_data_content,
             'test_data': {
-                'easyocr_text': f"ERROR: {e}",
+                'model_name': 'EasyOCR',
+                'ocr_text': f"ERROR: {e}",
                 'similarity_score': 0.0,
-                'raw_easyocr_results': []
+                'raw_ocr_results': []
             }
         }
 
-def evaluate_ocr(input_dir, output_path, languages=['en'], use_gpu=False, workers=None):
+def evaluate_ocr(input_dir, output_path, languages=['en'], use_gpu=False, workers=None, max_images=None, randomize=False):
     """
     Processes images using EasyOCR, compares with truth data, and saves the evaluation
     to a JSON Lines file.
     """
     json_files = [f for f in os.listdir(input_dir) if f.endswith('.json')]
+    
+    if randomize:
+        print("NOTE: Randomizing the order of input files.")
+        random.shuffle(json_files)
+
+    # For testing: limit the maximum number of images
+    if max_images is not None:
+        print(f"NOTE: Limiting run to a maximum of {max_images} images.")
+        json_files = json_files[:max_images]
+
     if not json_files:
         print(f"No JSON files found in '{input_dir}'.")
         return
@@ -127,6 +152,9 @@ if __name__ == "__main__":
     parser.add_argument('--lang', nargs='+', default=['en'], help="List of languages for OCR (default: en).")
     parser.add_argument('--gpu', action='store_true', help="Enable GPU for OCR processing.")
     parser.add_argument('--workers', type=int, default=None, help="Number of worker processes to use (default: all available cores).")
+    # New argument for limiting images for testing
+    parser.add_argument('--max_images', type=int, default=None, help="For testing: limit the maximum number of images to process.")
+    parser.add_argument('--randomize', action='store_true', help="Randomize the order of the input files.")
     
     args = parser.parse_args()
 
@@ -148,4 +176,4 @@ if __name__ == "__main__":
     if args.gpu and not use_gpu_flag:
         print("GPU was requested, but is not available. Falling back to CPU.")
 
-    evaluate_ocr(args.input_dir, output_path, args.lang, use_gpu_flag, args.workers)
+    evaluate_ocr(args.input_dir, output_path, args.lang, use_gpu_flag, args.workers, args.max_images, args.randomize)
