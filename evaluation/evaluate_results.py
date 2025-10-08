@@ -21,10 +21,10 @@ def flatten_dict(d, parent_key='', sep='.'):
     return dict(items)
 
 
-def analyze_parameter_correlations(results, poor_threshold=0.5, min_count=5):
+def analyze_parameter_correlations(results, poor_threshold=0.5, min_count=5, max_correlation_depth=3):
     """
     Analyzes correlations between truth data parameters (including nested ones)
-    and poor OCR scores.
+    and poor OCR scores, for combinations of N parameters.
     """
     print("\n" + "="*80)
     print(" " * 22 + "PARAMETER CORRELATION ANALYSIS")
@@ -50,19 +50,16 @@ def analyze_parameter_correlations(results, poor_threshold=0.5, min_count=5):
     param_stats = defaultdict(lambda: defaultdict(list))
     all_keys = set()
     for res in results:
-        # Use the flattened data for analysis
         all_keys.update(res.get('flat_truth_data', {}).keys())
     
-    # Remove keys we don't want to analyze from the set
     for key in keys_to_ignore:
         all_keys.discard(key)
 
-    # Group scores by parameter and value using the flattened data
     for key in sorted(list(all_keys)):
         for res in results:
             if key in res.get('flat_truth_data', {}):
                 value = res['flat_truth_data'][key]
-                value_str = str(value) # Make booleans and other types groupable
+                value_str = str(value)
                 score = res['similarity_score_float']
                 param_stats[key][value_str].append(score)
 
@@ -78,7 +75,7 @@ def analyze_parameter_correlations(results, poor_threshold=0.5, min_count=5):
         if significant_findings:
             found_single_param_issues = True
             print(f"[*] Parameter '{param}':")
-            significant_findings.sort() # Sort by the worst average score first
+            significant_findings.sort()
             for avg_score, value, count in significant_findings:
                 print(f"    - When value is '{value}', avg score is {avg_score:.3f} (from {count} examples)")
             print()
@@ -86,34 +83,44 @@ def analyze_parameter_correlations(results, poor_threshold=0.5, min_count=5):
     if not found_single_param_issues:
         print("No single parameters were strongly correlated with poor performance.\n")
 
-    # --- 2. PAIRED PARAMETER ANALYSIS ---
-    print("\n--- [ Paired Parameter Analysis for Poor Performance ] ---\n")
-    print(f"Finding common parameter pairs in the {len(poor_results)} worst-performing results...\n")
+    # --- 2. MULTI-PARAMETER COMBINATION ANALYSIS ---
+    # This loop will handle pairs (n=2), triplets (n=3), and so on.
+    for n in range(2, max_correlation_depth + 1):
+        level_name = {2: "Paired", 3: "Triple", 4: "Quadruple"}.get(n, f"{n}-Parameter")
+        print(f"\n--- [ {level_name} Parameter Analysis for Poor Performance ] ---\n")
+        print(f"Finding common {n}-parameter combinations in the {len(poor_results)} worst-performing results...\n")
 
-    pair_counts = Counter()
-    for res in poor_results:
-        # Create a list of (key, value) items from the flattened dict
-        params = sorted(res.get('flat_truth_data', {}).items())
-        
-        for pair1, pair2 in combinations(params, 2):
-            # Skip ignored keys
-            if pair1[0] in keys_to_ignore or pair2[0] in keys_to_ignore:
-                continue
+        combo_counts = Counter()
+        for res in poor_results:
+            params = sorted(res.get('flat_truth_data', {}).items())
             
-            key = (f"{pair1[0]}: {pair1[1]}", f"{pair2[0]}: {pair2[1]}")
-            pair_counts[key] += 1
-    
-    if not pair_counts:
-        print("Could not find any parameter pairs to analyze.")
-        return
+            # Generate all combinations of size 'n' from the parameters
+            for combo in combinations(params, n):
+                # Filter out any combinations that include an ignored key
+                if any(p[0] in keys_to_ignore for p in combo):
+                    continue
+                
+                # Create a canonical key for the combination
+                key = tuple(f"{p[0]}: {p[1]}" for p in combo)
+                combo_counts[key] += 1
+        
+        if not combo_counts:
+            print(f"Could not find any {n}-parameter combinations to analyze.")
+            continue
 
-    print("Most frequent parameter combinations in poor results:")
-    for (pair, count) in pair_counts.most_common(10):
-        if count > 1: # Only show pairs that appear more than once
-             print(f"  - Occurrences: {count:3d} -> {pair[0]} AND {pair[1]}")
+        print(f"Most frequent {n}-parameter combinations in poor results:")
+        found_combos = False
+        for combo, count in combo_counts.most_common(10):
+            if count > 1:
+                found_combos = True
+                details = " AND ".join(combo)
+                print(f"  - Occurrences: {count:3d} -> {details}")
+        
+        if not found_combos:
+            print("No combinations occurred frequently enough to report.")
 
 
-def analyze_ocr_results(input_file, top_n=10):
+def analyze_ocr_results(input_file, top_n=10, max_corr=3):
     """
     Analyzes a JSON Lines file from the OCR evaluation script and prints a
     detailed performance report.
@@ -136,7 +143,6 @@ def analyze_ocr_results(input_file, top_n=10):
                 else:
                     data['similarity_score_float'] = float(score_str)
                 
-                # *** NEW: Flatten the truth data for detailed analysis ***
                 if 'truth_data' in data:
                     data['flat_truth_data'] = flatten_dict(data['truth_data'])
 
@@ -195,13 +201,19 @@ def analyze_ocr_results(input_file, top_n=10):
         print(f"   OCR:   '{ocr_text}'\n")
     
     # --- RUN THE NEW ANALYSIS ---
-    analyze_parameter_correlations(results)
+    analyze_parameter_correlations(results, max_correlation_depth=max_corr)
     print("="*80)
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Analyze and summarize OCR evaluation results.")
     parser.add_argument("input_file", type=str, help="Path to the .jsonl file generated by the evaluation script.")
     parser.add_argument("--top_n", type=int, default=10, help="Number of the worst-performing examples to display (default: 10).")
+    parser.add_argument(
+        "--max_corr",
+        type=int,
+        default=3,
+        help="The maximum number of parameters to check in combination for correlation (default: 3)."
+    )
     args = parser.parse_args()
-    analyze_ocr_results(args.input_file, args.top_n)
+    analyze_ocr_results(args.input_file, args.top_n, args.max_corr)
 
