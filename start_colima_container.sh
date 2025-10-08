@@ -24,7 +24,7 @@ DEV_IMAGE_TAG="my-dev-image"
 
 # --- Add any additional flags for the 'docker run' command here ---
 # Note: Use single quotes if you need values like $(pwd) to be evaluated when the container is run.
-ADDITIONAL_DOCKER_FLAGS='-v "$(pwd)":/home/vscode/workspace'
+ADDITIONAL_DOCKER_FLAGS='-v "$(pwd)":/home/vscode/workspace -v /Users/brianfranklin/Documents/GitHub/gemini_persistent_history:/home/vscode/.gemini'
 
 # This command constructs the final docker run command from the variables above.
 DEV_CONTAINER_COMMAND="docker run -d --name $DEV_CONTAINER_NAME -p 2222:22 $ADDITIONAL_DOCKER_FLAGS $DEV_IMAGE_TAG"

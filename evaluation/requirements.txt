@@ -1,3 +1,4 @@
 easyocr
-python-Levenshtein
 tqdm
+python-levenshtein
+torch

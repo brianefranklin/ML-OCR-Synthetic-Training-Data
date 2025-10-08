@@ -20,6 +20,7 @@ RUN apt-get update && apt-get upgrade -y && apt-get install -y \
     libraqm-dev \
     libfribidi-dev \
     libharfbuzz-dev \
+    pkg-config \
     python3-psutil && \
     # Clean up the package cache
     rm -rf /var/lib/apt/lists/*

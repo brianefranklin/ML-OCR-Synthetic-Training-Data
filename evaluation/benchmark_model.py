@@ -139,11 +139,13 @@ if __name__ == "__main__":
     elif args.output_file:
         output_path = args.output_file
     else:
-        output_path = "evaluation.jsonl"
+        # Default to a timestamped file in the current directory if no output is specified.
+        timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+        filename = f"ocr_evaluation_{timestamp}.jsonl"
+        output_path = filename
     
     use_gpu_flag = args.gpu and torch.cuda.is_available()
     if args.gpu and not use_gpu_flag:
         print("GPU was requested, but is not available. Falling back to CPU.")
 
     evaluate_ocr(args.input_dir, output_path, args.lang, use_gpu_flag, args.workers)
-
