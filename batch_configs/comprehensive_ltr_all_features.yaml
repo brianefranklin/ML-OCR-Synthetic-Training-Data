@@ -15,7 +15,7 @@ batches:
   - name: baseline_plain
     proportion: 0.023810
     text_direction: left_to_right
-    corpus_dir: data/corpus_text/ltr
+    corpus_dir: data.nosync/corpus_text/ltr
     min_text_length: 5
     max_text_length: 25
     curve_type: none
@@ -29,7 +29,7 @@ batches:
   - name: arc_subtle
     proportion: 0.023810
     text_direction: left_to_right
-    corpus_dir: data/corpus_text/ltr
+    corpus_dir: data.nosync/corpus_text/ltr
     min_text_length: 6
     max_text_length: 20
     curve_type: arc
@@ -43,7 +43,7 @@ batches:
   - name: arc_moderate
     proportion: 0.023810
     text_direction: left_to_right
-    corpus_dir: data/corpus_text/ltr
+    corpus_dir: data.nosync/corpus_text/ltr
     min_text_length: 6
     max_text_length: 20
     curve_type: arc
@@ -58,7 +58,7 @@ batches:
   - name: sine_subtle
     proportion: 0.023810
     text_direction: left_to_right
-    corpus_dir: data/corpus_text/ltr
+    corpus_dir: data.nosync/corpus_text/ltr
     min_text_length: 8
     max_text_length: 22
     curve_type: sine
@@ -72,7 +72,7 @@ batches:
   - name: sine_strong
     proportion: 0.023810
     text_direction: left_to_right
-    corpus_dir: data/corpus_text/ltr
+    corpus_dir: data.nosync/corpus_text/ltr
     min_text_length: 8
     max_text_length: 22
     curve_type: sine
@@ -87,7 +87,7 @@ batches:
   - name: arc_extreme
     proportion: 0.023810
     text_direction: left_to_right
-    corpus_dir: data/corpus_text/ltr
+    corpus_dir: data.nosync/corpus_text/ltr
     min_text_length: 5
     max_text_length: 15
     curve_type: arc
@@ -101,7 +101,7 @@ batches:
   - name: sine_extreme
     proportion: 0.023810
     text_direction: left_to_right
-    corpus_dir: data/corpus_text/ltr
+    corpus_dir: data.nosync/corpus_text/ltr
     min_text_length: 5
     max_text_length: 15
     curve_type: sine
@@ -120,7 +120,7 @@ batches:
   - name: raised_light_depth
     proportion: 0.020833
     text_direction: left_to_right
-    corpus_dir: data/corpus_text/ltr
+    corpus_dir: data.nosync/corpus_text/ltr
     min_text_length: 6
     max_text_length: 18
     curve_type: none
@@ -136,7 +136,7 @@ batches:
   - name: raised_heavy_depth
     proportion: 0.020833
     text_direction: left_to_right
-    corpus_dir: data/corpus_text/ltr
+    corpus_dir: data.nosync/corpus_text/ltr
     min_text_length: 6
     max_text_length: 18
     curve_type: none
@@ -153,7 +153,7 @@ batches:
   - name: embossed_standard
     proportion: 0.020833
     text_direction: left_to_right
-    corpus_dir: data/corpus_text/ltr
+    corpus_dir: data.nosync/corpus_text/ltr
     min_text_length: 6
     max_text_length: 18
     curve_type: none
@@ -169,7 +169,7 @@ batches:
   - name: embossed_deep
     proportion: 0.020833
     text_direction: left_to_right
-    corpus_dir: data/corpus_text/ltr
+    corpus_dir: data.nosync/corpus_text/ltr
     min_text_length: 6
     max_text_length: 18
     curve_type: none
@@ -186,7 +186,7 @@ batches:
   - name: engraved_subtle
     proportion: 0.020833
     text_direction: left_to_right
-    corpus_dir: data/corpus_text/ltr
+    corpus_dir: data.nosync/corpus_text/ltr
     min_text_length: 6
     max_text_length: 18
     curve_type: none
@@ -202,7 +202,7 @@ batches:
   - name: engraved_deep
     proportion: 0.020833
     text_direction: left_to_right
-    corpus_dir: data/corpus_text/ltr
+    corpus_dir: data.nosync/corpus_text/ltr
     min_text_length: 6
     max_text_length: 18
     curve_type: none
@@ -219,7 +219,7 @@ batches:
   - name: lighting_low_angle
     proportion: 0.020833
     text_direction: left_to_right
-    corpus_dir: data/corpus_text/ltr
+    corpus_dir: data.nosync/corpus_text/ltr
     min_text_length: 8
     max_text_length: 18
     curve_type: none
@@ -235,7 +235,7 @@ batches:
   - name: lighting_high_angle
     proportion: 0.020833
     text_direction: left_to_right
-    corpus_dir: data/corpus_text/ltr
+    corpus_dir: data.nosync/corpus_text/ltr
     min_text_length: 8
     max_text_length: 18
     curve_type: none
@@ -256,7 +256,7 @@ batches:
   - name: uniform_realistic_dark
     proportion: 0.020833
     text_direction: left_to_right
-    corpus_dir: data/corpus_text/ltr
+    corpus_dir: data.nosync/corpus_text/ltr
     min_text_length: 8
     max_text_length: 20
     curve_type: none
@@ -269,7 +269,7 @@ batches:
   - name: uniform_realistic_light
     proportion: 0.020833
     text_direction: left_to_right
-    corpus_dir: data/corpus_text/ltr
+    corpus_dir: data.nosync/corpus_text/ltr
     min_text_length: 8
     max_text_length: 20
     curve_type: none
@@ -283,7 +283,7 @@ batches:
   - name: perglyph_vibrant
     proportion: 0.020833
     text_direction: left_to_right
-    corpus_dir: data/corpus_text/ltr
+    corpus_dir: data.nosync/corpus_text/ltr
     min_text_length: 8
     max_text_length: 20
     curve_type: none
@@ -296,7 +296,7 @@ batches:
   - name: perglyph_pastels
     proportion: 0.020833
     text_direction: left_to_right
-    corpus_dir: data/corpus_text/ltr
+    corpus_dir: data.nosync/corpus_text/ltr
     min_text_length: 8
     max_text_length: 20
     curve_type: none
@@ -310,7 +310,7 @@ batches:
   - name: gradient_vibrant
     proportion: 0.020833
     text_direction: left_to_right
-    corpus_dir: data/corpus_text/ltr
+    corpus_dir: data.nosync/corpus_text/ltr
     min_text_length: 10
     max_text_length: 25
     curve_type: none
@@ -323,7 +323,7 @@ batches:
   - name: gradient_pastels
     proportion: 0.020833
     text_direction: left_to_right
-    corpus_dir: data/corpus_text/ltr
+    corpus_dir: data.nosync/corpus_text/ltr
     min_text_length: 10
     max_text_length: 25
     curve_type: none
@@ -337,7 +337,7 @@ batches:
   - name: random_realistic_dark
     proportion: 0.020833
     text_direction: left_to_right
-    corpus_dir: data/corpus_text/ltr
+    corpus_dir: data.nosync/corpus_text/ltr
     min_text_length: 8
     max_text_length: 20
     curve_type: none
@@ -350,7 +350,7 @@ batches:
   - name: random_vibrant
     proportion: 0.020833
     text_direction: left_to_right
-    corpus_dir: data/corpus_text/ltr
+    corpus_dir: data.nosync/corpus_text/ltr
     min_text_length: 8
     max_text_length: 20
     curve_type: none
@@ -367,7 +367,7 @@ batches:
   - name: overlap_light
     proportion: 0.020833
     text_direction: left_to_right
-    corpus_dir: data/corpus_text/ltr
+    corpus_dir: data.nosync/corpus_text/ltr
     min_text_length: 8
     max_text_length: 20
     curve_type: none
@@ -380,7 +380,7 @@ batches:
   - name: overlap_moderate
     proportion: 0.020833
     text_direction: left_to_right
-    corpus_dir: data/corpus_text/ltr
+    corpus_dir: data.nosync/corpus_text/ltr
     min_text_length: 8
     max_text_length: 20
     curve_type: none
@@ -393,7 +393,7 @@ batches:
   - name: overlap_heavy
     proportion: 0.020833
     text_direction: left_to_right
-    corpus_dir: data/corpus_text/ltr
+    corpus_dir: data.nosync/corpus_text/ltr
     min_text_length: 10
     max_text_length: 20
     curve_type: none
@@ -406,7 +406,7 @@ batches:
   - name: overlap_extreme
     proportion: 0.020833
     text_direction: left_to_right
-    corpus_dir: data/corpus_text/ltr
+    corpus_dir: data.nosync/corpus_text/ltr
     min_text_length: 10
     max_text_length: 20
     curve_type: none
@@ -423,7 +423,7 @@ batches:
   - name: ink_bleed_light
     proportion: 0.020833
     text_direction: left_to_right
-    corpus_dir: data/corpus_text/ltr
+    corpus_dir: data.nosync/corpus_text/ltr
     min_text_length: 10
     max_text_length: 25
     curve_type: none
@@ -436,7 +436,7 @@ batches:
   - name: ink_bleed_moderate
     proportion: 0.020833
     text_direction: left_to_right
-    corpus_dir: data/corpus_text/ltr
+    corpus_dir: data.nosync/corpus_text/ltr
     min_text_length: 10
     max_text_length: 25
     curve_type: none
@@ -449,7 +449,7 @@ batches:
   - name: ink_bleed_heavy
     proportion: 0.020833
     text_direction: left_to_right
-    corpus_dir: data/corpus_text/ltr
+    corpus_dir: data.nosync/corpus_text/ltr
     min_text_length: 10
     max_text_length: 25
     curve_type: none
@@ -462,7 +462,7 @@ batches:
   - name: ink_bleed_extreme
     proportion: 0.020833
     text_direction: left_to_right
-    corpus_dir: data/corpus_text/ltr
+    corpus_dir: data.nosync/corpus_text/ltr
     min_text_length: 10
     max_text_length: 25
     curve_type: none
@@ -479,7 +479,7 @@ batches:
   - name: text_very_short
     proportion: 0.010417
     text_direction: left_to_right
-    corpus_dir: data/corpus_text/ltr
+    corpus_dir: data.nosync/corpus_text/ltr
     min_text_length: 2
     max_text_length: 5
     curve_type: none
@@ -492,7 +492,7 @@ batches:
   - name: text_short
     proportion: 0.010417
     text_direction: left_to_right
-    corpus_dir: data/corpus_text/ltr
+    corpus_dir: data.nosync/corpus_text/ltr
     min_text_length: 5
     max_text_length: 10
     curve_type: none
@@ -505,7 +505,7 @@ batches:
   - name: text_long
     proportion: 0.010417
     text_direction: left_to_right
-    corpus_dir: data/corpus_text/ltr
+    corpus_dir: data.nosync/corpus_text/ltr
     min_text_length: 30
     max_text_length: 50
     curve_type: none
@@ -518,7 +518,7 @@ batches:
   - name: text_very_long
     proportion: 0.010417
     text_direction: left_to_right
-    corpus_dir: data/corpus_text/ltr
+    corpus_dir: data.nosync/corpus_text/ltr
     min_text_length: 50
     max_text_length: 80
     curve_type: none
@@ -536,7 +536,7 @@ batches:
   - name: embossed_arc_signage
     proportion: 0.008929
     text_direction: left_to_right
-    corpus_dir: data/corpus_text/ltr
+    corpus_dir: data.nosync/corpus_text/ltr
     min_text_length: 6
     max_text_length: 15
     curve_type: arc
@@ -553,7 +553,7 @@ batches:
   - name: raised_sine_signage
     proportion: 0.008929
     text_direction: left_to_right
-    corpus_dir: data/corpus_text/ltr
+    corpus_dir: data.nosync/corpus_text/ltr
     min_text_length: 6
     max_text_length: 15
     curve_type: sine
@@ -571,7 +571,7 @@ batches:
   - name: ancient_manuscript
     proportion: 0.008929
     text_direction: left_to_right
-    corpus_dir: data/corpus_text/ltr
+    corpus_dir: data.nosync/corpus_text/ltr
     min_text_length: 12
     max_text_length: 28
     curve_type: none
@@ -584,7 +584,7 @@ batches:
   - name: aged_document_curved
     proportion: 0.008929
     text_direction: left_to_right
-    corpus_dir: data/corpus_text/ltr
+    corpus_dir: data.nosync/corpus_text/ltr
     min_text_length: 10
     max_text_length: 25
     curve_type: arc
@@ -599,7 +599,7 @@ batches:
   - name: handwriting_sine
     proportion: 0.008929
     text_direction: left_to_right
-    corpus_dir: data/corpus_text/ltr
+    corpus_dir: data.nosync/corpus_text/ltr
     min_text_length: 8
     max_text_length: 18
     curve_type: sine
@@ -613,7 +613,7 @@ batches:
   - name: handwriting_raised
     proportion: 0.008929
     text_direction: left_to_right
-    corpus_dir: data/corpus_text/ltr
+    corpus_dir: data.nosync/corpus_text/ltr
     min_text_length: 8
     max_text_length: 18
     curve_type: sine
@@ -631,7 +631,7 @@ batches:
   - name: vibrant_curved_signs
     proportion: 0.008929
     text_direction: left_to_right
-    corpus_dir: data/corpus_text/ltr
+    corpus_dir: data.nosync/corpus_text/ltr
     min_text_length: 6
     max_text_length: 15
     curve_type: arc
@@ -645,7 +645,7 @@ batches:
   - name: vibrant_embossed
     proportion: 0.008929
     text_direction: left_to_right
-    corpus_dir: data/corpus_text/ltr
+    corpus_dir: data.nosync/corpus_text/ltr
     min_text_length: 6
     max_text_length: 18
     curve_type: none
@@ -662,7 +662,7 @@ batches:
   - name: pastels_gradient_wavy
     proportion: 0.008929
     text_direction: left_to_right
-    corpus_dir: data/corpus_text/ltr
+    corpus_dir: data.nosync/corpus_text/ltr
     min_text_length: 10
     max_text_length: 22
     curve_type: sine
@@ -676,7 +676,7 @@ batches:
   - name: pastels_raised
     proportion: 0.008929
     text_direction: left_to_right
-    corpus_dir: data/corpus_text/ltr
+    corpus_dir: data.nosync/corpus_text/ltr
     min_text_length: 8
     max_text_length: 18
     curve_type: none
@@ -693,7 +693,7 @@ batches:
   - name: engraved_ancient
     proportion: 0.008929
     text_direction: left_to_right
-    corpus_dir: data/corpus_text/ltr
+    corpus_dir: data.nosync/corpus_text/ltr
     min_text_length: 10
     max_text_length: 25
     curve_type: none
@@ -709,7 +709,7 @@ batches:
   - name: engraved_arc
     proportion: 0.008929
     text_direction: left_to_right
-    corpus_dir: data/corpus_text/ltr
+    corpus_dir: data.nosync/corpus_text/ltr
     min_text_length: 6
     max_text_length: 15
     curve_type: arc
@@ -727,7 +727,7 @@ batches:
   - name: kitchen_sink_moderate
     proportion: 0.008929
     text_direction: left_to_right
-    corpus_dir: data/corpus_text/ltr
+    corpus_dir: data.nosync/corpus_text/ltr
     min_text_length: 8
     max_text_length: 18
     curve_type: arc
@@ -744,7 +744,7 @@ batches:
   - name: kitchen_sink_extreme
     proportion: 0.008929
     text_direction: left_to_right
-    corpus_dir: data/corpus_text/ltr
+    corpus_dir: data.nosync/corpus_text/ltr
     min_text_length: 6
     max_text_length: 15
     curve_type: sine
@@ -766,7 +766,7 @@ batches:
   - name: no_augmentations_plain
     proportion: 0.010417
     text_direction: left_to_right
-    corpus_dir: data/corpus_text/ltr
+    corpus_dir: data.nosync/corpus_text/ltr
     min_text_length: 8
     max_text_length: 20
     curve_type: none
@@ -780,7 +780,7 @@ batches:
   - name: no_augmentations_with_effects
     proportion: 0.010417
     text_direction: left_to_right
-    corpus_dir: data/corpus_text/ltr
+    corpus_dir: data.nosync/corpus_text/ltr
     min_text_length: 8
     max_text_length: 20
     curve_type: arc
@@ -799,7 +799,7 @@ batches:
   - name: geometric_augmentations_only
     proportion: 0.010417
     text_direction: left_to_right
-    corpus_dir: data/corpus_text/ltr
+    corpus_dir: data.nosync/corpus_text/ltr
     min_text_length: 10
     max_text_length: 25
     curve_type: none
@@ -823,7 +823,7 @@ batches:
   - name: geometric_with_curves
     proportion: 0.010417
     text_direction: left_to_right
-    corpus_dir: data/corpus_text/ltr
+    corpus_dir: data.nosync/corpus_text/ltr
     min_text_length: 8
     max_text_length: 18
     curve_type: sine
@@ -849,7 +849,7 @@ batches:
   - name: quality_augmentations_only
     proportion: 0.010417
     text_direction: left_to_right
-    corpus_dir: data/corpus_text/ltr
+    corpus_dir: data.nosync/corpus_text/ltr
     min_text_length: 10
     max_text_length: 22
     curve_type: none
@@ -873,7 +873,7 @@ batches:
   - name: quality_with_overlap
     proportion: 0.010417
     text_direction: left_to_right
-    corpus_dir: data/corpus_text/ltr
+    corpus_dir: data.nosync/corpus_text/ltr
     min_text_length: 12
     max_text_length: 25
     curve_type: none
@@ -898,7 +898,7 @@ batches:
   - name: background_augmentation_only
     proportion: 0.010417
     text_direction: left_to_right
-    corpus_dir: data/corpus_text/ltr
+    corpus_dir: data.nosync/corpus_text/ltr
     min_text_length: 10
     max_text_length: 20
     curve_type: none
@@ -922,7 +922,7 @@ batches:
   - name: background_with_effects
     proportion: 0.010417
     text_direction: left_to_right
-    corpus_dir: data/corpus_text/ltr
+    corpus_dir: data.nosync/corpus_text/ltr
     min_text_length: 8
     max_text_length: 18
     curve_type: none
@@ -954,7 +954,7 @@ batches:
   - name: white_background_plain
     proportion: 0.005208
     text_direction: left_to_right
-    corpus_dir: data/corpus_text/ltr
+    corpus_dir: data.nosync/corpus_text/ltr
     min_text_length: 8
     max_text_length: 20
     curve_type: none
@@ -968,7 +968,7 @@ batches:
   - name: white_background_embossed
     proportion: 0.005208
     text_direction: left_to_right
-    corpus_dir: data/corpus_text/ltr
+    corpus_dir: data.nosync/corpus_text/ltr
     min_text_length: 8
     max_text_length: 20
     curve_type: none
@@ -986,7 +986,7 @@ batches:
   - name: black_background_plain
     proportion: 0.005208
     text_direction: left_to_right
-    corpus_dir: data/corpus_text/ltr
+    corpus_dir: data.nosync/corpus_text/ltr
     min_text_length: 8
     max_text_length: 20
     curve_type: none
@@ -1000,7 +1000,7 @@ batches:
   - name: black_background_raised
     proportion: 0.005208
     text_direction: left_to_right
-    corpus_dir: data/corpus_text/ltr
+    corpus_dir: data.nosync/corpus_text/ltr
     min_text_length: 8
     max_text_length: 20
     curve_type: arc
@@ -1019,7 +1019,7 @@ batches:
   - name: beige_background_plain
     proportion: 0.005208
     text_direction: left_to_right
-    corpus_dir: data/corpus_text/ltr
+    corpus_dir: data.nosync/corpus_text/ltr
     min_text_length: 10
     max_text_length: 25
     curve_type: none
@@ -1033,7 +1033,7 @@ batches:
   - name: beige_background_aged
     proportion: 0.005208
     text_direction: left_to_right
-    corpus_dir: data/corpus_text/ltr
+    corpus_dir: data.nosync/corpus_text/ltr
     min_text_length: 12
     max_text_length: 28
     curve_type: none
@@ -1048,7 +1048,7 @@ batches:
   - name: gray_background_light
     proportion: 0.005208
     text_direction: left_to_right
-    corpus_dir: data/corpus_text/ltr
+    corpus_dir: data.nosync/corpus_text/ltr
     min_text_length: 8
     max_text_length: 20
     curve_type: none
@@ -1062,7 +1062,7 @@ batches:
   - name: gray_background_dark
     proportion: 0.005208
     text_direction: left_to_right
-    corpus_dir: data/corpus_text/ltr
+    corpus_dir: data.nosync/corpus_text/ltr
     min_text_length: 8
     max_text_length: 20
     curve_type: sine
@@ -1085,7 +1085,7 @@ batches:
   - name: custom_rgb_perglyph
     proportion: 0.005208
     text_direction: left_to_right
-    corpus_dir: data/corpus_text/ltr
+    corpus_dir: data.nosync/corpus_text/ltr
     min_text_length: 8
     max_text_length: 18
     curve_type: none
@@ -1101,7 +1101,7 @@ batches:
   - name: custom_rgb_embossed
     proportion: 0.005208
     text_direction: left_to_right
-    corpus_dir: data/corpus_text/ltr
+    corpus_dir: data.nosync/corpus_text/ltr
     min_text_length: 8
     max_text_length: 18
     curve_type: none
@@ -1121,7 +1121,7 @@ batches:
   - name: custom_warm_gradient
     proportion: 0.005208
     text_direction: left_to_right
-    corpus_dir: data/corpus_text/ltr
+    corpus_dir: data.nosync/corpus_text/ltr
     min_text_length: 10
     max_text_length: 25
     curve_type: arc
@@ -1138,7 +1138,7 @@ batches:
   - name: custom_warm_raised
     proportion: 0.005208
     text_direction: left_to_right
-    corpus_dir: data/corpus_text/ltr
+    corpus_dir: data.nosync/corpus_text/ltr
     min_text_length: 8
     max_text_length: 18
     curve_type: none
@@ -1156,7 +1156,7 @@ batches:
   - name: custom_cool_gradient
     proportion: 0.005208
     text_direction: left_to_right
-    corpus_dir: data/corpus_text/ltr
+    corpus_dir: data.nosync/corpus_text/ltr
     min_text_length: 10
     max_text_length: 25
     curve_type: sine
@@ -1173,7 +1173,7 @@ batches:
   - name: custom_cool_engraved
     proportion: 0.005208
     text_direction: left_to_right
-    corpus_dir: data/corpus_text/ltr
+    corpus_dir: data.nosync/corpus_text/ltr
     min_text_length: 8
     max_text_length: 18
     curve_type: none
@@ -1192,7 +1192,7 @@ batches:
   - name: custom_grays_gradient
     proportion: 0.005208
     text_direction: left_to_right
-    corpus_dir: data/corpus_text/ltr
+    corpus_dir: data.nosync/corpus_text/ltr
     min_text_length: 10
     max_text_length: 22
     curve_type: none
@@ -1209,7 +1209,7 @@ batches:
   - name: custom_grays_embossed
     proportion: 0.005208
     text_direction: left_to_right
-    corpus_dir: data/corpus_text/ltr
+    corpus_dir: data.nosync/corpus_text/ltr
     min_text_length: 8
     max_text_length: 18
     curve_type: none
