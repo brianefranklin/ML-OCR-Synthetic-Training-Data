@@ -94,16 +94,18 @@ def generate_with_batches(batch_config, font_files, background_images, args, OCR
                 batch_corpora[batch_name] = CorpusManager.from_directory(
                     corpus_spec,
                     pattern=pattern,
-                    weights=task.get('corpus_weights')
+                    weights=task.get('corpus_weights'),
+                    seed=batch_config.seed
                 )
             elif corpus_spec and os.path.isfile(corpus_spec):
                 # File mode
-                batch_corpora[batch_name] = CorpusManager([corpus_spec])
+                batch_corpora[batch_name] = CorpusManager([corpus_spec], seed=batch_config.seed)
             else:
                 # Pattern mode
                 batch_corpora[batch_name] = CorpusManager.from_pattern(
                     corpus_spec,
-                    weights=task.get('corpus_weights')
+                    weights=task.get('corpus_weights'),
+                    seed=batch_config.seed
                 )
 
         corpus_mgr = batch_corpora[batch_name]
@@ -137,6 +139,7 @@ def generate_with_batches(batch_config, font_files, background_images, args, OCR
             # Generate image with augmentations and canvas placement
             final_image, metadata, text, augmentations_applied = generator.generate_image(
                 text_line, font_path, font_size, task['text_direction'],
+                seed=batch_config.seed,
                 curve_type=task.get('curve_type', 'none'),
                 curve_intensity=task.get('curve_intensity', 0.0),
                 overlap_intensity=task.get('overlap_intensity', 0.0),
@@ -162,6 +165,7 @@ def generate_with_batches(batch_config, font_files, background_images, args, OCR
 
             # Create generation_params dictionary
             generation_params = {
+                'seed': batch_config.seed,
                 'text': text,
                 'font_path': font_path,
                 'font_size': font_size,

@@ -9,6 +9,7 @@ Supports YAML-based batch specifications with:
 """
 
 import yaml
+import numpy as np
 import random
 import logging
 import fnmatch
@@ -157,6 +158,7 @@ class BatchManager:
 
         if config.seed is not None:
             random.seed(config.seed)
+            np.random.seed(config.seed)
 
         self._allocate_images()
 

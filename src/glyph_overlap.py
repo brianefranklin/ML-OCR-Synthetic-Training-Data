@@ -50,7 +50,7 @@ class OverlapRenderer:
         base_spacing = char_width * (1.0 - reduction_factor)
 
         # Add natural variation (±5-10% of intensity) for realism
-        if enable_variation and intensity > 0:
+        if enable_variation and intensity > 0 and overlap_intensity > 0:
             variation = random.uniform(-0.1, 0.1) * intensity * char_width
             base_spacing += variation
 

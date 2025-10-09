@@ -34,11 +34,13 @@ class CorpusManager:
     - GPU-ready (read-only shared file list, independent worker state)
     """
 
-    def __init__(self,
+    def __init__(
+                 self,
                  corpus_files: List[str],
                  weights: Optional[Dict[str, float]] = None,
                  buffer_size: int = 1_000_000,
-                 worker_id: Optional[int] = None):
+                 worker_id: Optional[int] = None,
+                 seed: Optional[int] = None):
         """
         Initialize corpus manager for sequential streaming.
 
@@ -47,6 +49,7 @@ class CorpusManager:
             weights: Optional dict mapping filename patterns to weights (higher = more likely)
             buffer_size: Size of read buffer in bytes (default 1MB)
             worker_id: Optional worker ID for parallel processing (shuffles start position)
+            seed: Optional random seed for deterministic behavior
 
         Example:
             # Single worker
@@ -71,7 +74,9 @@ class CorpusManager:
         self.weights = self._build_weights(weights)
 
         # Shuffle file order for this worker (each worker starts differently)
-        if worker_id is not None:
+        if seed is not None:
+            random.seed(seed)
+        elif worker_id is not None:
             random.seed(hash((os.getpid(), worker_id)))
         self.file_order = random.sample(range(len(corpus_files)), len(corpus_files))
 
@@ -115,7 +120,8 @@ class CorpusManager:
         logging.debug(f"Corpus file weights: {dict(zip([os.path.basename(f) for f in self.corpus_files], weights))}")
         return weights
 
-    def extract_text_segment(self,
+    def extract_text_segment(
+                           self,
                            min_length: int,
                            max_length: int,
                            max_attempts: int = 100) -> Optional[str]:
@@ -302,7 +308,8 @@ class CorpusManager:
     def from_directory(directory: Union[str, Path],
                       pattern: str = "*.txt",
                       weights: Optional[Dict[str, float]] = None,
-                      worker_id: Optional[int] = None) -> 'CorpusManager':
+                      worker_id: Optional[int] = None,
+                      seed: Optional[int] = None) -> 'CorpusManager':
         """
         Create CorpusManager from directory of corpus files.
 
@@ -311,6 +318,7 @@ class CorpusManager:
             pattern: Glob pattern to match files (default: "*.txt")
             weights: Optional weights for file selection
             worker_id: Optional worker ID for parallel processing
+            seed: Optional random seed for deterministic behavior
 
         Returns:
             CorpusManager instance
@@ -338,13 +346,14 @@ class CorpusManager:
 
         logging.info(f"Found {len(corpus_files)} corpus files in {directory}")
 
-        return CorpusManager(corpus_files, weights=weights, worker_id=worker_id)
+        return CorpusManager(corpus_files, weights=weights, worker_id=worker_id, seed=seed)
 
     @staticmethod
     def from_file_or_directory(path: Union[str, Path],
                               pattern: str = "*.txt",
                               weights: Optional[Dict[str, float]] = None,
-                              worker_id: Optional[int] = None) -> 'CorpusManager':
+                              worker_id: Optional[int] = None,
+                              seed: Optional[int] = None) -> 'CorpusManager':
         """
         Create CorpusManager from either a file or directory (convenience method).
 
@@ -353,6 +362,7 @@ class CorpusManager:
             pattern: Glob pattern if path is directory
             weights: Optional weights for file selection
             worker_id: Optional worker ID for parallel processing
+            seed: Optional random seed for deterministic behavior
 
         Returns:
             CorpusManager instance
@@ -365,16 +375,17 @@ class CorpusManager:
         path = Path(path)
 
         if path.is_file():
-            return CorpusManager([str(path)], weights=weights, worker_id=worker_id)
+            return CorpusManager([str(path)], weights=weights, worker_id=worker_id, seed=seed)
         elif path.is_dir():
-            return CorpusManager.from_directory(path, pattern=pattern, weights=weights, worker_id=worker_id)
+            return CorpusManager.from_directory(path, pattern=pattern, weights=weights, worker_id=worker_id, seed=seed)
         else:
             raise ValueError(f"Path does not exist: {path}")
 
     @staticmethod
     def from_pattern(pattern: str,
                     weights: Optional[Dict[str, float]] = None,
-                    worker_id: Optional[int] = None) -> 'CorpusManager':
+                    worker_id: Optional[int] = None,
+                    seed: Optional[int] = None) -> 'CorpusManager':
         """
         Create CorpusManager from glob pattern.
 
@@ -382,6 +393,7 @@ class CorpusManager:
             pattern: Glob pattern for corpus files (e.g., 'data/corpus/**/*.txt')
             weights: Optional weights for file selection
             worker_id: Optional worker ID for parallel processing
+            seed: Optional random seed for deterministic behavior
 
         Returns:
             CorpusManager instance
@@ -400,4 +412,4 @@ class CorpusManager:
 
         logging.info(f"Found {len(corpus_files)} corpus files matching pattern '{pattern}'")
 
-        return CorpusManager(corpus_files, weights=weights, worker_id=worker_id)
+        return CorpusManager(corpus_files, weights=weights, worker_id=worker_id, seed=seed)

@@ -15,6 +15,9 @@ import bidi.algorithm
 from augmentations import apply_augmentations
 
 
+import numpy as np
+
+
 @dataclass
 class CharacterBox:
     """Represents a character with its bounding box."""
@@ -582,7 +585,7 @@ class OCRDataGenerator:
                 total_width += char_width
             else:
                 spacing = OverlapRenderer.calculate_overlap_spacing(
-                    char_width, overlap_intensity, enable_variation=False  # No variation for measurement
+                    char_width, overlap_intensity, enable_variation=False
                 )
                 total_width += spacing
 
@@ -689,11 +692,9 @@ class OCRDataGenerator:
             if i == 0:
                 total_width += char_width
             else:
-                base_spacing = 1
                 spacing = OverlapRenderer.calculate_overlap_spacing(
                     char_width, overlap_intensity, enable_variation=False
                 )
-                total_width += max(base_spacing, spacing * 0.1)
 
         total_text_bbox = temp_draw.textbbox((0, 0), display_text, font=font)
         img_height = (total_text_bbox[3] - total_text_bbox[1]) + 30
@@ -807,7 +808,9 @@ class OCRDataGenerator:
         for i, char_height in enumerate(char_heights):
             total_height += char_height
             if i < len(char_heights) - 1:  # Not last character
-                reduced_spacing = max(0, base_spacing - (base_spacing * overlap_intensity * 0.8))
+                reduced_spacing = OverlapRenderer.calculate_vertical_overlap_spacing(
+                    char_height, overlap_intensity, enable_variation=False
+                )
                 total_height += reduced_spacing
 
         img_width = max_char_width + 40
@@ -1449,6 +1452,8 @@ class OCRDataGenerator:
                       font_path: str,
                       font_size: int,
                       direction: str,
+                      seed: Optional[int] = None,
+                      augmentations: Optional[Dict] = None,
                       curve_type: str = 'none',
                       curve_intensity: float = 0.0,
                       overlap_intensity: float = 0.0,
@@ -1474,6 +1479,7 @@ class OCRDataGenerator:
             font_path: Path to font file
             font_size: Font size in points
             direction: Text direction
+            seed: Optional random seed for deterministic generation
             curve_type: Type of text curvature ('none', 'arc', 'sine')
             curve_intensity: Strength of curve (0.0-1.0)
             overlap_intensity: Glyph overlap intensity (0.0-1.0)
@@ -1489,6 +1495,10 @@ class OCRDataGenerator:
             If canvas_enabled=False: metadata_dict = {'char_bboxes': [...]}
             If canvas_enabled=True: metadata_dict = {'canvas_size': [...], 'text_placement': [...], 'line_bbox': [...], 'char_bboxes': [...]}
         """
+        if seed is not None:
+            random.seed(seed)
+            np.random.seed(seed)
+
         # Load font
         font = self.load_font(font_path, font_size)
 
@@ -1532,7 +1542,7 @@ class OCRDataGenerator:
 
         # Apply augmentations
         augmented_image, augmented_bboxes, augmentations_applied = apply_augmentations(
-            image, char_bboxes, self.background_images
+            image, char_bboxes, self.background_images, augmentations_to_apply=augmentations
         )
 
         # Apply canvas placement if enabled

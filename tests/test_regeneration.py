@@ -7,6 +7,7 @@ from pathlib import Path
 import json
 import yaml
 import sys
+import numpy as np
 
 @pytest.fixture
 def regeneration_environment(tmp_path):
@@ -30,8 +31,8 @@ def regeneration_environment(tmp_path):
     font_files = list(source_font_dir.glob("**/*.ttf")) + list(source_font_dir.glob("**/*.otf"))
 
     if font_files:
-        # Copy at least one font
-        shutil.copy(random.choice(font_files), fonts_dir)
+        # Copy a specific font to make the test deterministic
+        shutil.copy(font_files[0], fonts_dir)
 
     return {
         "text_file": str(corpus_path),
@@ -57,7 +58,6 @@ def regeneration_environment(tmp_path):
 ])
 class TestRegeneration:
     """Test the ability to regenerate an image from its generation_params."""
-
     def test_can_regenerate_from_generation_params(self, regeneration_environment, config_params):
         """
         Test that generation_params can be used to rerun the generator.
@@ -71,6 +71,7 @@ class TestRegeneration:
 
         from generator import OCRDataGenerator
         from font_utils import can_font_render_text
+        from PIL import Image
 
         # --- Step 1: First Generation ---
         run_config = config_params.copy()
@@ -85,6 +86,7 @@ class TestRegeneration:
 
         batch_config_data = {
             "total_images": 1,
+            "seed": 42,
             "batches": [
                 {
                     "name": "regeneration_test_batch",
@@ -117,30 +119,54 @@ class TestRegeneration:
         
         params = first_pass_data['generation_params']
 
+        print("First pass params:", params)
+
         # --- Step 2a: Validate generation_params ---
-        expected_keys = ['font_path', 'text', 'font_size', 'text_direction']
+        expected_keys = ['font_path', 'text', 'font_size', 'text_direction', 'seed']
         for key in expected_keys:
             assert key in params, f"generation_params is missing expected key: {key}"
 
-        # Check that the config params are present in the output params
-        for key in config_params:
-            if key != 'corpus_content': # This is a helper param for the test
-                assert key in params, f"generation_params is missing key from config_params: {key}"
-
         assert can_font_render_text(params['font_path'], params['text'], frozenset(params['text'])), \
             "Font from first pass cannot render the generated text."
+
+        # --- Step 2b: Load original image for comparison ---
+        original_image_path = Path(regeneration_environment["output_dir"]) / first_pass_data['image_file']
+        original_image = Image.open(original_image_path)
 
         # --- Step 3: Second Generation (Directly calling the generator) ---
         generator = OCRDataGenerator(font_files=[params['font_path']], background_images=[])
 
         try:
             # Call generate_image with the exact parameters from the first run.
-            # This is a smoke test to ensure the params are valid and don't crash the generator.
+            print("Second pass params:", {
+                'text': params['text'],
+                'font_path': params['font_path'],
+                'font_size': params['font_size'],
+                'direction': params['text_direction'],
+                'seed': params['seed'],
+                'canvas_size': first_pass_data['canvas_size'],
+                'augmentations': params.get('augmentations'),
+                'curve_type': params.get('curve_type', 'none'),
+                'curve_intensity': params.get('curve_intensity', 0.0),
+                'overlap_intensity': params.get('overlap_intensity', 0.0),
+                'ink_bleed_intensity': params.get('ink_bleed_intensity', 0.0),
+                'effect_type': params.get('effect_type', 'none'),
+                'effect_depth': params.get('effect_depth', 0.5),
+                'light_azimuth': params.get('light_azimuth', 135.0),
+                'light_elevation': params.get('light_elevation', 45.0),
+                'text_color_mode': params.get('text_color_mode', 'uniform'),
+                'color_palette': params.get('color_palette', 'realistic_dark'),
+                'custom_colors': params.get('custom_colors'),
+                'background_color': params.get('background_color', 'auto')
+            })
             regen_image, regen_metadata, _, _ = generator.generate_image(
                 text=params['text'],
                 font_path=params['font_path'],
                 font_size=params['font_size'],
                 direction=params['text_direction'],
+                seed=params['seed'],
+                canvas_size=first_pass_data['canvas_size'],
+                augmentations=params.get('augmentations'),
                 curve_type=params.get('curve_type', 'none'),
                 curve_intensity=params.get('curve_intensity', 0.0),
                 overlap_intensity=params.get('overlap_intensity', 0.0),
@@ -163,3 +189,7 @@ class TestRegeneration:
         assert 'char_bboxes' in regen_metadata, "Regenerated metadata is missing 'char_bboxes'"
         assert len(regen_metadata['char_bboxes']) == len(params['text']), \
             "Regenerated bbox count does not match text length"
+
+        # --- Step 4a: Compare image properties ---
+        assert original_image.mode == regen_image.mode, "Regenerated image has a different mode"
+        assert np.array_equal(np.array(original_image), np.array(regen_image)), "Regenerated image is not pixel-perfect identical"

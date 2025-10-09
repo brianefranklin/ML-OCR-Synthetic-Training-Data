@@ -23,8 +23,7 @@ def add_noise(image):
     original_mode = image.mode
     img_np = pil_to_cv2(image.convert('L')) # Convert to grayscale
     h, w = img_np.shape
-    noise = np.zeros((h, w), np.uint8)
-    cv2.randu(noise, 0, 255)
+    noise = np.random.randint(0, 256, (h, w), dtype=np.uint8)
 
     salt = noise > 245
     pepper = noise < 10
@@ -361,49 +360,88 @@ def cutout(image):
 
 # --- Main Augmentation Pipeline ---
 
-def apply_augmentations(image, char_bboxes, background_images):
+def apply_augmentations(image, char_bboxes, background_images, augmentations_to_apply=None):
     """
-    Applies a random pipeline of augmentations to an image and its character bounding boxes.
+    Applies a pipeline of augmentations to an image and its character bounding boxes.
+    If augmentations_to_apply is provided, it applies the specified augmentations.
+    Otherwise, it applies a random pipeline.
     """
     # Start with a clean image and original bboxes
     augmented_image = image
     augmented_bboxes = char_bboxes
     augmentations_applied = {}
 
-    # Core text-affecting augmentations
-    if random.random() < 0.3:
-        augmented_image, augmented_bboxes = perspective_transform(augmented_image, augmented_bboxes)
-        augmentations_applied['perspective_transform'] = True
-    if random.random() < 0.2:
-        augmented_image, augmented_bboxes = elastic_distortion(augmented_image, augmented_bboxes)
-        augmentations_applied['elastic_distortion'] = True
-    if random.random() < 0.4:
-        augmented_image, augmented_bboxes = rotate_image(augmented_image, augmented_bboxes)
-        augmentations_applied['rotate'] = True
-    if random.random() < 0.3:
-        augmented_image = erode_dilate(augmented_image)
-        augmentations_applied['erode_dilate'] = True
-    if random.random() < 0.3:
-        augmented_image = add_shadow(augmented_image)
-        augmentations_applied['shadow'] = True
+    if augmentations_to_apply is None:
+        # Core text-affecting augmentations
+        if random.random() < 0.3:
+            augmented_image, augmented_bboxes = perspective_transform(augmented_image, augmented_bboxes)
+            augmentations_applied['perspective_transform'] = True
+        if random.random() < 0.2:
+            augmented_image, augmented_bboxes = elastic_distortion(augmented_image, augmented_bboxes)
+            augmentations_applied['elastic_distortion'] = True
+        if random.random() < 0.4:
+            augmented_image, augmented_bboxes = rotate_image(augmented_image, augmented_bboxes)
+            augmentations_applied['rotate'] = True
+        if random.random() < 0.3:
+            augmented_image = erode_dilate(augmented_image)
+            augmentations_applied['erode_dilate'] = True
+        if random.random() < 0.3:
+            augmented_image = add_shadow(augmented_image)
+            augmentations_applied['shadow'] = True
 
-    # Background and lighting
-    if random.random() < 0.6:
-        augmented_image = add_background(augmented_image, background_images)
-        augmentations_applied['background'] = True
-    
-    augmented_image = adjust_brightness_contrast(augmented_image)
-    augmentations_applied['brightness_contrast'] = True
+        # Background and lighting
+        if random.random() < 0.6:
+            augmented_image = add_background(augmented_image, background_images)
+            augmentations_applied['background'] = True
+        
+        augmented_image = adjust_brightness_contrast(augmented_image)
+        augmentations_applied['brightness_contrast'] = True
 
-    # Post-processing noise and blur
-    if random.random() < 0.5:
-        augmented_image = blur_image(augmented_image)
-        augmentations_applied['blur'] = True
-    if random.random() < 0.2:
-        augmented_image = add_noise(augmented_image)
-        augmentations_applied['noise'] = True
-    if random.random() < 0.15:
-        augmented_image = cutout(augmented_image)
-        augmentations_applied['cutout'] = True
+        # Post-processing noise and blur
+        if random.random() < 0.5:
+            augmented_image = blur_image(augmented_image)
+            augmentations_applied['blur'] = True
+        if random.random() < 0.2:
+            augmented_image = add_noise(augmented_image)
+            augmentations_applied['noise'] = True
+        if random.random() < 0.15:
+            augmented_image = cutout(augmented_image)
+            augmentations_applied['cutout'] = True
+    else:
+        # Apply augmentations based on the provided dictionary
+        for aug_name in sorted(augmentations_to_apply.keys()):
+            if not augmentations_to_apply[aug_name]:
+                continue
+
+            if aug_name == 'perspective_transform':
+                augmented_image, augmented_bboxes = perspective_transform(augmented_image, augmented_bboxes)
+                augmentations_applied['perspective_transform'] = True
+            elif aug_name == 'elastic_distortion':
+                augmented_image, augmented_bboxes = elastic_distortion(augmented_image, augmented_bboxes)
+                augmentations_applied['elastic_distortion'] = True
+            elif aug_name == 'rotate':
+                augmented_image, augmented_bboxes = rotate_image(augmented_image, augmented_bboxes)
+                augmentations_applied['rotate'] = True
+            elif aug_name == 'erode_dilate':
+                augmented_image = erode_dilate(augmented_image)
+                augmentations_applied['erode_dilate'] = True
+            elif aug_name == 'shadow':
+                augmented_image = add_shadow(augmented_image)
+                augmentations_applied['shadow'] = True
+            elif aug_name == 'background':
+                augmented_image = add_background(augmented_image, background_images)
+                augmentations_applied['background'] = True
+            elif aug_name == 'brightness_contrast':
+                augmented_image = adjust_brightness_contrast(augmented_image)
+                augmentations_applied['brightness_contrast'] = True
+            elif aug_name == 'blur':
+                augmented_image = blur_image(augmented_image)
+                augmentations_applied['blur'] = True
+            elif aug_name == 'noise':
+                augmented_image = add_noise(augmented_image)
+                augmentations_applied['noise'] = True
+            elif aug_name == 'cutout':
+                augmented_image = cutout(augmented_image)
+                augmentations_applied['cutout'] = True
 
     return augmented_image, augmented_bboxes, augmentations_applied

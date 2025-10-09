@@ -12,6 +12,7 @@ import random
 import sys
 import time
 import logging
+import numpy as np
 from PIL import ImageFont
 
 # Import our modularized components
@@ -144,12 +145,18 @@ def main():
                        choices=['realistic_dark', 'realistic_light', 'vibrant', 'pastels'],
                        help='Color palette to use.')
     parser.add_argument('--custom-colors', type=str, help='Comma-separated list of custom RGB colors (e.g., \'255,0,0;0,255,0\').')
-    parser.add_argument('--background-color', type=str, default='auto', help='Background color (e.g., \'255,255,255\' or \'auto\').')
+    parser.add_argument('--background-color', type=str, default=config.get('background_color', 'auto'), help='Background color (e.g., \'255,255,255\' or \'auto\').')
+    parser.add_argument('--seed', type=int, default=config.get('seed'), help='Random seed for deterministic generation.')
 
     args = parser.parse_args()
 
     # --- Generate Timestamp for This Run ---
     run_timestamp = time.strftime('%Y-%m-%d_%H-%M-%S')
+
+    # --- Seed Random Number Generators ---
+    if args.seed is not None:
+        random.seed(args.seed)
+        np.random.seed(args.seed)
 
     # --- Configure Logging ---
     # Create timestamped log file in log directory
@@ -217,7 +224,7 @@ def main():
         font_candidates = [font_path]
     else:
         font_candidates = [os.path.join(args.fonts_dir, f)
-                          for f in os.listdir(args.fonts_dir)
+                          for f in sorted(os.listdir(args.fonts_dir))
                           if f.endswith(('.ttf', '.otf'))]
 
     # Validate fonts by attempting to load them
@@ -264,10 +271,10 @@ def main():
 
         if args.text_dir:
             # Directory mode
-            corpus_manager = CorpusManager.from_directory(args.text_dir, pattern=args.text_pattern)
+            corpus_manager = CorpusManager.from_directory(args.text_dir, pattern=args.text_pattern, seed=args.seed)
         elif args.text_file:
             # Single file mode
-            corpus_manager = CorpusManager([args.text_file])
+            corpus_manager = CorpusManager([args.text_file], seed=args.seed)
         else:
             logging.error("No text source specified")
             sys.exit(1)
@@ -345,7 +352,7 @@ def main():
                         break
                     font_path = font_health_manager.select_font_weighted(healthy_fonts)
                 else:
-                    font_path = random.choice(font_files)
+                    font_path = random.choice(sorted(font_files))
             logging.debug(f"Selected font: {font_path}")
 
             # Generate font size
@@ -366,6 +373,7 @@ def main():
                 # Generate image with augmentations and canvas placement
                 final_image, metadata, text, augmentations_applied = generator.generate_image(
                     text_line, font_path, font_size, args.text_direction,
+                    seed=args.seed,
                     curve_type='none',  # Not specified in CLI args for standard mode
                     curve_intensity=0.0,  # Not specified in CLI args for standard mode
                     overlap_intensity=args.overlap_intensity,
@@ -392,6 +400,7 @@ def main():
 
                 # Create generation_params dictionary for standard mode
                 generation_params = {
+                    'seed': args.seed,
                     'text': text,
                     'font_path': font_path,
                     'font_size': font_size,
