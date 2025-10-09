@@ -35,7 +35,7 @@ def test_environment(tmp_path):
                     f.write(source_f.read())
 
     # Copy a random selection of 10 font files into the test environment
-    source_font_dir = Path(__file__).resolve().parent.parent / "data" / "fonts"
+    source_font_dir = Path(__file__).resolve().parent.parent / "data.nosync" / "fonts"
     font_files = list(source_font_dir.glob("**/*.ttf")) + list(source_font_dir.glob("**/*.otf"))
 
     if not font_files:

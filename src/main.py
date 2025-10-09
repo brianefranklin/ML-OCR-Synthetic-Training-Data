@@ -366,6 +366,8 @@ def main():
                 # Generate image with augmentations and canvas placement
                 final_image, metadata, text, augmentations_applied = generator.generate_image(
                     text_line, font_path, font_size, args.text_direction,
+                    curve_type='none',  # Not specified in CLI args for standard mode
+                    curve_intensity=0.0,  # Not specified in CLI args for standard mode
                     overlap_intensity=args.overlap_intensity,
                     ink_bleed_intensity=args.ink_bleed_intensity,
                     effect_type=args.effect_type,
@@ -388,11 +390,32 @@ def main():
                 final_image.save(image_path)
                 logging.debug(f"Saved image to {image_path}")
 
+                # Create generation_params dictionary for standard mode
+                generation_params = {
+                    'text': text,
+                    'font_path': font_path,
+                    'font_size': font_size,
+                    'text_direction': args.text_direction,
+                    'curve_type': 'none',
+                    'curve_intensity': 0.0,
+                    'overlap_intensity': args.overlap_intensity,
+                    'ink_bleed_intensity': args.ink_bleed_intensity,
+                    'effect_type': args.effect_type,
+                    'effect_depth': args.effect_depth,
+                    'light_azimuth': args.light_azimuth,
+                    'light_elevation': args.light_elevation,
+                    'text_color_mode': args.text_color_mode,
+                    'color_palette': args.color_palette,
+                    'custom_colors': custom_colors,
+                    'background_color': args.background_color,
+                    'augmentations': augmentations_applied
+                }
+
                 # Save JSON label
                 from canvas_placement import save_label_json
                 json_filename = f'image_{image_counter:05d}.json'
                 json_path = os.path.join(args.output_dir, json_filename)
-                save_label_json(json_path, image_filename, text, metadata)
+                save_label_json(json_path, image_filename, text, metadata, generation_params)
                 logging.debug(f"Saved label to {json_path}")
 
                 # Record success in font health manager

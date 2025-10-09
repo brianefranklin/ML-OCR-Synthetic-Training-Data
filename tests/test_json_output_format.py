@@ -31,7 +31,7 @@ def test_environment(tmp_path):
         f.write("The quick brown fox jumps over the lazy dog. " * 50)
 
     # Copy a few fonts
-    source_font_dir = Path(__file__).resolve().parent.parent / "data" / "fonts"
+    source_font_dir = Path(__file__).resolve().parent.parent / "data.nosync" / "fonts"
     font_files = list(source_font_dir.glob("**/*.ttf")) + list(source_font_dir.glob("**/*.otf"))
 
     if font_files:
@@ -537,3 +537,161 @@ class TestJSONConsistency:
 
             assert image_path.exists(), f"Referenced image {image_file} doesn't exist"
             assert image_path.suffix == '.png', f"Image file {image_file} is not a PNG"
+
+    def setup_test_environment(self, tmp_path, name):
+        """Helper to create isolated environments for different test runs."""
+        run_path = tmp_path / name
+        input_dir = run_path / "input"
+        output_dir = run_path / "output"
+        fonts_dir = input_dir / "fonts"
+        text_dir = input_dir / "text"
+
+        fonts_dir.mkdir(parents=True)
+        text_dir.mkdir(parents=True)
+        output_dir.mkdir()
+
+        corpus_path = text_dir / "corpus.txt"
+        with open(corpus_path, "w", encoding="utf-8") as f:
+            f.write("Test corpus. " * 20)
+
+        source_font_dir = Path(__file__).resolve().parent.parent / "data.nosync" / "fonts"
+        font_files = list(source_font_dir.glob("**/*.ttf")) + list(source_font_dir.glob("**/*.otf"))
+        if font_files:
+            shutil.copy(random.choice(font_files), fonts_dir)
+
+        return {
+            "text_file": str(corpus_path),
+            "fonts_dir": str(fonts_dir),
+            "output_dir": str(output_dir),
+            "tmp_path": run_path
+        }
+
+    def test_generation_params_keys_are_consistent_across_modes(self, tmp_path):
+        """Test that generation_params keys are consistent between standard and batch modes."""
+        project_root = Path(__file__).resolve().parent.parent
+        script_path = project_root / "src" / "main.py"
+
+        # --- Setup for two separate runs ---
+        standard_env = self.setup_test_environment(tmp_path, "standard")
+        batch_env = self.setup_test_environment(tmp_path, "batch")
+
+        # --- Run 1: Standard Mode ---
+        standard_command = [
+            "python3", str(script_path),
+            "--text-file", standard_env["text_file"],
+            "--fonts-dir", standard_env["fonts_dir"],
+            "--output-dir", standard_env["output_dir"],
+            "--num-images", "1",
+            "--effect-type", "raised"
+        ]
+        result_standard = subprocess.run(standard_command, capture_output=True, text=True, check=False)
+        assert result_standard.returncode == 0, f"Standard mode script failed: {result_standard.stderr}"
+
+        # --- Run 2: Batch Mode ---
+        batch_config_data = {
+            "total_images": 1,
+            "batches": [
+                {
+                    "name": "test_batch",
+                    "proportion": 1.0,
+                    "corpus_file": batch_env["text_file"],
+                    "effect_type": "raised"
+                }
+            ]
+        }
+        batch_config_path = batch_env["tmp_path"] / "batch_config.yaml"
+        with open(batch_config_path, "w") as f:
+            yaml.dump(batch_config_data, f)
+
+        batch_command = [
+            "python3", str(script_path),
+            "--batch-config", str(batch_config_path),
+            "--fonts-dir", batch_env["fonts_dir"],
+            "--output-dir", batch_env["output_dir"]
+        ]
+        result_batch = subprocess.run(batch_command, capture_output=True, text=True, check=False)
+        assert result_batch.returncode == 0, f"Batch mode script failed: {result_batch.stderr}"
+
+        # --- Compare Results ---
+        standard_json_files = list(Path(standard_env["output_dir"]).glob("image_*.json"))
+        assert len(standard_json_files) == 1
+        with open(standard_json_files[0], 'r') as f:
+            standard_data = json.load(f)
+        standard_keys = set(standard_data['generation_params'].keys())
+
+        batch_json_files = list(Path(batch_env["output_dir"]).glob("image_*.json"))
+        assert len(batch_json_files) == 1
+        with open(batch_json_files[0], 'r') as f:
+            batch_data = json.load(f)
+        batch_keys = set(batch_data['generation_params'].keys())
+
+        assert standard_keys == batch_keys, \
+            f"Key mismatch between standard and batch modes.\nStandard keys: {standard_keys}\nBatch keys: {batch_keys}"
+
+class TestGenerationParamsStandardMode:
+    """Test generation_params field in standard (non-batch) mode."""
+
+    def test_generation_params_exists_in_standard_mode(self, test_environment):
+        """Test that generation_params field exists in standard mode."""
+        project_root = Path(__file__).resolve().parent.parent
+        script_path = project_root / "src" / "main.py"
+
+        command = [
+            "python3", str(script_path),
+            "--text-file", test_environment["text_file"],
+            "--fonts-dir", test_environment["fonts_dir"],
+            "--output-dir", test_environment["output_dir"],
+            "--num-images", "1"
+        ]
+
+        result = subprocess.run(command, capture_output=True, text=True, check=False)
+        assert result.returncode == 0, f"Script failed: {result.stderr}"
+
+        json_files = list(Path(test_environment["output_dir"]).glob("image_*.json"))
+        assert len(json_files) == 1
+
+        with open(json_files[0], 'r') as f:
+            data = json.load(f)
+
+        assert 'generation_params' in data, "Missing generation_params field in standard mode"
+
+    def test_generation_params_values_match_cli_args(self, test_environment):
+        """Test that generation_params values match CLI args in standard mode."""
+        project_root = Path(__file__).resolve().parent.parent
+        script_path = project_root / "src" / "main.py"
+
+        command = [
+            "python3", str(script_path),
+            "--text-file", test_environment["text_file"],
+            "--fonts-dir", test_environment["fonts_dir"],
+            "--output-dir", test_environment["output_dir"],
+            "--num-images", "1",
+            "--text-direction", "top_to_bottom",
+            "--overlap-intensity", "0.6",
+            "--ink-bleed-intensity", "0.7",
+            "--effect-type", "engraved",
+            "--effect-depth", "0.8",
+            "--text-color-mode", "gradient",
+            "--color-palette", "pastels"
+        ]
+
+        result = subprocess.run(command, capture_output=True, text=True, check=False)
+        assert result.returncode == 0, f"Script failed: {result.stderr}"
+
+        json_files = list(Path(test_environment["output_dir"]).glob("image_*.json"))
+        assert len(json_files) == 1
+
+        with open(json_files[0], 'r') as f:
+            data = json.load(f)
+
+        params = data['generation_params']
+
+        # Verify values match CLI args
+        assert params['text_direction'] == 'top_to_bottom'
+        assert params['overlap_intensity'] == 0.6
+        assert params['ink_bleed_intensity'] == 0.7
+        assert params['effect_type'] == 'engraved'
+        assert params['effect_depth'] == 0.8
+        assert params['text_color_mode'] == 'gradient'
+        assert isinstance(params['augmentations'], dict)
+

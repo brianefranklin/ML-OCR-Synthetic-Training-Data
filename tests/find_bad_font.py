@@ -17,7 +17,7 @@ logging.basicConfig(
 
 
 def find_bad_font():
-    font_dir = "/home/vscode/workspace/data/fonts/"
+    font_dir = "/home/vscode/workspace/data.nosync/fonts/"
     font_files = []
     for root, dirs, files in os.walk(font_dir):
         for file in files:

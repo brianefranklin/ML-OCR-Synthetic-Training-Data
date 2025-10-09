@@ -31,7 +31,7 @@ def test_environment(tmp_path):
         f.write("The quick brown fox jumps over the lazy dog. " * 100)
 
     # Copy fonts
-    source_font_dir = Path(__file__).resolve().parent.parent / "data" / "fonts"
+    source_font_dir = Path(__file__).resolve().parent.parent / "data.nosync" / "fonts"
     font_files = list(source_font_dir.glob("**/*.ttf")) + list(source_font_dir.glob("**/*.otf"))
 
     if font_files:

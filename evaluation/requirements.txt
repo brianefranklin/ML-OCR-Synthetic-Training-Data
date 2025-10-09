@@ -1,4 +1,0 @@
-easyocr
-tqdm
-python-levenshtein
-torch
