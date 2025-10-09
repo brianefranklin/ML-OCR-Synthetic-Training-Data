@@ -1,4 +1,3 @@
-
 import pytest
 import subprocess
 import os
@@ -50,6 +49,11 @@ def regeneration_environment(tmp_path):
     pytest.param({"text_direction": "bottom_to_top", "curve_type": "sine", "curve_intensity": 0.3, "text_color_mode": "per_glyph"}, id="btt_sine_per_glyph"),
     pytest.param({"text_direction": "left_to_right", "ink_bleed_intensity": 0.7, "overlap_intensity": 0.6}, id="ltr_heavy_bleed_overlap"),
     pytest.param({"text_direction": "left_to_right", "effect_type": "engraved", "text_color_mode": "gradient"}, id="ltr_engraved_gradient"),
+    # New edge cases
+    pytest.param({"min_text_length": 100, "max_text_length": 120}, id="long_text"),
+    pytest.param({"font_size": 8}, id="small_font"),
+    pytest.param({"font_size": 100}, id="large_font"),
+    pytest.param({"corpus_content": "!@#$%^&*()_+=-`~[]{}|;':,./<>?"}, id="special_chars"),
 ])
 class TestRegeneration:
     """Test the ability to regenerate an image from its generation_params."""
@@ -69,14 +73,23 @@ class TestRegeneration:
         from font_utils import can_font_render_text
 
         # --- Step 1: First Generation ---
+        run_config = config_params.copy()
+        if "corpus_content" in run_config:
+            corpus_path = regeneration_environment["tmp_path"] / "custom_corpus.txt"
+            with open(corpus_path, "w", encoding="utf-8") as f:
+                f.write(run_config["corpus_content"])
+            run_config["corpus_file"] = str(corpus_path)
+            del run_config["corpus_content"]
+        else:
+            run_config["corpus_file"] = regeneration_environment["text_file"]
+
         batch_config_data = {
             "total_images": 1,
             "batches": [
                 {
                     "name": "regeneration_test_batch",
                     "proportion": 1.0,
-                    "corpus_file": regeneration_environment["text_file"],
-                    **config_params
+                    **run_config
                 }
             ]
         }
@@ -103,6 +116,16 @@ class TestRegeneration:
             first_pass_data = json.load(f)
         
         params = first_pass_data['generation_params']
+
+        # --- Step 2a: Validate generation_params ---
+        expected_keys = ['font_path', 'text', 'font_size', 'text_direction']
+        for key in expected_keys:
+            assert key in params, f"generation_params is missing expected key: {key}"
+
+        # Check that the config params are present in the output params
+        for key in config_params:
+            if key != 'corpus_content': # This is a helper param for the test
+                assert key in params, f"generation_params is missing key from config_params: {key}"
 
         assert can_font_render_text(params['font_path'], params['text'], frozenset(params['text'])), \
             "Font from first pass cannot render the generated text."
@@ -140,4 +163,3 @@ class TestRegeneration:
         assert 'char_bboxes' in regen_metadata, "Regenerated metadata is missing 'char_bboxes'"
         assert len(regen_metadata['char_bboxes']) == len(params['text']), \
             "Regenerated bbox count does not match text length"
-
