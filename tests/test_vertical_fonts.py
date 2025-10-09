@@ -4,27 +4,7 @@ import os
 import shutil
 from pathlib import Path
 
-@pytest.fixture
-def test_environment(tmp_path):
-    """Sets up a temporary directory structure for an integration test."""
-    # Create temporary directories
-    input_dir = tmp_path / "input"
-    output_dir = tmp_path / "output"
-    fonts_dir = input_dir / "fonts"
-    text_dir = input_dir / "text"
-    log_dir = tmp_path / "logs"
 
-    fonts_dir.mkdir(parents=True)
-    text_dir.mkdir(parents=True)
-    output_dir.mkdir()
-    log_dir.mkdir()
-
-    return {
-        "text_dir": str(text_dir),
-        "fonts_dir": str(fonts_dir),
-        "output_dir": str(output_dir),
-        "log_dir": str(log_dir)
-    }
 
 @pytest.mark.parametrize("language, corpus, font_name", [
     ("korean", "안녕하세요\n안녕하세요\n안녕하세요\n안녕하세요\n안녕하세요\n", "NanumGothic.ttf"),
@@ -42,7 +22,7 @@ def test_top_to_bottom_text_generation(test_environment, language, corpus, font_
         f.write(corpus)
 
     # Copy a font to the test environment
-    source_font_dir = Path(__file__).resolve().parent.parent / "data" / "fonts"
+    source_font_dir = Path(__file__).resolve().parent.parent / "data.nosync" / "fonts"
     font_file_to_copy = source_font_dir / font_name
     
     if not font_file_to_copy.exists():
@@ -116,7 +96,7 @@ def test_bottom_to_top_text_generation(test_environment):
         f.write("hello world this is a test\n")
 
     # Copy a font to the test environment
-    source_font_dir = Path(__file__).resolve().parent.parent / "data" / "fonts"
+    source_font_dir = Path(__file__).resolve().parent.parent / "data.nosync" / "fonts"
     font_file_to_copy = source_font_dir / "NanumGothic.ttf"
     
     if not font_file_to_copy.exists():

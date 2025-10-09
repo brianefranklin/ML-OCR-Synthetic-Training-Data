@@ -7,47 +7,7 @@ import time
 import random
 from pathlib import Path
 
-@pytest.fixture
-def test_environment(tmp_path):
-    """Sets up a temporary directory structure for an integration test."""
-    # Create temporary directories
-    input_dir = tmp_path / "input"
-    output_dir = tmp_path / "output"
-    fonts_dir = input_dir / "fonts"
-    text_dir = input_dir / "text"
-    
-    fonts_dir.mkdir(parents=True)
-    text_dir.mkdir(parents=True)
-    output_dir.mkdir()
 
-    # Create a combined corpus file
-    corpus_path = text_dir / "corpus.txt"
-    with open(corpus_path, "w", encoding="utf-8") as f:
-        f.write("a\nb\nc\nd\ne\nf\ng\nh\ni\nj\nk\nl\nm\nn\no\np\nq\nr\ns\nt\nu\nv\nw\nx\ny\nz\n")
-        # Add content from other corpus files
-        for corpus_file in ["arabic_corpus.txt", "japanese_corpus.txt"]:
-            source_corpus_path = Path(__file__).resolve().parent.parent / corpus_file
-            if source_corpus_path.exists():
-                with open(source_corpus_path, "r", encoding="utf-8") as source_f:
-                    f.write(source_f.read())
-
-    # Copy a random selection of 10 font files into the test environment
-    source_font_dir = Path(__file__).resolve().parent.parent / "data" / "fonts"
-    font_files = list(source_font_dir.glob("**/*.ttf")) + list(source_font_dir.glob("**/*.otf"))
-
-    if not font_files:
-        pytest.skip("No font files found, skipping integration test.")
-
-    random_fonts = random.sample(font_files, min(10, len(font_files)))
-
-    for font_file_to_copy in random_fonts:
-        shutil.copy(font_file_to_copy, fonts_dir)
-
-    return {
-        "text_file": str(corpus_path),
-        "fonts_dir": str(fonts_dir),
-        "output_dir": str(output_dir)
-    }
 
 def test_main_script_execution(test_environment):
     """Runs the main.py script as a subprocess and checks its output."""
@@ -342,7 +302,7 @@ def test_right_to_left_text_generation(test_environment):
         f.write("أهلاً بالعالم\n")
 
     # Copy an Arabic font to the test environment
-    source_font_dir = Path(__file__).resolve().parent.parent / "data" / "fonts"
+    source_font_dir = Path(__file__).resolve().parent.parent / "data.nosync" / "fonts"
     font_file_to_copy = source_font_dir / "NotoSansArabic[wdth,wght].ttf"
     
     if not font_file_to_copy.exists():

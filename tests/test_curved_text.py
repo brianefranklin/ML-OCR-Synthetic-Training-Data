@@ -23,13 +23,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 from generator import OCRDataGenerator
 
 
-@pytest.fixture
-def test_font():
-    """Fixture providing a test font."""
-    font_path = Path(__file__).parent.parent / "data" / "fonts" / "ABeeZee-Regular.ttf"
-    if not font_path.exists():
-        pytest.skip(f"Test font not found: {font_path}")
-    return str(font_path)
+
 
 
 @pytest.fixture

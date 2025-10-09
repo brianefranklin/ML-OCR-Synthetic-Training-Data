@@ -12,43 +12,7 @@ import time
 from pathlib import Path
 
 
-@pytest.fixture
-def test_environment(tmp_path):
-    """Sets up a temporary directory structure for testing."""
-    # Create temporary directories
-    input_dir = tmp_path / "input"
-    output_dir = tmp_path / "output"
-    log_dir = tmp_path / "logs"
-    fonts_dir = input_dir / "fonts"
-    text_dir = input_dir / "text"
 
-    fonts_dir.mkdir(parents=True)
-    text_dir.mkdir(parents=True)
-    output_dir.mkdir()
-    log_dir.mkdir()
-
-    # Create a simple corpus file
-    corpus_path = text_dir / "corpus.txt"
-    with open(corpus_path, "w", encoding="utf-8") as f:
-        f.write("The quick brown fox jumps over the lazy dog.\n" * 100)
-
-    # Copy a few font files from the project
-    source_font_dir = Path(__file__).resolve().parent.parent / "data" / "fonts"
-    font_files = list(source_font_dir.glob("**/*.ttf"))[:3]
-
-    if not font_files:
-        pytest.skip("No font files found, skipping test.")
-
-    for font_file_to_copy in font_files:
-        shutil.copy(font_file_to_copy, fonts_dir)
-
-    return {
-        "text_file": str(corpus_path),
-        "fonts_dir": str(fonts_dir),
-        "output_dir": str(output_dir),
-        "log_dir": str(log_dir),
-        "tmp_path": tmp_path
-    }
 
 
 def test_timestamped_log_file_creation(test_environment):

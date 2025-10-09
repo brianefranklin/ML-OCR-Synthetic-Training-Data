@@ -20,7 +20,7 @@ from generator import OCRDataGenerator
 @pytest.fixture
 def test_font():
     """Load a test font for vertical text rendering."""
-    font_dir = Path(__file__).parent.parent / "data" / "fonts"
+    font_dir = Path(__file__).parent.parent / "data.nosync" / "fonts"
 
     # Try to find a CJK font that supports vertical text
     cjk_fonts = [
@@ -314,7 +314,7 @@ class TestVerticalFontVariations:
 
     def test_small_font_ttb(self, generator):
         """Small font should render with vertical curve."""
-        font_path = Path(__file__).parent.parent / "data" / "fonts"
+        font_path = Path(__file__).parent.parent / "data.nosync" / "fonts"
         font_files = list(font_path.glob("*.ttf")) + list(font_path.glob("*.otf"))
         if not font_files:
             pytest.skip("No fonts available")
@@ -326,7 +326,7 @@ class TestVerticalFontVariations:
 
     def test_large_font_ttb(self, generator):
         """Large font should render with vertical curve."""
-        font_path = Path(__file__).parent.parent / "data" / "fonts"
+        font_path = Path(__file__).parent.parent / "data.nosync" / "fonts"
         font_files = list(font_path.glob("*.ttf")) + list(font_path.glob("*.otf"))
         if not font_files:
             pytest.skip("No fonts available")
@@ -338,7 +338,7 @@ class TestVerticalFontVariations:
 
     def test_small_font_btt(self, generator):
         """Small font should render with vertical curve."""
-        font_path = Path(__file__).parent.parent / "data" / "fonts"
+        font_path = Path(__file__).parent.parent / "data.nosync" / "fonts"
         font_files = list(font_path.glob("*.ttf")) + list(font_path.glob("*.otf"))
         if not font_files:
             pytest.skip("No fonts available")
@@ -350,7 +350,7 @@ class TestVerticalFontVariations:
 
     def test_large_font_btt(self, generator):
         """Large font should render with vertical curve."""
-        font_path = Path(__file__).parent.parent / "data" / "fonts"
+        font_path = Path(__file__).parent.parent / "data.nosync" / "fonts"
         font_files = list(font_path.glob("*.ttf")) + list(font_path.glob("*.otf"))
         if not font_files:
             pytest.skip("No fonts available")
@@ -420,7 +420,7 @@ class TestVerticalEdgeCases:
 
     def test_long_text_small_font_ttb(self, generator):
         """Long text with small font should render."""
-        font_path = Path(__file__).parent.parent / "data" / "fonts"
+        font_path = Path(__file__).parent.parent / "data.nosync" / "fonts"
         font_files = list(font_path.glob("*.ttf")) + list(font_path.glob("*.otf"))
         if not font_files:
             pytest.skip("No fonts available")
@@ -433,7 +433,7 @@ class TestVerticalEdgeCases:
 
     def test_long_text_small_font_btt(self, generator):
         """Long text with small font should render."""
-        font_path = Path(__file__).parent.parent / "data" / "fonts"
+        font_path = Path(__file__).parent.parent / "data.nosync" / "fonts"
         font_files = list(font_path.glob("*.ttf")) + list(font_path.glob("*.otf"))
         if not font_files:
             pytest.skip("No fonts available")

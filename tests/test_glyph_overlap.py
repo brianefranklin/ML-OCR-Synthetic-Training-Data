@@ -18,7 +18,7 @@ from generator import OCRDataGenerator
 @pytest.fixture
 def test_font():
     """Load a test font."""
-    font_dir = Path(__file__).parent.parent / "data" / "fonts"
+    font_dir = Path(__file__).parent.parent / "data.nosync" / "fonts"
     font_files = list(font_dir.glob("*.ttf")) + list(font_dir.glob("*.otf"))
     if not font_files:
         pytest.skip("No fonts available for testing")
@@ -365,7 +365,7 @@ class TestIntegration:
 
     def test_overlap_with_small_font(self, generator):
         """Overlap should work with small fonts."""
-        font_path = Path(__file__).parent.parent / "data" / "fonts"
+        font_path = Path(__file__).parent.parent / "data.nosync" / "fonts"
         font_files = list(font_path.glob("*.ttf")) + list(font_path.glob("*.otf"))
         if not font_files:
             pytest.skip("No fonts available")
@@ -377,7 +377,7 @@ class TestIntegration:
 
     def test_overlap_with_large_font(self, generator):
         """Overlap should work with large fonts."""
-        font_path = Path(__file__).parent.parent / "data" / "fonts"
+        font_path = Path(__file__).parent.parent / "data.nosync" / "fonts"
         font_files = list(font_path.glob("*.ttf")) + list(font_path.glob("*.otf"))
         if not font_files:
             pytest.skip("No fonts available")

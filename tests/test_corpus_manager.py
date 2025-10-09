@@ -12,6 +12,10 @@ from pathlib import Path
 # Add src to path
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'src'))
 
+# Define a constant for the data.nosync directory
+DATA_DIR = Path(__file__).resolve().parent.parent / "data.nosync"
+FONT_DIR = DATA_DIR / "fonts"
+
 from corpus_manager import CorpusManager
 
 
@@ -481,7 +485,7 @@ class TestCorpusManagerBatchConfigIntegration:
         (corpus_dir / "file2.txt").write_text("Hello world from corpus. " * 50, encoding='utf-8')
 
         # Copy a font
-        font_source = Path(__file__).resolve().parent.parent / "data" / "fonts"
+        font_source = FONT_DIR
         font_files = list(font_source.glob("*.ttf"))
         if font_files:
             shutil.copy(font_files[0], fonts_dir)
@@ -542,7 +546,7 @@ class TestCorpusManagerBatchConfigIntegration:
         (corpus_dir / "news_1.txt").write_text("News article one. " * 50, encoding='utf-8')
 
         # Copy a font
-        font_source = Path(__file__).resolve().parent.parent / "data" / "fonts"
+        font_source = FONT_DIR
         font_files = list(font_source.glob("*.ttf"))
         if font_files:
             shutil.copy(font_files[0], fonts_dir)
@@ -573,7 +577,8 @@ class TestCorpusManagerBatchConfigIntegration:
             "python3", str(script_path),
             "--batch-config", str(batch_config_path),
             "--fonts-dir", str(fonts_dir),
-            "--output-dir", str(output_dir)
+            "--output-dir", str(output_dir),
+            "--log-level", "DEBUG"
         ]
 
         result = subprocess.run(command, capture_output=True, text=True, check=False)
@@ -605,7 +610,7 @@ class TestCorpusManagerBatchConfigIntegration:
         (rtl_dir / "rtl_corpus.txt").write_text("Right to left text. " * 100, encoding='utf-8')
 
         # Copy a font
-        font_source = Path(__file__).resolve().parent.parent / "data" / "fonts"
+        font_source = FONT_DIR
         font_files = list(font_source.glob("*.ttf"))
         if font_files:
             shutil.copy(font_files[0], fonts_dir)
@@ -641,7 +646,8 @@ class TestCorpusManagerBatchConfigIntegration:
             "python3", str(script_path),
             "--batch-config", str(batch_config_path),
             "--fonts-dir", str(fonts_dir),
-            "--output-dir", str(output_dir)
+            "--output-dir", str(output_dir),
+            "--log-level", "DEBUG"
         ]
 
         result = subprocess.run(command, capture_output=True, text=True, check=False)

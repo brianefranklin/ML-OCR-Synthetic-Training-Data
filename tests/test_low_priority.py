@@ -17,37 +17,7 @@ except ImportError:
     HAS_PSUTIL = False
 
 
-@pytest.fixture
-def test_environment(tmp_path):
-    """Sets up a temporary directory structure for low priority tests."""
-    input_dir = tmp_path / "input"
-    output_dir = tmp_path / "output"
-    fonts_dir = input_dir / "fonts"
-    text_dir = input_dir / "text"
 
-    fonts_dir.mkdir(parents=True)
-    text_dir.mkdir(parents=True)
-    output_dir.mkdir()
-
-    corpus_path = text_dir / "corpus.txt"
-    with open(corpus_path, "w", encoding="utf-8") as f:
-        f.write("The quick brown fox jumps over the lazy dog. " * 50)
-
-    source_font_dir = Path(__file__).resolve().parent.parent / "data" / "fonts"
-    font_files = list(source_font_dir.glob("**/*.ttf")) + list(source_font_dir.glob("**/*.otf"))
-
-    if font_files:
-        random_fonts = random.sample(font_files, min(5, len(font_files)))
-        for font_file in random_fonts:
-            shutil.copy(font_file, fonts_dir)
-
-    return {
-        "text_file": str(corpus_path),
-        "fonts_dir": str(fonts_dir),
-        "output_dir": str(output_dir),
-        "text_dir": str(text_dir),
-        "source_font_dir": source_font_dir
-    }
 
 
 @pytest.mark.xfail(reason="Known limitation: whitespace-only corpus may cause infinite loop", strict=False)
