@@ -124,7 +124,8 @@ def place_on_canvas(
     canvas_size: Tuple[int, int] = None,
     min_padding: int = 10,
     placement: str = 'weighted_random',
-    background_color: Tuple[int, int, int] = (255, 255, 255)
+    background_color: Tuple[int, int, int] = (255, 255, 255),
+    text_offset: Tuple[int, int] = None
 ) -> Tuple[Image.Image, Dict]:
     """
     Place text image on a larger canvas.
@@ -136,6 +137,7 @@ def place_on_canvas(
         min_padding: Minimum padding around text
         placement: Placement strategy ('uniform_random', 'weighted_random', 'center')
         background_color: Background color for canvas (default white)
+        text_offset: Explicit text placement coordinates (x, y). If provided, overrides placement strategy.
 
     Returns:
         Tuple of (canvas_image, metadata_dict)
@@ -161,13 +163,16 @@ def place_on_canvas(
     transparent_bg = background_color + (0,) if len(background_color) == 3 else background_color
     canvas = Image.new('RGBA', canvas_size, color=transparent_bg)
 
-    # Calculate text placement
-    x_offset, y_offset = calculate_text_placement(
-        (text_width, text_height),
-        canvas_size,
-        min_padding,
-        placement
-    )
+    # Calculate text placement (or use provided offset for deterministic regeneration)
+    if text_offset is not None:
+        x_offset, y_offset = text_offset
+    else:
+        x_offset, y_offset = calculate_text_placement(
+            (text_width, text_height),
+            canvas_size,
+            min_padding,
+            placement
+        )
 
     # Text image should already be RGBA with transparent background
     # Paste directly using alpha channel as mask

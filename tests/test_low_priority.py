@@ -20,7 +20,7 @@ except ImportError:
 
 
 
-@pytest.mark.xfail(reason="Known limitation: whitespace-only corpus may cause infinite loop", strict=False)
+#@pytest.mark.xfail(reason="Known limitation: whitespace-only corpus may cause infinite loop", strict=False)
 def test_edge_case_whitespace_only_corpus(test_environment):
     """Tests handling of corpus with only whitespace.
 

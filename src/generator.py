@@ -695,6 +695,7 @@ class OCRDataGenerator:
                 spacing = OverlapRenderer.calculate_overlap_spacing(
                     char_width, overlap_intensity, enable_variation=False
                 )
+                total_width += spacing
 
         total_text_bbox = temp_draw.textbbox((0, 0), display_text, font=font)
         img_height = (total_text_bbox[3] - total_text_bbox[1]) + 30
@@ -733,12 +734,11 @@ class OCRDataGenerator:
             char_bbox = draw.textbbox((x_offset, y_offset), char, font=font)
             char_boxes.append(CharacterBox(char, list(char_bbox)))
 
-            # Apply overlap to spacing (small base spacing + overlap reduction)
-            base_spacing = 1
+            # Apply overlap to spacing
             spacing = OverlapRenderer.calculate_overlap_spacing(
                 char_width, overlap_intensity, enable_variation=True
             )
-            x_offset -= max(base_spacing, spacing * 0.1)  # Ensure some spacing
+            x_offset -= spacing
 
         # Apply ink bleed effect if enabled
         if OverlapRenderer.should_apply_ink_bleed(ink_bleed_intensity):
@@ -1470,7 +1470,8 @@ class OCRDataGenerator:
                       canvas_size: Tuple[int, int] = None,
                       canvas_min_padding: int = 10,
                       canvas_placement: str = 'weighted_random',
-                      canvas_max_megapixels: float = 12.0) -> Tuple[Image.Image, Dict, str]:
+                      canvas_max_megapixels: float = 12.0,
+                      text_offset: Tuple[int, int] = None) -> Tuple[Image.Image, Dict, str]:
         """
         Generate a single synthetic OCR image with augmentations.
 
@@ -1489,6 +1490,7 @@ class OCRDataGenerator:
             canvas_min_padding: Minimum padding around text
             canvas_placement: Placement strategy ('weighted_random', 'uniform_random', 'center')
             canvas_max_megapixels: Maximum canvas size in megapixels
+            text_offset: Explicit text placement (x, y) for deterministic regeneration
 
         Returns:
             Tuple of (final_image, metadata_dict, text)
@@ -1564,7 +1566,8 @@ class OCRDataGenerator:
                 canvas_size=canvas_size,
                 min_padding=canvas_min_padding,
                 placement=canvas_placement,
-                background_color=(255, 255, 255)
+                background_color=(255, 255, 255),
+                text_offset=text_offset
             )
 
             return final_image, metadata, text, augmentations_applied
