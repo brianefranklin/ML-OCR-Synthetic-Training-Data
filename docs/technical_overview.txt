@@ -1,4 +1,4 @@
-Technical Overview of the OCR Synthetic Data Generator
+Technical Overview of the Optical Character Recognition (OCR) Synthetic Data Generator
 
 This document provides a detailed technical explanation of the OCR synthetic data generator. It covers the high-level features and a breakdown of each module in the `src/` directory, explaining the purpose and implementation of each function.
 
@@ -10,7 +10,7 @@ The OCR data generator is a powerful tool for creating synthetic training data f
 - **Highly Configurable Generation**: YAML files in `batch_configs/` allow for fine-grained control over the generation process, including proportional generation, per-batch parameters, and interleaved generation.
 - **Efficient Corpus Handling**: The `CorpusManager` is optimized for terabyte-scale corpora, using sequential streaming to minimize memory usage.
 - **Comprehensive Text Rendering**: Supports left-to-right (with BiDi), right-to-left, top-to-bottom, and bottom-to-top text rendering. Curved text (along arcs and sine waves) is also supported for all four text directions.
-- **Realistic Text Imperfections**: Simulates real-world text with features like glyph overlap, ink bleed, and 3D effects.
+- **Realistic Text Imperfections**: Simulates real-world text with features like glyph overlap, ink bleed, and 3D effects (including drop shadows, embossing, and engraving).
 - **Rich Augmentation Pipeline**: Applies a variety of augmentations to the generated images to improve model robustness, including geometric distortions, noise, blur, and more.
 - **Intelligent Font Management**: The `FontHealthManager` tracks font reliability, automatically handling problematic fonts and prioritizing healthy ones. It features an exponential backoff cooldown mechanism for fonts that repeatedly fail.
 - **Dynamic Backgrounds**: The `BackgroundImageManager` manages and selects background images from multiple sources with validation and performance scoring. It supports weighted selection based on directories and brace expansion in glob patterns (e.g., `*.{png,jpg,jpeg}`).
