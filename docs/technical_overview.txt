@@ -1,0 +1,206 @@
+Technical Overview of the OCR Synthetic Data Generator
+
+This document provides a detailed technical explanation of the OCR synthetic data generator. It covers the high-level features and a breakdown of each module in the `src/` directory, explaining the purpose and implementation of each function.
+
+## 1. High-Level Features
+
+The OCR data generator is a powerful tool for creating synthetic training data for Optical Character Recognition models. Its key features include:
+
+- **Language-Agnostic Design**: The generator does not make assumptions about the language, making it suitable for ancient or complex scripts.
+- **Highly Configurable Generation**: YAML files in `batch_configs/` allow for fine-grained control over the generation process, including proportional generation, per-batch parameters, and interleaved generation.
+- **Efficient Corpus Handling**: The `CorpusManager` is optimized for terabyte-scale corpora, using sequential streaming to minimize memory usage.
+- **Comprehensive Text Rendering**: Supports left-to-right (with BiDi), right-to-left, top-to-bottom, and bottom-to-top text rendering. Curved text (along arcs and sine waves) is also supported for all four text directions.
+- **Realistic Text Imperfections**: Simulates real-world text with features like glyph overlap, ink bleed, and 3D effects.
+- **Rich Augmentation Pipeline**: Applies a variety of augmentations to the generated images to improve model robustness, including geometric distortions, noise, blur, and more.
+- **Intelligent Font Management**: The `FontHealthManager` tracks font reliability, automatically handling problematic fonts and prioritizing healthy ones. It features an exponential backoff cooldown mechanism for fonts that repeatedly fail.
+- **Dynamic Backgrounds**: The `BackgroundImageManager` manages and selects background images from multiple sources with validation and performance scoring. It supports weighted selection based on directories and brace expansion in glob patterns (e.g., `*.{png,jpg,jpeg}`).
+
+## 2. Implementation Requirements
+
+The implementation must adhere to the following requirements to ensure robustness, reproducibility, and ease of debugging:
+
+- **Deterministic Generation**: The generation process must be deterministic. When provided with the same seed and parameters, the script must produce a pixel-perfect identical image. This is crucial for regenerating images from the `generation_params` stored in the JSON output, which facilitates debugging and reproducibility.
+- **Batch Generation Robustness**: The batch generation process must be resilient to failures. It should include retry logic to ensure that the target number of images is generated, even if some individual generation attempts fail.
+- **RGBA Transparency**: The entire image generation pipeline must use RGBA images. This ensures that transparency is handled correctly, especially for text rendered with anti-aliasing, which can then be cleanly composited onto various backgrounds.
+- **Correlated, Timestamped Logging**: For each run, the script must generate a log file and a font health report with identical timestamps (e.g., `generation_YYYY-MM-DD_HH-MM-SS.log` and `font_health_YYYY-MM-DD_HH-MM-SS.json`). This allows for easy correlation between the generation logs and the font health data for that specific run.
+- **Graceful Error Handling**: The application must handle errors gracefully. This includes, but is not limited to, handling missing or empty corpus files, invalid font files, and missing directories, providing clear error messages without crashing.
+
+## 3. Core Engine (`src/main.py`)
+
+The `main.py` script is the main entry point for the data generator. It handles command-line argument parsing, configuration loading, asset loading, and orchestrates the generation process.
+
+### `main()`
+
+This is the main function that executes when the script is run.
+
+- **Argument Parsing**: Uses Python's `argparse` library to parse command-line arguments. It also loads a default configuration from `config.json` if it exists.
+- **Logging Setup**: Calls `setup_logging()` to configure logging to both a timestamped file in the `logs/` directory and the console.
+- **Output Directory**: Optionally clears the output directory if the `--clear-output` flag is provided.
+- **Asset Loading**: Loads font files from the specified fonts directory and validates them by attempting to load them with `PIL.ImageFont.truetype()`.
+- **Batch vs. Standard Mode**:
+    - If a `--batch-config` is provided, it loads the YAML file using `batch_config.BatchConfig.from_yaml()` and calls `generation_orchestrator.generate_with_batches()` to handle the batch generation.
+    - Otherwise, it runs in standard mode, creating a `CorpusManager` and an `OCRDataGenerator` instance and generating images in a loop.
+- **Font Health Management**: Initializes the `FontHealthManager` and passes it to the other modules (`font_utils` and `generation_orchestrator`) so they can share the same font health data.
+- **Image Generation Loop (Standard Mode)**:
+    - Extracts text segments from the `CorpusManager`.
+    - Selects a font using the `FontHealthManager`.
+    - Calls `generator.generate_image()` to create the synthetic image.
+    - Saves the generated image and its corresponding JSON label file.
+    - Records the success or failure of the generation with the `FontHealthManager`.
+
+### `setup_logging(log_level, log_file)`
+
+Configures the logging for the application.
+
+- Uses Python's `logging` module.
+- Creates a log file with a timestamp in the specified log directory.
+- Adds a `StreamHandler` to also output logs to the console.
+
+### `clear_output_directory(output_dir, force)`
+
+Clears the specified output directory.
+
+- Prompts the user for confirmation unless the `--force` flag is used.
+- Uses `os.listdir()` and `os.unlink()` to delete files in the directory.
+
+## 4. Batch Processing (`src/batch_config.py`, `src/generation_orchestrator.py`)
+
+### `src/batch_config.py`
+
+This module defines the data structures for batch configurations and provides a way to load them from YAML files.
+
+- **`BatchSpecification` (dataclass)**: Represents the configuration for a single batch. It includes parameters like `proportion`, `text_direction`, `corpus_file`, `font_filter`, `min_text_length`, `max_text_length`, and various effect and augmentation parameters.
+- **`BatchConfig` (dataclass)**: Represents the entire batch configuration, including the total number of images and a list of `BatchSpecification` objects.
+    - `from_yaml(cls, yaml_path)`: A class method that loads and parses a YAML file into a `BatchConfig` object. It uses the `PyYAML` library.
+- **`BatchManager`**: Manages the interleaved generation of images from different batches.
+    - `_allocate_images()`: Allocates the total number of images to the different batches based on their proportions.
+    - `get_next_task()`: Returns the parameters for the next image to be generated, selected in a round-robin fashion from the active batches. This ensures that images from different batches are generated in an interleaved manner.
+    - `mark_task_success()`: Marks a task as complete, incrementing the generated count for the corresponding batch.
+
+### `src/generation_orchestrator.py`
+
+This module orchestrates the generation process when using batch configurations.
+
+- **`generate_with_batches(batch_config, font_files, background_images, args, OCRDataGenerator)`**:
+    - Initializes a `BatchManager`.
+    - Loops until the total number of images has been generated, getting tasks from the `BatchManager`.
+    - For each task, it sets up the appropriate `CorpusManager` and `BackgroundImageManager`.
+    - It then calls `generator.generate_image()` with the parameters from the task.
+    - It saves the resulting image and JSON label.
+    - It records the success or failure with the `FontHealthManager` and `BackgroundImageManager`.
+
+## 5. Corpus Management (`src/corpus_manager.py`)
+
+The `CorpusManager` is designed for efficient handling of large text corpora.
+
+- **`CorpusManager`**:
+    - `__init__(...)`: Initializes the manager with a list of corpus files. It uses a round-robin approach to read from the files, and each worker in a parallel processing setup gets an independent stream.
+    - `extract_text_segment(min_length, max_length)`: Extracts a random text segment from the corpus. It does this by reading a chunk of a file into a buffer and then selecting a random substring from that buffer. This is much more efficient than reading the entire file into memory.
+    - `_ensure_buffer(min_buffer_size)`: Ensures that the internal buffer has enough data, reading from the current file if necessary. If the current file is exhausted, it rotates to the next one.
+    - `from_directory(...)`, `from_file_or_directory(...)`, `from_pattern(...)`: Static methods that provide convenient ways to create a `CorpusManager` from a directory of files, a single file, or a glob pattern.
+
+## 6. Text Rendering and Layout (`src/generator.py`, `src/canvas_placement.py`)
+
+### `src/generator.py`
+
+This is the core class responsible for rendering text and generating images.
+
+- **`OCRDataGenerator`**:
+    - `render_text(...)`: A dispatcher function that calls the appropriate rendering function based on the specified `direction`.
+    - **`render_left_to_right(...)`**: Renders text from left to right. It iterates through the characters in the text, drawing each one and recording its bounding box using `PIL.ImageDraw.Draw.textbbox()`. It uses `glyph_overlap.OverlapRenderer.calculate_overlap_spacing()` to adjust the spacing between characters.
+    - **`render_right_to_left(...)`**: Renders text from right to left. It uses the `bidi.algorithm.get_display()` function to get the correct display order for RTL text. It then renders the characters from right to left.
+    - **`render_top_to_bottom(...)` and `render_bottom_to_top(...)`**: Render vertical text. They iterate through the characters, drawing them one below the other and centering them horizontally.
+    - **`render_curved_text(...)`, `render_right_to_left_curved(...)`, `render_top_to_bottom_curved(...)`, `render_bottom_to_top_curved(...)`**: Renders text along a curve (arc or sine wave) for all four text directions. It calculates the position and rotation of each character and then renders it. For rotated characters, it creates a temporary image for the character, rotates it, and then pastes it onto the main image. It calculates the bounding box of the rotated character using a rotation matrix.
+    - `generate_image(...)`: The main image generation function. It loads the font, calls the appropriate rendering function, applies augmentations using `augmentations.apply_augmentations()`, and then places the text on a larger canvas using `canvas_placement.place_on_canvas()`.
+
+### `src/canvas_placement.py`
+
+This module handles the placement of the rendered text onto a larger canvas.
+
+- **`generate_random_canvas_size(...)`**: Generates a random canvas size that is large enough to fit the text with some padding.
+- **`calculate_text_placement(...)`**: Calculates the position where the text should be placed on the canvas. It supports different placement strategies like `uniform_random`, `weighted_random` (biased towards the center), and `center`.
+- **`place_on_canvas(...)`**: Creates a new canvas (either a solid color or a background image) and pastes the rendered text onto it at the calculated position. It also adjusts the character bounding boxes to be relative to the new canvas.
+- **`create_label_json(...)` and `save_label_json(...)`**: Create and save the JSON label file, which contains the ground truth for the generated image, including the text, canvas size, and character bounding boxes.
+
+## 7. Text Effects and Augmentations
+
+### `src/glyph_overlap.py`
+
+This module simulates glyph overlap and ink bleed effects.
+
+- **`OverlapRenderer`**:
+    - `calculate_overlap_spacing(...)`: Calculates a reduced spacing between characters to simulate overlap. It's a language-agnostic approach that works by reducing the spacing based on the character width and an `overlap_intensity` parameter.
+    - `apply_ink_bleed(...)`: Simulates ink bleed by applying a Gaussian blur (`PIL.ImageFilter.GaussianBlur`) and other image filters to the rendered text.
+
+### `src/text_3d_effects.py`
+
+This module adds 3D effects to the text.
+
+- **`Text3DEffects`**:
+    - `apply_effect(...)`: A dispatcher that calls the appropriate effect function.
+    - `_apply_drop_shadow(...)`: Creates a drop shadow effect by creating a blurred, gray version of the text and pasting it behind the original text.
+    - `_apply_emboss(...)`: Creates an embossed effect by generating highlight and shadow layers from the text mask and compositing them with the original text.
+    - `_apply_deboss(...)`: Creates a debossed (engraved) effect by applying the emboss effect with an inverted light direction.
+
+### `src/text_color.py`
+
+This module handles text color variations.
+
+- **`ColorRenderer`**:
+    - `generate_line_colors(...)`: Generates colors for each character in the text. It supports several modes:
+        - `uniform`: All characters have the same color.
+        - `per_glyph`: Each character has a different, random color.
+        - `gradient`: A smooth color gradient is applied across the text.
+        - `random`: Randomly chooses between `uniform` and `per_glyph`.
+    - It uses predefined color palettes (`REALISTIC_DARK`, `VIBRANT`, etc.) or custom colors provided by the user.
+
+### `src/augmentations.py`
+
+This module applies a variety of augmentations to the generated images to make the training data more robust.
+
+- **`apply_augmentations(...)`**: The main function that applies a random pipeline of augmentations.
+- **Geometric Distortions**:
+    - `perspective_transform(...)`: Applies a perspective warp using `cv2.getPerspectiveTransform()` and `cv2.warpPerspective()`.
+    - `elastic_distortion(...)`: Creates a "wavy" effect using `cv2.remap()`.
+    - `rotate_image(...)`: Rotates the image by a small random angle using `PIL.Image.rotate()` and adjusts the bounding boxes using a rotation matrix from `cv2.getRotationMatrix2D()`.
+- **Image-Level Effects**:
+    - `add_noise(...)`: Adds "salt and pepper" noise.
+    - `blur_image(...)`: Applies a Gaussian blur using `PIL.ImageFilter.GaussianBlur`.
+    - `adjust_brightness_contrast(...)`: Adjusts brightness and contrast using `PIL.ImageEnhance`.
+    - `erode_dilate(...)`: Makes the text characters thinner or thicker using `cv2.erode()` or `cv2.dilate()`.
+    - `add_shadow(...)`: Adds a soft shadow effect.
+    - `cutout(...)`: Randomly erases a rectangular portion of the image.
+- **Bounding Box Adjustments**: For geometric distortions, the character bounding boxes are recalculated to remain accurate.
+
+## 8. Font Management (`src/font_utils.py`, `src/font_health_manager.py`)
+
+### `src/font_utils.py`
+
+This module provides utility functions for working with fonts.
+
+- **`can_font_render_text(font_path, text, character_set)`**: Checks if a font can render a given text. It does this by trying to load the font and checking if it has the required characters. It also integrates with the `FontHealthManager` to skip unhealthy fonts.
+
+### `src/font_health_manager.py`
+
+This module implements an intelligent font health tracking system.
+
+- **`FontHealth` (dataclass)**: Tracks health metrics for a single font, including `health_score`, `success_count`, `failure_count`, and `cooldown_until`.
+- **`FontHealthManager`**:
+    - `record_success(...)` and `record_failure(...)`: Update the health score of a font based on whether it was used successfully or not.
+    - **Cooldown Mechanism**: If a font fails multiple times consecutively, it is put into a "cooldown" period during which it won't be used. The cooldown duration increases exponentially with each consecutive failure (exponential backoff).
+    - `get_available_fonts(...)`: Returns a list of healthy fonts that are not in cooldown.
+    - `select_font_weighted(...)`: Selects a font from a list of available fonts, with a higher probability of selecting fonts with higher health scores.
+    - `save_state()` and `load_state()`: Persist the font health data to a JSON file, allowing the system to learn across multiple generation runs.
+
+## 9. Background Management (`src/background_manager.py`)
+
+This module is responsible for managing background images.
+
+- **`BackgroundImageManager`**:
+    - `__init__(...)`: Initializes the manager with a list of directories containing background images. It can also take weights for each directory. It supports brace expansion in glob patterns (e.g., `*.{png,jpg,jpeg}`).
+    - `_discover_backgrounds()`: Finds all the background images in the specified directories.
+    - `select_background()`: Selects a background image using a weighted random selection based on directory weights and performance scores.
+    - `validate_background(...)`: Checks if a background image is suitable for a given canvas size and text bounding box.
+    - `load_and_crop_background(...)`: Loads a background image and crops a random region to the desired canvas size.
+    - `update_score(...)`: Updates the performance score of a background image. If a background is too small or fails to load, its score is penalized.
+    - `finalize()`: Saves the background image scores to a file.
