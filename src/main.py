@@ -166,6 +166,8 @@ def main():
     log_file_path = os.path.join(args.log_dir, f'generation_{run_timestamp}.log')
     setup_logging(args.log_level, log_file_path)
     logging.info("Script started.")
+    print(f"Run Started: {run_timestamp}")
+
 
     # --- Clear Output Directory (if requested) ---
     if args.clear_output:
@@ -454,6 +456,7 @@ def main():
         logging.info(f"Final font health report: {report}")
 
     logging.info("Script finished.")
+    print(f"Run Finished: {time.strftime('%Y-%m-%d_%H-%M-%S')}")
 
 
 if __name__ == "__main__":
