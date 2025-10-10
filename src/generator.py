@@ -687,15 +687,25 @@ class OCRDataGenerator:
         temp_draw = ImageDraw.Draw(temp_img)
 
         total_width = 40  # Margins
-        for i, char in enumerate(display_text):
-            char_width = temp_draw.textlength(char, font=font)
-            if i == 0:
-                total_width += char_width
-            else:
-                spacing = OverlapRenderer.calculate_overlap_spacing(
-                    char_width, overlap_intensity, enable_variation=False
-                )
-                total_width += spacing
+        if overlap_intensity == 0:
+            # For no overlap, calculate width of the whole string for accuracy with complex scripts.
+            total_text_bbox = temp_draw.textbbox((0, 0), display_text, font=font)
+            string_width = total_text_bbox[2] - total_text_bbox[0] if total_text_bbox else 0
+            total_width += string_width
+        else:
+            # Fallback to per-character measurement for overlap, with a warning.
+            # This is inaccurate for complex scripts but necessary for the overlap effect.
+            logging.warning("Overlap intensity with RTL may produce inaccurate character spacing.")
+            for i, char in enumerate(display_text):
+                bbox = temp_draw.textbbox((0, 0), char, font=font)
+                char_width = bbox[2] - bbox[0] if bbox else 0
+                if i == 0:
+                    total_width += char_width
+                else:
+                    spacing = OverlapRenderer.calculate_overlap_spacing(
+                        char_width, overlap_intensity, enable_variation=False
+                    )
+                    total_width += spacing
 
         total_text_bbox = temp_draw.textbbox((0, 0), display_text, font=font)
         img_height = (total_text_bbox[3] - total_text_bbox[1]) + 30
@@ -723,7 +733,9 @@ class OCRDataGenerator:
         y_offset = 15
 
         for i, char in enumerate(display_text):
-            char_width = draw.textlength(char, font=font)
+            # Measure character width using textbbox for better accuracy than textlength
+            bbox = temp_draw.textbbox((0, 0), char, font=font)
+            char_width = bbox[2] - bbox[0] if bbox else 0
             x_offset -= char_width
 
             # Add full opacity to RGB color
@@ -1471,7 +1483,8 @@ class OCRDataGenerator:
                       canvas_min_padding: int = 10,
                       canvas_placement: str = 'weighted_random',
                       canvas_max_megapixels: float = 12.0,
-                      text_offset: Tuple[int, int] = None) -> Tuple[Image.Image, Dict, str]:
+                      text_offset: Tuple[int, int] = None,
+                      background_image: Image.Image = None) -> Tuple[Image.Image, Dict, str]:
         """
         Generate a single synthetic OCR image with augmentations.
 
@@ -1542,9 +1555,9 @@ class OCRDataGenerator:
         # Extract just the bbox coordinates
         char_bboxes = [box.bbox for box in char_boxes]
 
-        # Apply augmentations
+        # Apply augmentations (background_images parameter is now deprecated and ignored)
         augmented_image, augmented_bboxes, augmentations_applied = apply_augmentations(
-            image, char_bboxes, self.background_images, augmentations_to_apply=augmentations
+            image, char_bboxes, augmentations_to_apply=augmentations
         )
 
         # Apply canvas placement if enabled
@@ -1567,7 +1580,8 @@ class OCRDataGenerator:
                 min_padding=canvas_min_padding,
                 placement=canvas_placement,
                 background_color=(255, 255, 255),
-                text_offset=text_offset
+                text_offset=text_offset,
+                background_image=background_image
             )
 
             return final_image, metadata, text, augmentations_applied

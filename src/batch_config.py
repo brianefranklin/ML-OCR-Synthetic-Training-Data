@@ -46,6 +46,10 @@ class BatchSpecification:
     color_palette: str = "realistic_dark"  # 'realistic_dark', 'vibrant', 'pastels', etc.
     custom_colors: Optional[List[Tuple[int, int, int]]] = None  # Optional list of custom RGB tuples
     background_color: Union[Tuple[int, int, int], str] = "auto"  # Background color RGB tuple or 'auto'
+    background_dirs: Optional[List[str]] = None  # List of directories containing background images
+    background_pattern: str = "*.{png,jpg,jpeg}"  # Glob pattern for background images
+    background_weights: Dict[str, float] = field(default_factory=dict)  # Weights for background directory selection
+    use_solid_background_fallback: bool = True  # Fallback to solid color if no valid backgrounds
     augmentation_params: Dict[str, Any] = field(default_factory=dict)
 
     def __post_init__(self):
@@ -134,6 +138,10 @@ class BatchConfig:
                 color_palette=batch_data.get('color_palette', 'realistic_dark'),
                 custom_colors=batch_data.get('custom_colors'),
                 background_color=batch_data.get('background_color', 'auto'),
+                background_dirs=batch_data.get('background_dirs'),
+                background_pattern=batch_data.get('background_pattern', '*.{png,jpg,jpeg}'),
+                background_weights=batch_data.get('background_weights', {}),
+                use_solid_background_fallback=batch_data.get('use_solid_background_fallback', True),
                 augmentation_params=batch_data.get('augmentation_params', {})
             )
             batches.append(batch)
@@ -269,6 +277,10 @@ class BatchManager:
             'color_palette': batch.color_palette,
             'custom_colors': batch.custom_colors,
             'background_color': batch.background_color,
+            'background_dirs': batch.background_dirs,
+            'background_pattern': batch.background_pattern,
+            'background_weights': batch.background_weights,
+            'use_solid_background_fallback': batch.use_solid_background_fallback,
             'augmentation_params': batch.augmentation_params,
             'progress': f"{alloc['generated_count']+1}/{alloc['target_count']}",
             'batch_index': self.batch_allocations.index(alloc)  # Track which batch this is

@@ -99,7 +99,8 @@ class FontHealthManager:
                  success_increment: float = 1.0,
                  failure_decrement: float = 10.0,
                  cooldown_base_seconds: float = 300.0,
-                 auto_save_interval: int = 50):
+                 auto_save_interval: int = 50,
+                 enable_persistence: bool = True):
         """
         Initialize the font health manager.
 
@@ -110,6 +111,8 @@ class FontHealthManager:
             failure_decrement: Points to subtract on failure
             cooldown_base_seconds: Base cooldown duration (doubles per consecutive failure)
             auto_save_interval: Save state every N operations
+            enable_persistence: If False, scores are session-only (not saved/loaded from disk).
+                              Use False for batch mode where context changes between jobs.
         """
         self.health_file = health_file
         self.min_health_threshold = min_health_threshold
@@ -117,12 +120,16 @@ class FontHealthManager:
         self.failure_decrement = failure_decrement
         self.cooldown_base_seconds = cooldown_base_seconds
         self.auto_save_interval = auto_save_interval
+        self.enable_persistence = enable_persistence
 
         self.fonts: Dict[str, FontHealth] = {}
         self.operation_count = 0
 
-        # Load existing state if available
-        self.load_state()
+        # Load existing state if available and persistence is enabled
+        if self.enable_persistence:
+            self.load_state()
+        else:
+            logging.info("Font health persistence disabled - using session-only scoring")
 
     def register_font(self, font_path: str) -> None:
         """Register a font if not already tracked."""
@@ -285,7 +292,11 @@ class FontHealthManager:
         return available[0]
 
     def save_state(self) -> None:
-        """Save current state to JSON file."""
+        """Save current state to JSON file (only if persistence is enabled)."""
+        if not self.enable_persistence:
+            logging.debug("Font health persistence disabled, skipping save")
+            return
+
         try:
             data = {
                 'fonts': {path: font.to_dict() for path, font in self.fonts.items()},

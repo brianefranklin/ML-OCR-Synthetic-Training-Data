@@ -60,6 +60,14 @@ Specify text and background colors per batch:
 - `custom_colors`: A list of custom RGB colors
 - `background_color`: A specific RGB color or `auto` for contrast
 
+### ✅ Background Images
+Use real images as backgrounds with intelligent selection:
+- Multiple background directories per batch
+- Automatic validation and scoring
+- Weighted directory selection
+- Random region cropping for large images
+- See [Background Images Documentation](BACKGROUND_IMAGES.md) for details
+
 ### ✅ Single Script Run
 No more shell scripts calling the generator 40+ times. One command, one process.
 
@@ -152,6 +160,10 @@ batches:
 | `color_palette` | string | No | "realistic_dark" | "realistic_dark", "realistic_light", "vibrant", "pastels" |
 | `custom_colors` | list | No | None | List of RGB tuples, e.g., `[[255, 0, 0], [0, 0, 255]]` |
 | `background_color`| string or list | No | "auto" | RGB tuple or "auto" |
+| `background_dirs` | list | No | None | List of directories containing background images |
+| `background_pattern` | string | No | "*.{png,jpg,jpeg}" | Glob pattern for background images |
+| `background_weights` | dict | No | {} | Directory → weight mapping for background selection |
+| `use_solid_background_fallback` | bool | No | True | Fall back to solid color if no valid backgrounds |
 
 ## Font Filters
 
@@ -311,9 +323,9 @@ python3 src/main.py --batch-config batches.yaml --output-dir output ...
 
 ## Future Enhancements
 
+- [x] Background image filters per batch (✅ Implemented - see [BACKGROUND_IMAGES.md](BACKGROUND_IMAGES.md))
 - [ ] Per-batch augmentation parameters
 - [ ] Multiple corpus files per batch (random selection)
-- [ ] Background image filters per batch
 - [ ] Font size ranges per batch
 - [ ] Progress callbacks/hooks
 - [ ] Resume interrupted generation

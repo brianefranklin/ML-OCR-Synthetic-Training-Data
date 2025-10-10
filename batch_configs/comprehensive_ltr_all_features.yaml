@@ -1,1224 +1,1255 @@
-# COMPREHENSIVE LEFT-TO-RIGHT FEATURE TEST
-# Systematically tests ALL available features for LTR text
-# Organized by feature category for maximum test coverage
-# Total: 2400 images (expanded to include augmentation, background, and custom color variations)
-
-total_images: 2400
-seed: 42  # For reproducibility
-
+total_images: 2600
+seed: 42
 batches:
-  # ==========================================================================
-  # SECTION 1: BASELINE & CURVE VARIATIONS (330 images, 13.75%)
-  # ==========================================================================
-
-  # --- Pure Baseline (no effects) - 100 images ---
-  - name: baseline_plain
-    proportion: 0.023810
-    text_direction: left_to_right
-    corpus_dir: data.nosync/corpus_text/ltr
-    min_text_length: 5
-    max_text_length: 25
-    curve_type: none
-    overlap_intensity: 0.0
-    ink_bleed_intensity: 0.0
-    effect_type: none
-    text_color_mode: uniform
-    color_palette: realistic_dark
-
-  # --- Arc Curves - 100 images ---
-  - name: arc_subtle
-    proportion: 0.023810
-    text_direction: left_to_right
-    corpus_dir: data.nosync/corpus_text/ltr
-    min_text_length: 6
-    max_text_length: 20
-    curve_type: arc
-    curve_intensity: 0.25
-    overlap_intensity: 0.0
-    ink_bleed_intensity: 0.0
-    effect_type: none
-    text_color_mode: uniform
-    color_palette: realistic_dark
-
-  - name: arc_moderate
-    proportion: 0.023810
-    text_direction: left_to_right
-    corpus_dir: data.nosync/corpus_text/ltr
-    min_text_length: 6
-    max_text_length: 20
-    curve_type: arc
-    curve_intensity: 0.5
-    overlap_intensity: 0.0
-    ink_bleed_intensity: 0.0
-    effect_type: none
-    text_color_mode: uniform
-    color_palette: realistic_dark
-
-  # --- Sine Curves - 100 images ---
-  - name: sine_subtle
-    proportion: 0.023810
-    text_direction: left_to_right
-    corpus_dir: data.nosync/corpus_text/ltr
-    min_text_length: 8
-    max_text_length: 22
-    curve_type: sine
-    curve_intensity: 0.3
-    overlap_intensity: 0.0
-    ink_bleed_intensity: 0.0
-    effect_type: none
-    text_color_mode: uniform
-    color_palette: realistic_dark
-
-  - name: sine_strong
-    proportion: 0.023810
-    text_direction: left_to_right
-    corpus_dir: data.nosync/corpus_text/ltr
-    min_text_length: 8
-    max_text_length: 22
-    curve_type: sine
-    curve_intensity: 0.6
-    overlap_intensity: 0.0
-    ink_bleed_intensity: 0.0
-    effect_type: none
-    text_color_mode: uniform
-    color_palette: realistic_dark
-
-  # --- Extreme Curves - 100 images ---
-  - name: arc_extreme
-    proportion: 0.023810
-    text_direction: left_to_right
-    corpus_dir: data.nosync/corpus_text/ltr
-    min_text_length: 5
-    max_text_length: 15
-    curve_type: arc
-    curve_intensity: 0.8
-    overlap_intensity: 0.0
-    ink_bleed_intensity: 0.0
-    effect_type: none
-    text_color_mode: uniform
-    color_palette: realistic_dark
-
-  - name: sine_extreme
-    proportion: 0.023810
-    text_direction: left_to_right
-    corpus_dir: data.nosync/corpus_text/ltr
-    min_text_length: 5
-    max_text_length: 15
-    curve_type: sine
-    curve_intensity: 0.75
-    overlap_intensity: 0.0
-    ink_bleed_intensity: 0.0
-    effect_type: none
-    text_color_mode: uniform
-    color_palette: realistic_dark
-
-  # ==========================================================================
-  # SECTION 2: 3D EFFECTS (400 images, 20%)
-  # ==========================================================================
-
-  # --- Raised Effect - 100 images ---
-  - name: raised_light_depth
-    proportion: 0.020833
-    text_direction: left_to_right
-    corpus_dir: data.nosync/corpus_text/ltr
-    min_text_length: 6
-    max_text_length: 18
-    curve_type: none
-    overlap_intensity: 0.0
-    ink_bleed_intensity: 0.0
-    effect_type: raised
-    effect_depth: 0.4
-    light_azimuth: 135.0
-    light_elevation: 45.0
-    text_color_mode: uniform
-    color_palette: realistic_dark
-
-  - name: raised_heavy_depth
-    proportion: 0.020833
-    text_direction: left_to_right
-    corpus_dir: data.nosync/corpus_text/ltr
-    min_text_length: 6
-    max_text_length: 18
-    curve_type: none
-    overlap_intensity: 0.0
-    ink_bleed_intensity: 0.0
-    effect_type: raised
-    effect_depth: 0.8
-    light_azimuth: 135.0
-    light_elevation: 45.0
-    text_color_mode: uniform
-    color_palette: realistic_dark
-
-  # --- Embossed Effect - 100 images ---
-  - name: embossed_standard
-    proportion: 0.020833
-    text_direction: left_to_right
-    corpus_dir: data.nosync/corpus_text/ltr
-    min_text_length: 6
-    max_text_length: 18
-    curve_type: none
-    overlap_intensity: 0.0
-    ink_bleed_intensity: 0.0
-    effect_type: embossed
-    effect_depth: 0.5
-    light_azimuth: 120.0
-    light_elevation: 50.0
-    text_color_mode: uniform
-    color_palette: realistic_dark
-
-  - name: embossed_deep
-    proportion: 0.020833
-    text_direction: left_to_right
-    corpus_dir: data.nosync/corpus_text/ltr
-    min_text_length: 6
-    max_text_length: 18
-    curve_type: none
-    overlap_intensity: 0.0
-    ink_bleed_intensity: 0.0
-    effect_type: embossed
-    effect_depth: 0.8
-    light_azimuth: 120.0
-    light_elevation: 50.0
-    text_color_mode: uniform
-    color_palette: realistic_dark
-
-  # --- Engraved Effect - 100 images ---
-  - name: engraved_subtle
-    proportion: 0.020833
-    text_direction: left_to_right
-    corpus_dir: data.nosync/corpus_text/ltr
-    min_text_length: 6
-    max_text_length: 18
-    curve_type: none
-    overlap_intensity: 0.0
-    ink_bleed_intensity: 0.0
-    effect_type: engraved
-    effect_depth: 0.4
-    light_azimuth: 90.0
-    light_elevation: 40.0
-    text_color_mode: uniform
-    color_palette: realistic_dark
-
-  - name: engraved_deep
-    proportion: 0.020833
-    text_direction: left_to_right
-    corpus_dir: data.nosync/corpus_text/ltr
-    min_text_length: 6
-    max_text_length: 18
-    curve_type: none
-    overlap_intensity: 0.0
-    ink_bleed_intensity: 0.0
-    effect_type: engraved
-    effect_depth: 0.7
-    light_azimuth: 90.0
-    light_elevation: 40.0
-    text_color_mode: uniform
-    color_palette: realistic_dark
-
-  # --- Variable Lighting Angles - 100 images ---
-  - name: lighting_low_angle
-    proportion: 0.020833
-    text_direction: left_to_right
-    corpus_dir: data.nosync/corpus_text/ltr
-    min_text_length: 8
-    max_text_length: 18
-    curve_type: none
-    overlap_intensity: 0.0
-    ink_bleed_intensity: 0.0
-    effect_type: embossed
-    effect_depth: 0.6
-    light_azimuth: 90.0
-    light_elevation: 20.0
-    text_color_mode: uniform
-    color_palette: realistic_dark
-
-  - name: lighting_high_angle
-    proportion: 0.020833
-    text_direction: left_to_right
-    corpus_dir: data.nosync/corpus_text/ltr
-    min_text_length: 8
-    max_text_length: 18
-    curve_type: none
-    overlap_intensity: 0.0
-    ink_bleed_intensity: 0.0
-    effect_type: embossed
-    effect_depth: 0.6
-    light_azimuth: 180.0
-    light_elevation: 75.0
-    text_color_mode: uniform
-    color_palette: realistic_dark
-
-  # ==========================================================================
-  # SECTION 3: TEXT COLOR MODES & PALETTES (400 images, 20%)
-  # ==========================================================================
-
-  # --- Uniform Color Mode (all palettes) - 100 images ---
-  - name: uniform_realistic_dark
-    proportion: 0.020833
-    text_direction: left_to_right
-    corpus_dir: data.nosync/corpus_text/ltr
-    min_text_length: 8
-    max_text_length: 20
-    curve_type: none
-    overlap_intensity: 0.0
-    ink_bleed_intensity: 0.0
-    effect_type: none
-    text_color_mode: uniform
-    color_palette: realistic_dark
-
-  - name: uniform_realistic_light
-    proportion: 0.020833
-    text_direction: left_to_right
-    corpus_dir: data.nosync/corpus_text/ltr
-    min_text_length: 8
-    max_text_length: 20
-    curve_type: none
-    overlap_intensity: 0.0
-    ink_bleed_intensity: 0.0
-    effect_type: none
-    text_color_mode: uniform
-    color_palette: realistic_light
-
-  # --- Per-Glyph Color Mode (all palettes) - 100 images ---
-  - name: perglyph_vibrant
-    proportion: 0.020833
-    text_direction: left_to_right
-    corpus_dir: data.nosync/corpus_text/ltr
-    min_text_length: 8
-    max_text_length: 20
-    curve_type: none
-    overlap_intensity: 0.0
-    ink_bleed_intensity: 0.0
-    effect_type: none
-    text_color_mode: per_glyph
-    color_palette: vibrant
-
-  - name: perglyph_pastels
-    proportion: 0.020833
-    text_direction: left_to_right
-    corpus_dir: data.nosync/corpus_text/ltr
-    min_text_length: 8
-    max_text_length: 20
-    curve_type: none
-    overlap_intensity: 0.0
-    ink_bleed_intensity: 0.0
-    effect_type: none
-    text_color_mode: per_glyph
-    color_palette: pastels
-
-  # --- Gradient Color Mode (all palettes) - 100 images ---
-  - name: gradient_vibrant
-    proportion: 0.020833
-    text_direction: left_to_right
-    corpus_dir: data.nosync/corpus_text/ltr
-    min_text_length: 10
-    max_text_length: 25
-    curve_type: none
-    overlap_intensity: 0.0
-    ink_bleed_intensity: 0.0
-    effect_type: none
-    text_color_mode: gradient
-    color_palette: vibrant
-
-  - name: gradient_pastels
-    proportion: 0.020833
-    text_direction: left_to_right
-    corpus_dir: data.nosync/corpus_text/ltr
-    min_text_length: 10
-    max_text_length: 25
-    curve_type: none
-    overlap_intensity: 0.0
-    ink_bleed_intensity: 0.0
-    effect_type: none
-    text_color_mode: gradient
-    color_palette: pastels
-
-  # --- Random Color Mode - 100 images ---
-  - name: random_realistic_dark
-    proportion: 0.020833
-    text_direction: left_to_right
-    corpus_dir: data.nosync/corpus_text/ltr
-    min_text_length: 8
-    max_text_length: 20
-    curve_type: none
-    overlap_intensity: 0.0
-    ink_bleed_intensity: 0.0
-    effect_type: none
-    text_color_mode: random
-    color_palette: realistic_dark
-
-  - name: random_vibrant
-    proportion: 0.020833
-    text_direction: left_to_right
-    corpus_dir: data.nosync/corpus_text/ltr
-    min_text_length: 8
-    max_text_length: 20
-    curve_type: none
-    overlap_intensity: 0.0
-    ink_bleed_intensity: 0.0
-    effect_type: none
-    text_color_mode: random
-    color_palette: vibrant
-
-  # ==========================================================================
-  # SECTION 4: GLYPH OVERLAP VARIATIONS (200 images, 10%)
-  # ==========================================================================
-
-  - name: overlap_light
-    proportion: 0.020833
-    text_direction: left_to_right
-    corpus_dir: data.nosync/corpus_text/ltr
-    min_text_length: 8
-    max_text_length: 20
-    curve_type: none
-    overlap_intensity: 0.3
-    ink_bleed_intensity: 0.0
-    effect_type: none
-    text_color_mode: uniform
-    color_palette: realistic_dark
-
-  - name: overlap_moderate
-    proportion: 0.020833
-    text_direction: left_to_right
-    corpus_dir: data.nosync/corpus_text/ltr
-    min_text_length: 8
-    max_text_length: 20
-    curve_type: none
-    overlap_intensity: 0.5
-    ink_bleed_intensity: 0.0
-    effect_type: none
-    text_color_mode: uniform
-    color_palette: realistic_dark
-
-  - name: overlap_heavy
-    proportion: 0.020833
-    text_direction: left_to_right
-    corpus_dir: data.nosync/corpus_text/ltr
-    min_text_length: 10
-    max_text_length: 20
-    curve_type: none
-    overlap_intensity: 0.7
-    ink_bleed_intensity: 0.0
-    effect_type: none
-    text_color_mode: uniform
-    color_palette: realistic_dark
-
-  - name: overlap_extreme
-    proportion: 0.020833
-    text_direction: left_to_right
-    corpus_dir: data.nosync/corpus_text/ltr
-    min_text_length: 10
-    max_text_length: 20
-    curve_type: none
-    overlap_intensity: 0.85
-    ink_bleed_intensity: 0.0
-    effect_type: none
-    text_color_mode: uniform
-    color_palette: realistic_dark
-
-  # ==========================================================================
-  # SECTION 5: INK BLEED VARIATIONS (200 images, 10%)
-  # ==========================================================================
-
-  - name: ink_bleed_light
-    proportion: 0.020833
-    text_direction: left_to_right
-    corpus_dir: data.nosync/corpus_text/ltr
-    min_text_length: 10
-    max_text_length: 25
-    curve_type: none
-    overlap_intensity: 0.0
-    ink_bleed_intensity: 0.3
-    effect_type: none
-    text_color_mode: uniform
-    color_palette: realistic_dark
-
-  - name: ink_bleed_moderate
-    proportion: 0.020833
-    text_direction: left_to_right
-    corpus_dir: data.nosync/corpus_text/ltr
-    min_text_length: 10
-    max_text_length: 25
-    curve_type: none
-    overlap_intensity: 0.0
-    ink_bleed_intensity: 0.5
-    effect_type: none
-    text_color_mode: uniform
-    color_palette: realistic_dark
-
-  - name: ink_bleed_heavy
-    proportion: 0.020833
-    text_direction: left_to_right
-    corpus_dir: data.nosync/corpus_text/ltr
-    min_text_length: 10
-    max_text_length: 25
-    curve_type: none
-    overlap_intensity: 0.0
-    ink_bleed_intensity: 0.7
-    effect_type: none
-    text_color_mode: uniform
-    color_palette: realistic_dark
-
-  - name: ink_bleed_extreme
-    proportion: 0.020833
-    text_direction: left_to_right
-    corpus_dir: data.nosync/corpus_text/ltr
-    min_text_length: 10
-    max_text_length: 25
-    curve_type: none
-    overlap_intensity: 0.0
-    ink_bleed_intensity: 0.9
-    effect_type: none
-    text_color_mode: uniform
-    color_palette: realistic_dark
-
-  # ==========================================================================
-  # SECTION 6: TEXT LENGTH VARIATIONS (100 images, 5%)
-  # ==========================================================================
-
-  - name: text_very_short
-    proportion: 0.010417
-    text_direction: left_to_right
-    corpus_dir: data.nosync/corpus_text/ltr
-    min_text_length: 2
-    max_text_length: 5
-    curve_type: none
-    overlap_intensity: 0.0
-    ink_bleed_intensity: 0.0
-    effect_type: none
-    text_color_mode: uniform
-    color_palette: realistic_dark
-
-  - name: text_short
-    proportion: 0.010417
-    text_direction: left_to_right
-    corpus_dir: data.nosync/corpus_text/ltr
-    min_text_length: 5
-    max_text_length: 10
-    curve_type: none
-    overlap_intensity: 0.0
-    ink_bleed_intensity: 0.0
-    effect_type: none
-    text_color_mode: uniform
-    color_palette: realistic_dark
-
-  - name: text_long
-    proportion: 0.010417
-    text_direction: left_to_right
-    corpus_dir: data.nosync/corpus_text/ltr
-    min_text_length: 30
-    max_text_length: 50
-    curve_type: none
-    overlap_intensity: 0.0
-    ink_bleed_intensity: 0.0
-    effect_type: none
-    text_color_mode: uniform
-    color_palette: realistic_dark
-
-  - name: text_very_long
-    proportion: 0.010417
-    text_direction: left_to_right
-    corpus_dir: data.nosync/corpus_text/ltr
-    min_text_length: 50
-    max_text_length: 80
-    curve_type: none
-    overlap_intensity: 0.0
-    ink_bleed_intensity: 0.0
-    effect_type: none
-    text_color_mode: uniform
-    color_palette: realistic_dark
-
-  # ==========================================================================
-  # SECTION 7: FEATURE COMBINATIONS - REALISTIC SCENARIOS (300 images, 15%)
-  # ==========================================================================
-
-  # --- Embossed Signage (curved + embossed) ---
-  - name: embossed_arc_signage
-    proportion: 0.008929
-    text_direction: left_to_right
-    corpus_dir: data.nosync/corpus_text/ltr
-    min_text_length: 6
-    max_text_length: 15
-    curve_type: arc
-    curve_intensity: 0.35
-    overlap_intensity: 0.0
-    ink_bleed_intensity: 0.0
-    effect_type: embossed
-    effect_depth: 0.6
-    light_azimuth: 135.0
-    light_elevation: 50.0
-    text_color_mode: uniform
-    color_palette: realistic_dark
-
-  - name: raised_sine_signage
-    proportion: 0.008929
-    text_direction: left_to_right
-    corpus_dir: data.nosync/corpus_text/ltr
-    min_text_length: 6
-    max_text_length: 15
-    curve_type: sine
-    curve_intensity: 0.3
-    overlap_intensity: 0.0
-    ink_bleed_intensity: 0.0
-    effect_type: raised
-    effect_depth: 0.5
-    light_azimuth: 120.0
-    light_elevation: 45.0
-    text_color_mode: uniform
-    color_palette: realistic_dark
-
-  # --- Ancient Documents (overlap + ink bleed) ---
-  - name: ancient_manuscript
-    proportion: 0.008929
-    text_direction: left_to_right
-    corpus_dir: data.nosync/corpus_text/ltr
-    min_text_length: 12
-    max_text_length: 28
-    curve_type: none
-    overlap_intensity: 0.5
-    ink_bleed_intensity: 0.4
-    effect_type: none
-    text_color_mode: uniform
-    color_palette: realistic_dark
-
-  - name: aged_document_curved
-    proportion: 0.008929
-    text_direction: left_to_right
-    corpus_dir: data.nosync/corpus_text/ltr
-    min_text_length: 10
-    max_text_length: 25
-    curve_type: arc
-    curve_intensity: 0.2
-    overlap_intensity: 0.3
-    ink_bleed_intensity: 0.5
-    effect_type: none
-    text_color_mode: uniform
-    color_palette: realistic_dark
-
-  # --- Handwritten Style (overlap + curves) ---
-  - name: handwriting_sine
-    proportion: 0.008929
-    text_direction: left_to_right
-    corpus_dir: data.nosync/corpus_text/ltr
-    min_text_length: 8
-    max_text_length: 18
-    curve_type: sine
-    curve_intensity: 0.25
-    overlap_intensity: 0.35
-    ink_bleed_intensity: 0.0
-    effect_type: none
-    text_color_mode: uniform
-    color_palette: realistic_dark
-
-  - name: handwriting_raised
-    proportion: 0.008929
-    text_direction: left_to_right
-    corpus_dir: data.nosync/corpus_text/ltr
-    min_text_length: 8
-    max_text_length: 18
-    curve_type: sine
-    curve_intensity: 0.2
-    overlap_intensity: 0.25
-    ink_bleed_intensity: 0.0
-    effect_type: raised
-    effect_depth: 0.4
-    light_azimuth: 120.0
-    light_elevation: 35.0
-    text_color_mode: uniform
-    color_palette: realistic_dark
-
-  # --- Colorful Signs (colors + curves) ---
-  - name: vibrant_curved_signs
-    proportion: 0.008929
-    text_direction: left_to_right
-    corpus_dir: data.nosync/corpus_text/ltr
-    min_text_length: 6
-    max_text_length: 15
-    curve_type: arc
-    curve_intensity: 0.35
-    overlap_intensity: 0.0
-    ink_bleed_intensity: 0.0
-    effect_type: none
-    text_color_mode: per_glyph
-    color_palette: vibrant
-
-  - name: vibrant_embossed
-    proportion: 0.008929
-    text_direction: left_to_right
-    corpus_dir: data.nosync/corpus_text/ltr
-    min_text_length: 6
-    max_text_length: 18
-    curve_type: none
-    overlap_intensity: 0.0
-    ink_bleed_intensity: 0.0
-    effect_type: embossed
-    effect_depth: 0.5
-    light_azimuth: 135.0
-    light_elevation: 45.0
-    text_color_mode: per_glyph
-    color_palette: vibrant
-
-  # --- Pastel Artistic Styles ---
-  - name: pastels_gradient_wavy
-    proportion: 0.008929
-    text_direction: left_to_right
-    corpus_dir: data.nosync/corpus_text/ltr
-    min_text_length: 10
-    max_text_length: 22
-    curve_type: sine
-    curve_intensity: 0.3
-    overlap_intensity: 0.0
-    ink_bleed_intensity: 0.0
-    effect_type: none
-    text_color_mode: gradient
-    color_palette: pastels
-
-  - name: pastels_raised
-    proportion: 0.008929
-    text_direction: left_to_right
-    corpus_dir: data.nosync/corpus_text/ltr
-    min_text_length: 8
-    max_text_length: 18
-    curve_type: none
-    overlap_intensity: 0.0
-    ink_bleed_intensity: 0.0
-    effect_type: raised
-    effect_depth: 0.5
-    light_azimuth: 135.0
-    light_elevation: 45.0
-    text_color_mode: gradient
-    color_palette: pastels
-
-  # --- Engraved Stone (engraved + aged effects) ---
-  - name: engraved_ancient
-    proportion: 0.008929
-    text_direction: left_to_right
-    corpus_dir: data.nosync/corpus_text/ltr
-    min_text_length: 10
-    max_text_length: 25
-    curve_type: none
-    overlap_intensity: 0.4
-    ink_bleed_intensity: 0.3
-    effect_type: engraved
-    effect_depth: 0.5
-    light_azimuth: 90.0
-    light_elevation: 40.0
-    text_color_mode: uniform
-    color_palette: realistic_dark
-
-  - name: engraved_arc
-    proportion: 0.008929
-    text_direction: left_to_right
-    corpus_dir: data.nosync/corpus_text/ltr
-    min_text_length: 6
-    max_text_length: 15
-    curve_type: arc
-    curve_intensity: 0.3
-    overlap_intensity: 0.0
-    ink_bleed_intensity: 0.0
-    effect_type: engraved
-    effect_depth: 0.6
-    light_azimuth: 90.0
-    light_elevation: 45.0
-    text_color_mode: uniform
-    color_palette: realistic_dark
-
-  # --- Kitchen Sink (everything combined) ---
-  - name: kitchen_sink_moderate
-    proportion: 0.008929
-    text_direction: left_to_right
-    corpus_dir: data.nosync/corpus_text/ltr
-    min_text_length: 8
-    max_text_length: 18
-    curve_type: arc
-    curve_intensity: 0.3
-    overlap_intensity: 0.3
-    ink_bleed_intensity: 0.25
-    effect_type: embossed
-    effect_depth: 0.5
-    light_azimuth: 135.0
-    light_elevation: 45.0
-    text_color_mode: per_glyph
-    color_palette: vibrant
-
-  - name: kitchen_sink_extreme
-    proportion: 0.008929
-    text_direction: left_to_right
-    corpus_dir: data.nosync/corpus_text/ltr
-    min_text_length: 6
-    max_text_length: 15
-    curve_type: sine
-    curve_intensity: 0.5
-    overlap_intensity: 0.5
-    ink_bleed_intensity: 0.4
-    effect_type: raised
-    effect_depth: 0.7
-    light_azimuth: 120.0
-    light_elevation: 50.0
-    text_color_mode: gradient
-    color_palette: pastels
-
-  # ==========================================================================
-  # SECTION 8: AUGMENTATION VARIATIONS (200 images, 8.3%)
-  # ==========================================================================
-
-  # --- No Augmentations (clean baseline) - 50 images ---
-  - name: no_augmentations_plain
-    proportion: 0.010417
-    text_direction: left_to_right
-    corpus_dir: data.nosync/corpus_text/ltr
-    min_text_length: 8
-    max_text_length: 20
-    curve_type: none
-    overlap_intensity: 0.0
-    ink_bleed_intensity: 0.0
-    effect_type: none
-    text_color_mode: uniform
-    color_palette: realistic_dark
-    augmentations: null
-
-  - name: no_augmentations_with_effects
-    proportion: 0.010417
-    text_direction: left_to_right
-    corpus_dir: data.nosync/corpus_text/ltr
-    min_text_length: 8
-    max_text_length: 20
-    curve_type: arc
-    curve_intensity: 0.4
-    overlap_intensity: 0.3
-    ink_bleed_intensity: 0.0
-    effect_type: embossed
-    effect_depth: 0.5
-    light_azimuth: 135.0
-    light_elevation: 45.0
-    text_color_mode: per_glyph
-    color_palette: vibrant
-    augmentations: null
-
-  # --- Selective Augmentations Set 1 (geometric only) - 50 images ---
-  - name: geometric_augmentations_only
-    proportion: 0.010417
-    text_direction: left_to_right
-    corpus_dir: data.nosync/corpus_text/ltr
-    min_text_length: 10
-    max_text_length: 25
-    curve_type: none
-    overlap_intensity: 0.0
-    ink_bleed_intensity: 0.0
-    effect_type: none
-    text_color_mode: uniform
-    color_palette: realistic_dark
-    augmentations:
-      perspective_transform: true
-      rotate: true
-      elastic_distortion: true
-      blur: false
-      noise: false
-      brightness_contrast: false
-      shadow: false
-      background: false
-      erode_dilate: false
-      cutout: false
-
-  - name: geometric_with_curves
-    proportion: 0.010417
-    text_direction: left_to_right
-    corpus_dir: data.nosync/corpus_text/ltr
-    min_text_length: 8
-    max_text_length: 18
-    curve_type: sine
-    curve_intensity: 0.4
-    overlap_intensity: 0.0
-    ink_bleed_intensity: 0.0
-    effect_type: none
-    text_color_mode: uniform
-    color_palette: realistic_dark
-    augmentations:
-      perspective_transform: true
-      rotate: true
-      elastic_distortion: true
-      blur: false
-      noise: false
-      brightness_contrast: false
-      shadow: false
-      background: false
-      erode_dilate: false
-      cutout: false
-
-  # --- Selective Augmentations Set 2 (image quality only) - 50 images ---
-  - name: quality_augmentations_only
-    proportion: 0.010417
-    text_direction: left_to_right
-    corpus_dir: data.nosync/corpus_text/ltr
-    min_text_length: 10
-    max_text_length: 22
-    curve_type: none
-    overlap_intensity: 0.0
-    ink_bleed_intensity: 0.0
-    effect_type: none
-    text_color_mode: uniform
-    color_palette: realistic_dark
-    augmentations:
-      perspective_transform: false
-      rotate: false
-      elastic_distortion: false
-      blur: true
-      noise: true
-      brightness_contrast: true
-      shadow: true
-      background: false
-      erode_dilate: false
-      cutout: false
-
-  - name: quality_with_overlap
-    proportion: 0.010417
-    text_direction: left_to_right
-    corpus_dir: data.nosync/corpus_text/ltr
-    min_text_length: 12
-    max_text_length: 25
-    curve_type: none
-    overlap_intensity: 0.5
-    ink_bleed_intensity: 0.3
-    effect_type: none
-    text_color_mode: uniform
-    color_palette: realistic_dark
-    augmentations:
-      perspective_transform: false
-      rotate: false
-      elastic_distortion: false
-      blur: true
-      noise: true
-      brightness_contrast: true
-      shadow: true
-      background: false
-      erode_dilate: false
-      cutout: false
-
-  # --- Selective Augmentations Set 3 (background only) - 50 images ---
-  - name: background_augmentation_only
-    proportion: 0.010417
-    text_direction: left_to_right
-    corpus_dir: data.nosync/corpus_text/ltr
-    min_text_length: 10
-    max_text_length: 20
-    curve_type: none
-    overlap_intensity: 0.0
-    ink_bleed_intensity: 0.0
-    effect_type: none
-    text_color_mode: uniform
-    color_palette: realistic_dark
-    augmentations:
-      perspective_transform: false
-      rotate: false
-      elastic_distortion: false
-      blur: false
-      noise: false
-      brightness_contrast: false
-      shadow: false
-      background: true
-      erode_dilate: false
-      cutout: false
-
-  - name: background_with_effects
-    proportion: 0.010417
-    text_direction: left_to_right
-    corpus_dir: data.nosync/corpus_text/ltr
-    min_text_length: 8
-    max_text_length: 18
-    curve_type: none
-    overlap_intensity: 0.0
-    ink_bleed_intensity: 0.0
-    effect_type: raised
-    effect_depth: 0.6
-    light_azimuth: 135.0
-    light_elevation: 45.0
-    text_color_mode: gradient
-    color_palette: vibrant
-    augmentations:
-      perspective_transform: false
-      rotate: false
-      elastic_distortion: false
-      blur: false
-      noise: false
-      brightness_contrast: false
-      shadow: false
-      background: true
-      erode_dilate: false
-      cutout: false
-
-  # ==========================================================================
-  # SECTION 9: BACKGROUND COLOR VARIATIONS (100 images, 4.2%)
-  # ==========================================================================
-
-  # --- Pure White Background - 25 images ---
-  - name: white_background_plain
-    proportion: 0.005208
-    text_direction: left_to_right
-    corpus_dir: data.nosync/corpus_text/ltr
-    min_text_length: 8
-    max_text_length: 20
-    curve_type: none
-    overlap_intensity: 0.0
-    ink_bleed_intensity: 0.0
-    effect_type: none
-    text_color_mode: uniform
-    color_palette: realistic_dark
-    background_color: "#FFFFFF"
-
-  - name: white_background_embossed
-    proportion: 0.005208
-    text_direction: left_to_right
-    corpus_dir: data.nosync/corpus_text/ltr
-    min_text_length: 8
-    max_text_length: 20
-    curve_type: none
-    overlap_intensity: 0.0
-    ink_bleed_intensity: 0.0
-    effect_type: embossed
-    effect_depth: 0.5
-    light_azimuth: 135.0
-    light_elevation: 45.0
-    text_color_mode: uniform
-    color_palette: realistic_dark
-    background_color: "#FFFFFF"
-
-  # --- Pure Black Background - 25 images ---
-  - name: black_background_plain
-    proportion: 0.005208
-    text_direction: left_to_right
-    corpus_dir: data.nosync/corpus_text/ltr
-    min_text_length: 8
-    max_text_length: 20
-    curve_type: none
-    overlap_intensity: 0.0
-    ink_bleed_intensity: 0.0
-    effect_type: none
-    text_color_mode: uniform
-    color_palette: realistic_light
-    background_color: "#000000"
-
-  - name: black_background_raised
-    proportion: 0.005208
-    text_direction: left_to_right
-    corpus_dir: data.nosync/corpus_text/ltr
-    min_text_length: 8
-    max_text_length: 20
-    curve_type: arc
-    curve_intensity: 0.3
-    overlap_intensity: 0.0
-    ink_bleed_intensity: 0.0
-    effect_type: raised
-    effect_depth: 0.6
-    light_azimuth: 120.0
-    light_elevation: 50.0
-    text_color_mode: uniform
-    color_palette: realistic_light
-    background_color: "#000000"
-
-  # --- Beige/Cream Background (aged paper) - 25 images ---
-  - name: beige_background_plain
-    proportion: 0.005208
-    text_direction: left_to_right
-    corpus_dir: data.nosync/corpus_text/ltr
-    min_text_length: 10
-    max_text_length: 25
-    curve_type: none
-    overlap_intensity: 0.3
-    ink_bleed_intensity: 0.2
-    effect_type: none
-    text_color_mode: uniform
-    color_palette: realistic_dark
-    background_color: "#F5E6D3"
-
-  - name: beige_background_aged
-    proportion: 0.005208
-    text_direction: left_to_right
-    corpus_dir: data.nosync/corpus_text/ltr
-    min_text_length: 12
-    max_text_length: 28
-    curve_type: none
-    overlap_intensity: 0.4
-    ink_bleed_intensity: 0.5
-    effect_type: none
-    text_color_mode: uniform
-    color_palette: realistic_dark
-    background_color: "#F5E6D3"
-
-  # --- Gray Background - 25 images ---
-  - name: gray_background_light
-    proportion: 0.005208
-    text_direction: left_to_right
-    corpus_dir: data.nosync/corpus_text/ltr
-    min_text_length: 8
-    max_text_length: 20
-    curve_type: none
-    overlap_intensity: 0.0
-    ink_bleed_intensity: 0.0
-    effect_type: none
-    text_color_mode: uniform
-    color_palette: realistic_dark
-    background_color: "#CCCCCC"
-
-  - name: gray_background_dark
-    proportion: 0.005208
-    text_direction: left_to_right
-    corpus_dir: data.nosync/corpus_text/ltr
-    min_text_length: 8
-    max_text_length: 20
-    curve_type: sine
-    curve_intensity: 0.3
-    overlap_intensity: 0.0
-    ink_bleed_intensity: 0.0
-    effect_type: engraved
-    effect_depth: 0.5
-    light_azimuth: 90.0
-    light_elevation: 40.0
-    text_color_mode: uniform
-    color_palette: realistic_light
-    background_color: "#444444"
-
-  # ==========================================================================
-  # SECTION 10: CUSTOM COLOR VARIATIONS (100 images, 4.2%)
-  # ==========================================================================
-
-  # --- Primary Colors (RGB) - 25 images ---
-  - name: custom_rgb_perglyph
-    proportion: 0.005208
-    text_direction: left_to_right
-    corpus_dir: data.nosync/corpus_text/ltr
-    min_text_length: 8
-    max_text_length: 18
-    curve_type: none
-    overlap_intensity: 0.0
-    ink_bleed_intensity: 0.0
-    effect_type: none
-    text_color_mode: per_glyph
-    custom_colors:
-      - [255, 0, 0]    # Red
-      - [0, 255, 0]    # Green
-      - [0, 0, 255]    # Blue
-
-  - name: custom_rgb_embossed
-    proportion: 0.005208
-    text_direction: left_to_right
-    corpus_dir: data.nosync/corpus_text/ltr
-    min_text_length: 8
-    max_text_length: 18
-    curve_type: none
-    overlap_intensity: 0.0
-    ink_bleed_intensity: 0.0
-    effect_type: embossed
-    effect_depth: 0.6
-    light_azimuth: 135.0
-    light_elevation: 45.0
-    text_color_mode: per_glyph
-    custom_colors:
-      - [255, 0, 0]
-      - [0, 255, 0]
-      - [0, 0, 255]
-
-  # --- Warm Colors - 25 images ---
-  - name: custom_warm_gradient
-    proportion: 0.005208
-    text_direction: left_to_right
-    corpus_dir: data.nosync/corpus_text/ltr
-    min_text_length: 10
-    max_text_length: 25
-    curve_type: arc
-    curve_intensity: 0.3
-    overlap_intensity: 0.0
-    ink_bleed_intensity: 0.0
-    effect_type: none
-    text_color_mode: gradient
-    custom_colors:
-      - [255, 140, 0]   # Dark Orange
-      - [255, 69, 0]    # Red-Orange
-      - [220, 20, 60]   # Crimson
-
-  - name: custom_warm_raised
-    proportion: 0.005208
-    text_direction: left_to_right
-    corpus_dir: data.nosync/corpus_text/ltr
-    min_text_length: 8
-    max_text_length: 18
-    curve_type: none
-    overlap_intensity: 0.0
-    ink_bleed_intensity: 0.0
-    effect_type: raised
-    effect_depth: 0.5
-    light_azimuth: 120.0
-    light_elevation: 45.0
-    text_color_mode: uniform
-    custom_colors:
-      - [255, 140, 0]
-
-  # --- Cool Colors - 25 images ---
-  - name: custom_cool_gradient
-    proportion: 0.005208
-    text_direction: left_to_right
-    corpus_dir: data.nosync/corpus_text/ltr
-    min_text_length: 10
-    max_text_length: 25
-    curve_type: sine
-    curve_intensity: 0.4
-    overlap_intensity: 0.0
-    ink_bleed_intensity: 0.0
-    effect_type: none
-    text_color_mode: gradient
-    custom_colors:
-      - [0, 191, 255]   # Deep Sky Blue
-      - [30, 144, 255]  # Dodger Blue
-      - [65, 105, 225]  # Royal Blue
-
-  - name: custom_cool_engraved
-    proportion: 0.005208
-    text_direction: left_to_right
-    corpus_dir: data.nosync/corpus_text/ltr
-    min_text_length: 8
-    max_text_length: 18
-    curve_type: none
-    overlap_intensity: 0.0
-    ink_bleed_intensity: 0.0
-    effect_type: engraved
-    effect_depth: 0.5
-    light_azimuth: 90.0
-    light_elevation: 40.0
-    text_color_mode: per_glyph
-    custom_colors:
-      - [0, 191, 255]
-      - [30, 144, 255]
-
-  # --- Monochrome Shades (grays) - 25 images ---
-  - name: custom_grays_gradient
-    proportion: 0.005208
-    text_direction: left_to_right
-    corpus_dir: data.nosync/corpus_text/ltr
-    min_text_length: 10
-    max_text_length: 22
-    curve_type: none
-    overlap_intensity: 0.3
-    ink_bleed_intensity: 0.2
-    effect_type: none
-    text_color_mode: gradient
-    custom_colors:
-      - [32, 32, 32]    # Very Dark Gray
-      - [80, 80, 80]    # Dark Gray
-      - [128, 128, 128] # Medium Gray
-      - [176, 176, 176] # Light Gray
-
-  - name: custom_grays_embossed
-    proportion: 0.005208
-    text_direction: left_to_right
-    corpus_dir: data.nosync/corpus_text/ltr
-    min_text_length: 8
-    max_text_length: 18
-    curve_type: none
-    overlap_intensity: 0.0
-    ink_bleed_intensity: 0.0
-    effect_type: embossed
-    effect_depth: 0.6
-    light_azimuth: 135.0
-    light_elevation: 50.0
-    text_color_mode: uniform
-    custom_colors:
-      - [64, 64, 64]
+- name: baseline_plain
+  proportion: 0.022109
+  text_direction: left_to_right
+  corpus_dir: data.nosync/corpus_text/ltr
+  min_text_length: 5
+  max_text_length: 25
+  curve_type: none
+  overlap_intensity: 0.0
+  ink_bleed_intensity: 0.0
+  effect_type: none
+  text_color_mode: uniform
+  color_palette: realistic_dark
+- name: arc_subtle
+  proportion: 0.022109
+  text_direction: left_to_right
+  corpus_dir: data.nosync/corpus_text/ltr
+  min_text_length: 6
+  max_text_length: 20
+  curve_type: arc
+  curve_intensity: 0.25
+  overlap_intensity: 0.0
+  ink_bleed_intensity: 0.0
+  effect_type: none
+  text_color_mode: uniform
+  color_palette: realistic_dark
+- name: arc_moderate
+  proportion: 0.022109
+  text_direction: left_to_right
+  corpus_dir: data.nosync/corpus_text/ltr
+  min_text_length: 6
+  max_text_length: 20
+  curve_type: arc
+  curve_intensity: 0.5
+  overlap_intensity: 0.0
+  ink_bleed_intensity: 0.0
+  effect_type: none
+  text_color_mode: uniform
+  color_palette: realistic_dark
+- name: sine_subtle
+  proportion: 0.022109
+  text_direction: left_to_right
+  corpus_dir: data.nosync/corpus_text/ltr
+  min_text_length: 8
+  max_text_length: 22
+  curve_type: sine
+  curve_intensity: 0.3
+  overlap_intensity: 0.0
+  ink_bleed_intensity: 0.0
+  effect_type: none
+  text_color_mode: uniform
+  color_palette: realistic_dark
+- name: sine_strong
+  proportion: 0.022109
+  text_direction: left_to_right
+  corpus_dir: data.nosync/corpus_text/ltr
+  min_text_length: 8
+  max_text_length: 22
+  curve_type: sine
+  curve_intensity: 0.6
+  overlap_intensity: 0.0
+  ink_bleed_intensity: 0.0
+  effect_type: none
+  text_color_mode: uniform
+  color_palette: realistic_dark
+- name: arc_extreme
+  proportion: 0.022109
+  text_direction: left_to_right
+  corpus_dir: data.nosync/corpus_text/ltr
+  min_text_length: 5
+  max_text_length: 15
+  curve_type: arc
+  curve_intensity: 0.8
+  overlap_intensity: 0.0
+  ink_bleed_intensity: 0.0
+  effect_type: none
+  text_color_mode: uniform
+  color_palette: realistic_dark
+- name: sine_extreme
+  proportion: 0.022109
+  text_direction: left_to_right
+  corpus_dir: data.nosync/corpus_text/ltr
+  min_text_length: 5
+  max_text_length: 15
+  curve_type: sine
+  curve_intensity: 0.75
+  overlap_intensity: 0.0
+  ink_bleed_intensity: 0.0
+  effect_type: none
+  text_color_mode: uniform
+  color_palette: realistic_dark
+- name: raised_light_depth
+  proportion: 0.019345
+  text_direction: left_to_right
+  corpus_dir: data.nosync/corpus_text/ltr
+  min_text_length: 6
+  max_text_length: 18
+  curve_type: none
+  overlap_intensity: 0.0
+  ink_bleed_intensity: 0.0
+  effect_type: raised
+  effect_depth: 0.4
+  light_azimuth: 135.0
+  light_elevation: 45.0
+  text_color_mode: uniform
+  color_palette: realistic_dark
+- name: raised_heavy_depth
+  proportion: 0.019345
+  text_direction: left_to_right
+  corpus_dir: data.nosync/corpus_text/ltr
+  min_text_length: 6
+  max_text_length: 18
+  curve_type: none
+  overlap_intensity: 0.0
+  ink_bleed_intensity: 0.0
+  effect_type: raised
+  effect_depth: 0.8
+  light_azimuth: 135.0
+  light_elevation: 45.0
+  text_color_mode: uniform
+  color_palette: realistic_dark
+- name: embossed_standard
+  proportion: 0.019345
+  text_direction: left_to_right
+  corpus_dir: data.nosync/corpus_text/ltr
+  min_text_length: 6
+  max_text_length: 18
+  curve_type: none
+  overlap_intensity: 0.0
+  ink_bleed_intensity: 0.0
+  effect_type: embossed
+  effect_depth: 0.5
+  light_azimuth: 120.0
+  light_elevation: 50.0
+  text_color_mode: uniform
+  color_palette: realistic_dark
+- name: embossed_deep
+  proportion: 0.019345
+  text_direction: left_to_right
+  corpus_dir: data.nosync/corpus_text/ltr
+  min_text_length: 6
+  max_text_length: 18
+  curve_type: none
+  overlap_intensity: 0.0
+  ink_bleed_intensity: 0.0
+  effect_type: embossed
+  effect_depth: 0.8
+  light_azimuth: 120.0
+  light_elevation: 50.0
+  text_color_mode: uniform
+  color_palette: realistic_dark
+- name: engraved_subtle
+  proportion: 0.019345
+  text_direction: left_to_right
+  corpus_dir: data.nosync/corpus_text/ltr
+  min_text_length: 6
+  max_text_length: 18
+  curve_type: none
+  overlap_intensity: 0.0
+  ink_bleed_intensity: 0.0
+  effect_type: engraved
+  effect_depth: 0.4
+  light_azimuth: 90.0
+  light_elevation: 40.0
+  text_color_mode: uniform
+  color_palette: realistic_dark
+- name: engraved_deep
+  proportion: 0.019345
+  text_direction: left_to_right
+  corpus_dir: data.nosync/corpus_text/ltr
+  min_text_length: 6
+  max_text_length: 18
+  curve_type: none
+  overlap_intensity: 0.0
+  ink_bleed_intensity: 0.0
+  effect_type: engraved
+  effect_depth: 0.7
+  light_azimuth: 90.0
+  light_elevation: 40.0
+  text_color_mode: uniform
+  color_palette: realistic_dark
+- name: lighting_low_angle
+  proportion: 0.019345
+  text_direction: left_to_right
+  corpus_dir: data.nosync/corpus_text/ltr
+  min_text_length: 8
+  max_text_length: 18
+  curve_type: none
+  overlap_intensity: 0.0
+  ink_bleed_intensity: 0.0
+  effect_type: embossed
+  effect_depth: 0.6
+  light_azimuth: 90.0
+  light_elevation: 20.0
+  text_color_mode: uniform
+  color_palette: realistic_dark
+- name: lighting_high_angle
+  proportion: 0.019345
+  text_direction: left_to_right
+  corpus_dir: data.nosync/corpus_text/ltr
+  min_text_length: 8
+  max_text_length: 18
+  curve_type: none
+  overlap_intensity: 0.0
+  ink_bleed_intensity: 0.0
+  effect_type: embossed
+  effect_depth: 0.6
+  light_azimuth: 180.0
+  light_elevation: 75.0
+  text_color_mode: uniform
+  color_palette: realistic_dark
+- name: uniform_realistic_dark
+  proportion: 0.019345
+  text_direction: left_to_right
+  corpus_dir: data.nosync/corpus_text/ltr
+  min_text_length: 8
+  max_text_length: 20
+  curve_type: none
+  overlap_intensity: 0.0
+  ink_bleed_intensity: 0.0
+  effect_type: none
+  text_color_mode: uniform
+  color_palette: realistic_dark
+- name: uniform_realistic_light
+  proportion: 0.019345
+  text_direction: left_to_right
+  corpus_dir: data.nosync/corpus_text/ltr
+  min_text_length: 8
+  max_text_length: 20
+  curve_type: none
+  overlap_intensity: 0.0
+  ink_bleed_intensity: 0.0
+  effect_type: none
+  text_color_mode: uniform
+  color_palette: realistic_light
+- name: perglyph_vibrant
+  proportion: 0.019345
+  text_direction: left_to_right
+  corpus_dir: data.nosync/corpus_text/ltr
+  min_text_length: 8
+  max_text_length: 20
+  curve_type: none
+  overlap_intensity: 0.0
+  ink_bleed_intensity: 0.0
+  effect_type: none
+  text_color_mode: per_glyph
+  color_palette: vibrant
+- name: perglyph_pastels
+  proportion: 0.019345
+  text_direction: left_to_right
+  corpus_dir: data.nosync/corpus_text/ltr
+  min_text_length: 8
+  max_text_length: 20
+  curve_type: none
+  overlap_intensity: 0.0
+  ink_bleed_intensity: 0.0
+  effect_type: none
+  text_color_mode: per_glyph
+  color_palette: pastels
+- name: gradient_vibrant
+  proportion: 0.019345
+  text_direction: left_to_right
+  corpus_dir: data.nosync/corpus_text/ltr
+  min_text_length: 10
+  max_text_length: 25
+  curve_type: none
+  overlap_intensity: 0.0
+  ink_bleed_intensity: 0.0
+  effect_type: none
+  text_color_mode: gradient
+  color_palette: vibrant
+- name: gradient_pastels
+  proportion: 0.019345
+  text_direction: left_to_right
+  corpus_dir: data.nosync/corpus_text/ltr
+  min_text_length: 10
+  max_text_length: 25
+  curve_type: none
+  overlap_intensity: 0.0
+  ink_bleed_intensity: 0.0
+  effect_type: none
+  text_color_mode: gradient
+  color_palette: pastels
+- name: random_realistic_dark
+  proportion: 0.019345
+  text_direction: left_to_right
+  corpus_dir: data.nosync/corpus_text/ltr
+  min_text_length: 8
+  max_text_length: 20
+  curve_type: none
+  overlap_intensity: 0.0
+  ink_bleed_intensity: 0.0
+  effect_type: none
+  text_color_mode: random
+  color_palette: realistic_dark
+- name: random_vibrant
+  proportion: 0.019345
+  text_direction: left_to_right
+  corpus_dir: data.nosync/corpus_text/ltr
+  min_text_length: 8
+  max_text_length: 20
+  curve_type: none
+  overlap_intensity: 0.0
+  ink_bleed_intensity: 0.0
+  effect_type: none
+  text_color_mode: random
+  color_palette: vibrant
+- name: overlap_light
+  proportion: 0.019345
+  text_direction: left_to_right
+  corpus_dir: data.nosync/corpus_text/ltr
+  min_text_length: 8
+  max_text_length: 20
+  curve_type: none
+  overlap_intensity: 0.3
+  ink_bleed_intensity: 0.0
+  effect_type: none
+  text_color_mode: uniform
+  color_palette: realistic_dark
+- name: overlap_moderate
+  proportion: 0.019345
+  text_direction: left_to_right
+  corpus_dir: data.nosync/corpus_text/ltr
+  min_text_length: 8
+  max_text_length: 20
+  curve_type: none
+  overlap_intensity: 0.5
+  ink_bleed_intensity: 0.0
+  effect_type: none
+  text_color_mode: uniform
+  color_palette: realistic_dark
+- name: overlap_heavy
+  proportion: 0.019345
+  text_direction: left_to_right
+  corpus_dir: data.nosync/corpus_text/ltr
+  min_text_length: 10
+  max_text_length: 20
+  curve_type: none
+  overlap_intensity: 0.7
+  ink_bleed_intensity: 0.0
+  effect_type: none
+  text_color_mode: uniform
+  color_palette: realistic_dark
+- name: overlap_extreme
+  proportion: 0.019345
+  text_direction: left_to_right
+  corpus_dir: data.nosync/corpus_text/ltr
+  min_text_length: 10
+  max_text_length: 20
+  curve_type: none
+  overlap_intensity: 0.85
+  ink_bleed_intensity: 0.0
+  effect_type: none
+  text_color_mode: uniform
+  color_palette: realistic_dark
+- name: ink_bleed_light
+  proportion: 0.019345
+  text_direction: left_to_right
+  corpus_dir: data.nosync/corpus_text/ltr
+  min_text_length: 10
+  max_text_length: 25
+  curve_type: none
+  overlap_intensity: 0.0
+  ink_bleed_intensity: 0.3
+  effect_type: none
+  text_color_mode: uniform
+  color_palette: realistic_dark
+- name: ink_bleed_moderate
+  proportion: 0.019345
+  text_direction: left_to_right
+  corpus_dir: data.nosync/corpus_text/ltr
+  min_text_length: 10
+  max_text_length: 25
+  curve_type: none
+  overlap_intensity: 0.0
+  ink_bleed_intensity: 0.5
+  effect_type: none
+  text_color_mode: uniform
+  color_palette: realistic_dark
+- name: ink_bleed_heavy
+  proportion: 0.019345
+  text_direction: left_to_right
+  corpus_dir: data.nosync/corpus_text/ltr
+  min_text_length: 10
+  max_text_length: 25
+  curve_type: none
+  overlap_intensity: 0.0
+  ink_bleed_intensity: 0.7
+  effect_type: none
+  text_color_mode: uniform
+  color_palette: realistic_dark
+- name: ink_bleed_extreme
+  proportion: 0.019345
+  text_direction: left_to_right
+  corpus_dir: data.nosync/corpus_text/ltr
+  min_text_length: 10
+  max_text_length: 25
+  curve_type: none
+  overlap_intensity: 0.0
+  ink_bleed_intensity: 0.9
+  effect_type: none
+  text_color_mode: uniform
+  color_palette: realistic_dark
+- name: text_very_short
+  proportion: 0.009673
+  text_direction: left_to_right
+  corpus_dir: data.nosync/corpus_text/ltr
+  min_text_length: 2
+  max_text_length: 5
+  curve_type: none
+  overlap_intensity: 0.0
+  ink_bleed_intensity: 0.0
+  effect_type: none
+  text_color_mode: uniform
+  color_palette: realistic_dark
+- name: text_short
+  proportion: 0.009673
+  text_direction: left_to_right
+  corpus_dir: data.nosync/corpus_text/ltr
+  min_text_length: 5
+  max_text_length: 10
+  curve_type: none
+  overlap_intensity: 0.0
+  ink_bleed_intensity: 0.0
+  effect_type: none
+  text_color_mode: uniform
+  color_palette: realistic_dark
+- name: text_long
+  proportion: 0.009673
+  text_direction: left_to_right
+  corpus_dir: data.nosync/corpus_text/ltr
+  min_text_length: 30
+  max_text_length: 50
+  curve_type: none
+  overlap_intensity: 0.0
+  ink_bleed_intensity: 0.0
+  effect_type: none
+  text_color_mode: uniform
+  color_palette: realistic_dark
+- name: text_very_long
+  proportion: 0.009673
+  text_direction: left_to_right
+  corpus_dir: data.nosync/corpus_text/ltr
+  min_text_length: 50
+  max_text_length: 80
+  curve_type: none
+  overlap_intensity: 0.0
+  ink_bleed_intensity: 0.0
+  effect_type: none
+  text_color_mode: uniform
+  color_palette: realistic_dark
+- name: embossed_arc_signage
+  proportion: 0.008291
+  text_direction: left_to_right
+  corpus_dir: data.nosync/corpus_text/ltr
+  min_text_length: 6
+  max_text_length: 15
+  curve_type: arc
+  curve_intensity: 0.35
+  overlap_intensity: 0.0
+  ink_bleed_intensity: 0.0
+  effect_type: embossed
+  effect_depth: 0.6
+  light_azimuth: 135.0
+  light_elevation: 50.0
+  text_color_mode: uniform
+  color_palette: realistic_dark
+- name: raised_sine_signage
+  proportion: 0.008291
+  text_direction: left_to_right
+  corpus_dir: data.nosync/corpus_text/ltr
+  min_text_length: 6
+  max_text_length: 15
+  curve_type: sine
+  curve_intensity: 0.3
+  overlap_intensity: 0.0
+  ink_bleed_intensity: 0.0
+  effect_type: raised
+  effect_depth: 0.5
+  light_azimuth: 120.0
+  light_elevation: 45.0
+  text_color_mode: uniform
+  color_palette: realistic_dark
+- name: ancient_manuscript
+  proportion: 0.008291
+  text_direction: left_to_right
+  corpus_dir: data.nosync/corpus_text/ltr
+  min_text_length: 12
+  max_text_length: 28
+  curve_type: none
+  overlap_intensity: 0.5
+  ink_bleed_intensity: 0.4
+  effect_type: none
+  text_color_mode: uniform
+  color_palette: realistic_dark
+- name: aged_document_curved
+  proportion: 0.008291
+  text_direction: left_to_right
+  corpus_dir: data.nosync/corpus_text/ltr
+  min_text_length: 10
+  max_text_length: 25
+  curve_type: arc
+  curve_intensity: 0.2
+  overlap_intensity: 0.3
+  ink_bleed_intensity: 0.5
+  effect_type: none
+  text_color_mode: uniform
+  color_palette: realistic_dark
+- name: handwriting_sine
+  proportion: 0.008291
+  text_direction: left_to_right
+  corpus_dir: data.nosync/corpus_text/ltr
+  min_text_length: 8
+  max_text_length: 18
+  curve_type: sine
+  curve_intensity: 0.25
+  overlap_intensity: 0.35
+  ink_bleed_intensity: 0.0
+  effect_type: none
+  text_color_mode: uniform
+  color_palette: realistic_dark
+- name: handwriting_raised
+  proportion: 0.008291
+  text_direction: left_to_right
+  corpus_dir: data.nosync/corpus_text/ltr
+  min_text_length: 8
+  max_text_length: 18
+  curve_type: sine
+  curve_intensity: 0.2
+  overlap_intensity: 0.25
+  ink_bleed_intensity: 0.0
+  effect_type: raised
+  effect_depth: 0.4
+  light_azimuth: 120.0
+  light_elevation: 35.0
+  text_color_mode: uniform
+  color_palette: realistic_dark
+- name: vibrant_curved_signs
+  proportion: 0.008291
+  text_direction: left_to_right
+  corpus_dir: data.nosync/corpus_text/ltr
+  min_text_length: 6
+  max_text_length: 15
+  curve_type: arc
+  curve_intensity: 0.35
+  overlap_intensity: 0.0
+  ink_bleed_intensity: 0.0
+  effect_type: none
+  text_color_mode: per_glyph
+  color_palette: vibrant
+- name: vibrant_embossed
+  proportion: 0.008291
+  text_direction: left_to_right
+  corpus_dir: data.nosync/corpus_text/ltr
+  min_text_length: 6
+  max_text_length: 18
+  curve_type: none
+  overlap_intensity: 0.0
+  ink_bleed_intensity: 0.0
+  effect_type: embossed
+  effect_depth: 0.5
+  light_azimuth: 135.0
+  light_elevation: 45.0
+  text_color_mode: per_glyph
+  color_palette: vibrant
+- name: pastels_gradient_wavy
+  proportion: 0.008291
+  text_direction: left_to_right
+  corpus_dir: data.nosync/corpus_text/ltr
+  min_text_length: 10
+  max_text_length: 22
+  curve_type: sine
+  curve_intensity: 0.3
+  overlap_intensity: 0.0
+  ink_bleed_intensity: 0.0
+  effect_type: none
+  text_color_mode: gradient
+  color_palette: pastels
+- name: pastels_raised
+  proportion: 0.008291
+  text_direction: left_to_right
+  corpus_dir: data.nosync/corpus_text/ltr
+  min_text_length: 8
+  max_text_length: 18
+  curve_type: none
+  overlap_intensity: 0.0
+  ink_bleed_intensity: 0.0
+  effect_type: raised
+  effect_depth: 0.5
+  light_azimuth: 135.0
+  light_elevation: 45.0
+  text_color_mode: gradient
+  color_palette: pastels
+- name: engraved_ancient
+  proportion: 0.008291
+  text_direction: left_to_right
+  corpus_dir: data.nosync/corpus_text/ltr
+  min_text_length: 10
+  max_text_length: 25
+  curve_type: none
+  overlap_intensity: 0.4
+  ink_bleed_intensity: 0.3
+  effect_type: engraved
+  effect_depth: 0.5
+  light_azimuth: 90.0
+  light_elevation: 40.0
+  text_color_mode: uniform
+  color_palette: realistic_dark
+- name: engraved_arc
+  proportion: 0.008291
+  text_direction: left_to_right
+  corpus_dir: data.nosync/corpus_text/ltr
+  min_text_length: 6
+  max_text_length: 15
+  curve_type: arc
+  curve_intensity: 0.3
+  overlap_intensity: 0.0
+  ink_bleed_intensity: 0.0
+  effect_type: engraved
+  effect_depth: 0.6
+  light_azimuth: 90.0
+  light_elevation: 45.0
+  text_color_mode: uniform
+  color_palette: realistic_dark
+- name: kitchen_sink_moderate
+  proportion: 0.008291
+  text_direction: left_to_right
+  corpus_dir: data.nosync/corpus_text/ltr
+  min_text_length: 8
+  max_text_length: 18
+  curve_type: arc
+  curve_intensity: 0.3
+  overlap_intensity: 0.3
+  ink_bleed_intensity: 0.25
+  effect_type: embossed
+  effect_depth: 0.5
+  light_azimuth: 135.0
+  light_elevation: 45.0
+  text_color_mode: per_glyph
+  color_palette: vibrant
+- name: kitchen_sink_extreme
+  proportion: 0.008291
+  text_direction: left_to_right
+  corpus_dir: data.nosync/corpus_text/ltr
+  min_text_length: 6
+  max_text_length: 15
+  curve_type: sine
+  curve_intensity: 0.5
+  overlap_intensity: 0.5
+  ink_bleed_intensity: 0.4
+  effect_type: raised
+  effect_depth: 0.7
+  light_azimuth: 120.0
+  light_elevation: 50.0
+  text_color_mode: gradient
+  color_palette: pastels
+- name: no_augmentations_plain
+  proportion: 0.009673
+  text_direction: left_to_right
+  corpus_dir: data.nosync/corpus_text/ltr
+  min_text_length: 8
+  max_text_length: 20
+  curve_type: none
+  overlap_intensity: 0.0
+  ink_bleed_intensity: 0.0
+  effect_type: none
+  text_color_mode: uniform
+  color_palette: realistic_dark
+  augmentations: null
+- name: no_augmentations_with_effects
+  proportion: 0.009673
+  text_direction: left_to_right
+  corpus_dir: data.nosync/corpus_text/ltr
+  min_text_length: 8
+  max_text_length: 20
+  curve_type: arc
+  curve_intensity: 0.4
+  overlap_intensity: 0.3
+  ink_bleed_intensity: 0.0
+  effect_type: embossed
+  effect_depth: 0.5
+  light_azimuth: 135.0
+  light_elevation: 45.0
+  text_color_mode: per_glyph
+  color_palette: vibrant
+  augmentations: null
+- name: geometric_augmentations_only
+  proportion: 0.009673
+  text_direction: left_to_right
+  corpus_dir: data.nosync/corpus_text/ltr
+  min_text_length: 10
+  max_text_length: 25
+  curve_type: none
+  overlap_intensity: 0.0
+  ink_bleed_intensity: 0.0
+  effect_type: none
+  text_color_mode: uniform
+  color_palette: realistic_dark
+  augmentations:
+    perspective_transform: true
+    rotate: true
+    elastic_distortion: true
+    blur: false
+    noise: false
+    brightness_contrast: false
+    shadow: false
+    background: false
+    erode_dilate: false
+    cutout: false
+- name: geometric_with_curves
+  proportion: 0.009673
+  text_direction: left_to_right
+  corpus_dir: data.nosync/corpus_text/ltr
+  min_text_length: 8
+  max_text_length: 18
+  curve_type: sine
+  curve_intensity: 0.4
+  overlap_intensity: 0.0
+  ink_bleed_intensity: 0.0
+  effect_type: none
+  text_color_mode: uniform
+  color_palette: realistic_dark
+  augmentations:
+    perspective_transform: true
+    rotate: true
+    elastic_distortion: true
+    blur: false
+    noise: false
+    brightness_contrast: false
+    shadow: false
+    background: false
+    erode_dilate: false
+    cutout: false
+- name: quality_augmentations_only
+  proportion: 0.009673
+  text_direction: left_to_right
+  corpus_dir: data.nosync/corpus_text/ltr
+  min_text_length: 10
+  max_text_length: 22
+  curve_type: none
+  overlap_intensity: 0.0
+  ink_bleed_intensity: 0.0
+  effect_type: none
+  text_color_mode: uniform
+  color_palette: realistic_dark
+  augmentations:
+    perspective_transform: false
+    rotate: false
+    elastic_distortion: false
+    blur: true
+    noise: true
+    brightness_contrast: true
+    shadow: true
+    background: false
+    erode_dilate: false
+    cutout: false
+- name: quality_with_overlap
+  proportion: 0.009673
+  text_direction: left_to_right
+  corpus_dir: data.nosync/corpus_text/ltr
+  min_text_length: 12
+  max_text_length: 25
+  curve_type: none
+  overlap_intensity: 0.5
+  ink_bleed_intensity: 0.3
+  effect_type: none
+  text_color_mode: uniform
+  color_palette: realistic_dark
+  augmentations:
+    perspective_transform: false
+    rotate: false
+    elastic_distortion: false
+    blur: true
+    noise: true
+    brightness_contrast: true
+    shadow: true
+    background: false
+    erode_dilate: false
+    cutout: false
+- name: background_augmentation_only
+  proportion: 0.009673
+  text_direction: left_to_right
+  corpus_dir: data.nosync/corpus_text/ltr
+  min_text_length: 10
+  max_text_length: 20
+  curve_type: none
+  overlap_intensity: 0.0
+  ink_bleed_intensity: 0.0
+  effect_type: none
+  text_color_mode: uniform
+  color_palette: realistic_dark
+  augmentations:
+    perspective_transform: false
+    rotate: false
+    elastic_distortion: false
+    blur: false
+    noise: false
+    brightness_contrast: false
+    shadow: false
+    background: true
+    erode_dilate: false
+    cutout: false
+- name: background_with_effects
+  proportion: 0.009673
+  text_direction: left_to_right
+  corpus_dir: data.nosync/corpus_text/ltr
+  min_text_length: 8
+  max_text_length: 18
+  curve_type: none
+  overlap_intensity: 0.0
+  ink_bleed_intensity: 0.0
+  effect_type: raised
+  effect_depth: 0.6
+  light_azimuth: 135.0
+  light_elevation: 45.0
+  text_color_mode: gradient
+  color_palette: vibrant
+  augmentations:
+    perspective_transform: false
+    rotate: false
+    elastic_distortion: false
+    blur: false
+    noise: false
+    brightness_contrast: false
+    shadow: false
+    background: true
+    erode_dilate: false
+    cutout: false
+- name: white_background_plain
+  proportion: 0.004836
+  text_direction: left_to_right
+  corpus_dir: data.nosync/corpus_text/ltr
+  min_text_length: 8
+  max_text_length: 20
+  curve_type: none
+  overlap_intensity: 0.0
+  ink_bleed_intensity: 0.0
+  effect_type: none
+  text_color_mode: uniform
+  color_palette: realistic_dark
+  background_color: '#FFFFFF'
+- name: white_background_embossed
+  proportion: 0.004836
+  text_direction: left_to_right
+  corpus_dir: data.nosync/corpus_text/ltr
+  min_text_length: 8
+  max_text_length: 20
+  curve_type: none
+  overlap_intensity: 0.0
+  ink_bleed_intensity: 0.0
+  effect_type: embossed
+  effect_depth: 0.5
+  light_azimuth: 135.0
+  light_elevation: 45.0
+  text_color_mode: uniform
+  color_palette: realistic_dark
+  background_color: '#FFFFFF'
+- name: black_background_plain
+  proportion: 0.004836
+  text_direction: left_to_right
+  corpus_dir: data.nosync/corpus_text/ltr
+  min_text_length: 8
+  max_text_length: 20
+  curve_type: none
+  overlap_intensity: 0.0
+  ink_bleed_intensity: 0.0
+  effect_type: none
+  text_color_mode: uniform
+  color_palette: realistic_light
+  background_color: '#000000'
+- name: black_background_raised
+  proportion: 0.004836
+  text_direction: left_to_right
+  corpus_dir: data.nosync/corpus_text/ltr
+  min_text_length: 8
+  max_text_length: 20
+  curve_type: arc
+  curve_intensity: 0.3
+  overlap_intensity: 0.0
+  ink_bleed_intensity: 0.0
+  effect_type: raised
+  effect_depth: 0.6
+  light_azimuth: 120.0
+  light_elevation: 50.0
+  text_color_mode: uniform
+  color_palette: realistic_light
+  background_color: '#000000'
+- name: beige_background_plain
+  proportion: 0.004836
+  text_direction: left_to_right
+  corpus_dir: data.nosync/corpus_text/ltr
+  min_text_length: 10
+  max_text_length: 25
+  curve_type: none
+  overlap_intensity: 0.3
+  ink_bleed_intensity: 0.2
+  effect_type: none
+  text_color_mode: uniform
+  color_palette: realistic_dark
+  background_color: '#F5E6D3'
+- name: beige_background_aged
+  proportion: 0.004836
+  text_direction: left_to_right
+  corpus_dir: data.nosync/corpus_text/ltr
+  min_text_length: 12
+  max_text_length: 28
+  curve_type: none
+  overlap_intensity: 0.4
+  ink_bleed_intensity: 0.5
+  effect_type: none
+  text_color_mode: uniform
+  color_palette: realistic_dark
+  background_color: '#F5E6D3'
+- name: gray_background_light
+  proportion: 0.004836
+  text_direction: left_to_right
+  corpus_dir: data.nosync/corpus_text/ltr
+  min_text_length: 8
+  max_text_length: 20
+  curve_type: none
+  overlap_intensity: 0.0
+  ink_bleed_intensity: 0.0
+  effect_type: none
+  text_color_mode: uniform
+  color_palette: realistic_dark
+  background_color: '#CCCCCC'
+- name: gray_background_dark
+  proportion: 0.004836
+  text_direction: left_to_right
+  corpus_dir: data.nosync/corpus_text/ltr
+  min_text_length: 8
+  max_text_length: 20
+  curve_type: sine
+  curve_intensity: 0.3
+  overlap_intensity: 0.0
+  ink_bleed_intensity: 0.0
+  effect_type: engraved
+  effect_depth: 0.5
+  light_azimuth: 90.0
+  light_elevation: 40.0
+  text_color_mode: uniform
+  color_palette: realistic_light
+  background_color: '#444444'
+- name: custom_rgb_perglyph
+  proportion: 0.004836
+  text_direction: left_to_right
+  corpus_dir: data.nosync/corpus_text/ltr
+  min_text_length: 8
+  max_text_length: 18
+  curve_type: none
+  overlap_intensity: 0.0
+  ink_bleed_intensity: 0.0
+  effect_type: none
+  text_color_mode: per_glyph
+  custom_colors:
+  - - 255
+    - 0
+    - 0
+  - - 0
+    - 255
+    - 0
+  - - 0
+    - 0
+    - 255
+- name: custom_rgb_embossed
+  proportion: 0.004836
+  text_direction: left_to_right
+  corpus_dir: data.nosync/corpus_text/ltr
+  min_text_length: 8
+  max_text_length: 18
+  curve_type: none
+  overlap_intensity: 0.0
+  ink_bleed_intensity: 0.0
+  effect_type: embossed
+  effect_depth: 0.6
+  light_azimuth: 135.0
+  light_elevation: 45.0
+  text_color_mode: per_glyph
+  custom_colors:
+  - - 255
+    - 0
+    - 0
+  - - 0
+    - 255
+    - 0
+  - - 0
+    - 0
+    - 255
+- name: custom_warm_gradient
+  proportion: 0.004836
+  text_direction: left_to_right
+  corpus_dir: data.nosync/corpus_text/ltr
+  min_text_length: 10
+  max_text_length: 25
+  curve_type: arc
+  curve_intensity: 0.3
+  overlap_intensity: 0.0
+  ink_bleed_intensity: 0.0
+  effect_type: none
+  text_color_mode: gradient
+  custom_colors:
+  - - 255
+    - 140
+    - 0
+  - - 255
+    - 69
+    - 0
+  - - 220
+    - 20
+    - 60
+- name: custom_warm_raised
+  proportion: 0.004836
+  text_direction: left_to_right
+  corpus_dir: data.nosync/corpus_text/ltr
+  min_text_length: 8
+  max_text_length: 18
+  curve_type: none
+  overlap_intensity: 0.0
+  ink_bleed_intensity: 0.0
+  effect_type: raised
+  effect_depth: 0.5
+  light_azimuth: 120.0
+  light_elevation: 45.0
+  text_color_mode: uniform
+  custom_colors:
+  - - 255
+    - 140
+    - 0
+- name: custom_cool_gradient
+  proportion: 0.004836
+  text_direction: left_to_right
+  corpus_dir: data.nosync/corpus_text/ltr
+  min_text_length: 10
+  max_text_length: 25
+  curve_type: sine
+  curve_intensity: 0.4
+  overlap_intensity: 0.0
+  ink_bleed_intensity: 0.0
+  effect_type: none
+  text_color_mode: gradient
+  custom_colors:
+  - - 0
+    - 191
+    - 255
+  - - 30
+    - 144
+    - 255
+  - - 65
+    - 105
+    - 225
+- name: custom_cool_engraved
+  proportion: 0.004836
+  text_direction: left_to_right
+  corpus_dir: data.nosync/corpus_text/ltr
+  min_text_length: 8
+  max_text_length: 18
+  curve_type: none
+  overlap_intensity: 0.0
+  ink_bleed_intensity: 0.0
+  effect_type: engraved
+  effect_depth: 0.5
+  light_azimuth: 90.0
+  light_elevation: 40.0
+  text_color_mode: per_glyph
+  custom_colors:
+  - - 0
+    - 191
+    - 255
+  - - 30
+    - 144
+    - 255
+- name: custom_grays_gradient
+  proportion: 0.004836
+  text_direction: left_to_right
+  corpus_dir: data.nosync/corpus_text/ltr
+  min_text_length: 10
+  max_text_length: 22
+  curve_type: none
+  overlap_intensity: 0.3
+  ink_bleed_intensity: 0.2
+  effect_type: none
+  text_color_mode: gradient
+  custom_colors:
+  - - 32
+    - 32
+    - 32
+  - - 80
+    - 80
+    - 80
+  - - 128
+    - 128
+    - 128
+  - - 176
+    - 176
+    - 176
+- name: custom_grays_embossed
+  proportion: 0.004836
+  text_direction: left_to_right
+  corpus_dir: data.nosync/corpus_text/ltr
+  min_text_length: 8
+  max_text_length: 18
+  curve_type: none
+  overlap_intensity: 0.0
+  ink_bleed_intensity: 0.0
+  effect_type: embossed
+  effect_depth: 0.6
+  light_azimuth: 135.0
+  light_elevation: 50.0
+  text_color_mode: uniform
+  custom_colors:
+  - - 64
+    - 64
+    - 64
+- name: background_plain_text
+  proportion: 0.008928
+  text_direction: left_to_right
+  corpus_dir: data.nosync/corpus_text/ltr
+  min_text_length: 8
+  max_text_length: 20
+  curve_type: none
+  overlap_intensity: 0.0
+  ink_bleed_intensity: 0.0
+  effect_type: none
+  text_color_mode: uniform
+  color_palette: realistic_dark
+  background_dirs:
+  - data.nosync/backgrounds
+  background_pattern: '*.png'
+  use_solid_background_fallback: true
+- name: background_plain_vibrant
+  proportion: 0.008928
+  text_direction: left_to_right
+  corpus_dir: data.nosync/corpus_text/ltr
+  min_text_length: 8
+  max_text_length: 20
+  curve_type: none
+  overlap_intensity: 0.0
+  ink_bleed_intensity: 0.0
+  effect_type: none
+  text_color_mode: per_glyph
+  color_palette: vibrant
+  background_dirs:
+  - data.nosync/backgrounds
+  background_pattern: '*.png'
+  use_solid_background_fallback: true
+- name: background_arc_curved
+  proportion: 0.008928
+  text_direction: left_to_right
+  corpus_dir: data.nosync/corpus_text/ltr
+  min_text_length: 8
+  max_text_length: 18
+  curve_type: arc
+  curve_intensity: 0.4
+  overlap_intensity: 0.0
+  ink_bleed_intensity: 0.0
+  effect_type: none
+  text_color_mode: uniform
+  color_palette: realistic_dark
+  background_dirs:
+  - data.nosync/backgrounds
+  background_pattern: '*.png'
+  use_solid_background_fallback: true
+- name: background_sine_curved
+  proportion: 0.008928
+  text_direction: left_to_right
+  corpus_dir: data.nosync/corpus_text/ltr
+  min_text_length: 8
+  max_text_length: 18
+  curve_type: sine
+  curve_intensity: 0.4
+  overlap_intensity: 0.0
+  ink_bleed_intensity: 0.0
+  effect_type: none
+  text_color_mode: gradient
+  color_palette: pastels
+  background_dirs:
+  - data.nosync/backgrounds
+  background_pattern: '*.png'
+  use_solid_background_fallback: true
+- name: background_embossed
+  proportion: 0.008928
+  text_direction: left_to_right
+  corpus_dir: data.nosync/corpus_text/ltr
+  min_text_length: 8
+  max_text_length: 18
+  curve_type: none
+  overlap_intensity: 0.0
+  ink_bleed_intensity: 0.0
+  effect_type: embossed
+  effect_depth: 0.6
+  light_azimuth: 135.0
+  light_elevation: 45.0
+  text_color_mode: uniform
+  color_palette: realistic_dark
+  background_dirs:
+  - data.nosync/backgrounds
+  background_pattern: '*.png'
+  use_solid_background_fallback: true
+- name: background_raised
+  proportion: 0.008928
+  text_direction: left_to_right
+  corpus_dir: data.nosync/corpus_text/ltr
+  min_text_length: 8
+  max_text_length: 18
+  curve_type: none
+  overlap_intensity: 0.0
+  ink_bleed_intensity: 0.0
+  effect_type: raised
+  effect_depth: 0.6
+  light_azimuth: 120.0
+  light_elevation: 50.0
+  text_color_mode: per_glyph
+  color_palette: vibrant
+  background_dirs:
+  - data.nosync/backgrounds
+  background_pattern: '*.png'
+  use_solid_background_fallback: true
+- name: background_kitchen_sink_moderate
+  proportion: 0.008928
+  text_direction: left_to_right
+  corpus_dir: data.nosync/corpus_text/ltr
+  min_text_length: 8
+  max_text_length: 18
+  curve_type: arc
+  curve_intensity: 0.3
+  overlap_intensity: 0.3
+  ink_bleed_intensity: 0.2
+  effect_type: embossed
+  effect_depth: 0.5
+  light_azimuth: 135.0
+  light_elevation: 45.0
+  text_color_mode: per_glyph
+  color_palette: vibrant
+  background_dirs:
+  - data.nosync/backgrounds
+  background_pattern: '*.png'
+  use_solid_background_fallback: true
+- name: background_aged_document
+  proportion: 0.008928
+  text_direction: left_to_right
+  corpus_dir: data.nosync/corpus_text/ltr
+  min_text_length: 12
+  max_text_length: 28
+  curve_type: none
+  overlap_intensity: 0.4
+  ink_bleed_intensity: 0.5
+  effect_type: none
+  text_color_mode: uniform
+  color_palette: realistic_dark
+  background_dirs:
+  - data.nosync/backgrounds
+  background_pattern: '*.png'
+  use_solid_background_fallback: true

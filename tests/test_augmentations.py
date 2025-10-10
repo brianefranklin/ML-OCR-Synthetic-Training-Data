@@ -16,7 +16,7 @@ from augmentations import (
     elastic_distortion,
     adjust_brightness_contrast,
     erode_dilate,
-    add_background,
+    # add_background - DEPRECATED: Backgrounds now handled by BackgroundImageManager at canvas placement stage
     add_shadow,
     cutout,
     apply_augmentations,
@@ -38,23 +38,9 @@ def black_image():
     return Image.new('RGB', (100, 100), color='black')
 
 @pytest.fixture
-def background_image_list(tmp_path):
-    """Creates a dummy background image for testing."""
-    bg_dir = tmp_path / "backgrounds"
-    bg_dir.mkdir()
-    bg_file = bg_dir / "bg.png"
-    Image.new('RGB', (300, 100), color='blue').save(bg_file)
-    return [str(bg_file)]
-
-@pytest.fixture
 def dummy_bboxes():
     """Creates a sample list of bounding boxes."""
     return [[10, 10, 30, 30], [40, 10, 60, 30]]
-
-@pytest.fixture
-def empty_background_list():
-    """Provides an empty list for backgrounds."""
-    return []
 
 
 def test_pil_to_cv2(base_image):
@@ -143,13 +129,9 @@ def test_erode_dilate(base_image):
     assert augmented.size == base_image.size
 
 
-def test_add_background(base_image, background_image_list):
-    augmented = add_background(base_image, background_image_list)
-    assert isinstance(augmented, Image.Image)
-    assert augmented.size == base_image.size
-    # Check if the blue background color is present
-    colors = [item[1] for item in augmented.getcolors(maxcolors=10000)]
-    assert (0, 0, 255) in colors 
+# test_add_background - REMOVED: add_background function deprecated
+# Backgrounds are now handled by BackgroundImageManager at canvas placement stage
+# See test_background_manager.py for background system tests
 
 def test_add_shadow(base_image):
     augmented = add_shadow(base_image)
@@ -161,9 +143,10 @@ def test_cutout(base_image):
     assert isinstance(augmented, Image.Image)
     assert augmented.size == base_image.size
 
-def test_apply_augmentations(base_image, dummy_bboxes, empty_background_list):
+def test_apply_augmentations(base_image, dummy_bboxes):
     """Test the main pipeline function to ensure it runs."""
-    augmented, bboxes, augmentations_applied = apply_augmentations(base_image, dummy_bboxes, empty_background_list)
+    # background_images parameter is deprecated and ignored
+    augmented, bboxes, augmentations_applied = apply_augmentations(base_image, dummy_bboxes)
     assert isinstance(augmented, Image.Image)
     assert len(bboxes) == len(dummy_bboxes)
     assert isinstance(augmentations_applied, dict)

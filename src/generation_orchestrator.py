@@ -14,6 +14,9 @@ from font_utils import can_font_render_text
 # Global font health manager (set by main.py)
 _font_health_manager = None
 
+# Global background image managers (one per batch, set during generation)
+_background_managers = {}
+
 
 def set_font_health_manager(manager):
     """Set the global font health manager instance."""
@@ -34,7 +37,8 @@ def generate_with_batches(batch_config, font_files, background_images, args, OCR
     """
     from batch_config import BatchManager
     from corpus_manager import CorpusManager
-    from canvas_placement import save_label_json
+    from canvas_placement import save_label_json, place_on_canvas
+    from background_manager import BackgroundImageManager
 
     # Filter fonts using health manager
     if _font_health_manager:
@@ -55,6 +59,10 @@ def generate_with_batches(batch_config, font_files, background_images, args, OCR
 
     # Track corpora per batch
     batch_corpora = {}
+
+    # Track background managers per batch
+    global _background_managers
+    _background_managers = {}
 
     # Track generation attempts and successes
     successful_count = 0
@@ -110,10 +118,31 @@ def generate_with_batches(batch_config, font_files, background_images, args, OCR
 
         corpus_mgr = batch_corpora[batch_name]
 
+        # Get or create background manager for this batch
+        if batch_name not in _background_managers:
+            background_dirs = task.get('background_dirs')
+            if background_dirs:
+                background_pattern = task.get('background_pattern', '*.{png,jpg,jpeg}')
+                background_weights = task.get('background_weights', {})
+                # Use session-only scoring (enable_persistence=False by default)
+                # Background scores don't persist across batch jobs since context changes
+                _background_managers[batch_name] = BackgroundImageManager(
+                    background_dirs=background_dirs,
+                    pattern=background_pattern,
+                    weights=background_weights,
+                    score_file=f".background_scores_{batch_name}.json",
+                    enable_persistence=False  # Session-only for batch mode
+                )
+                logging.info(f"Initialized BackgroundImageManager for batch '{batch_name}' with {len(_background_managers[batch_name].backgrounds)} images")
+            else:
+                _background_managers[batch_name] = None
+
+        background_mgr = _background_managers.get(batch_name)
+
         font_path = task['font_path']
 
-        # Initialize generator with task-specific background images
-        generator = OCRDataGenerator([font_path], background_images)
+        # Initialize generator (no longer needs background_images parameter)
+        generator = OCRDataGenerator([font_path])
 
         # Extract text from corpus manager
         text_line = corpus_mgr.extract_text_segment(
@@ -135,6 +164,83 @@ def generate_with_batches(batch_config, font_files, background_images, args, OCR
         # Generate font size
         font_size = random.randint(28, 40)
 
+        # Select and prepare background image if BackgroundImageManager is available
+        background_img = None
+        selected_background_path = None
+        if background_mgr:
+            # We need to determine canvas size first to validate background dimensions
+            # Canvas size will be generated internally by generator.generate_image if not specified
+            # For now, we'll just estimate based on typical canvas sizes
+            # The actual canvas size is determined later in generator.generate_image
+
+            # Try to select and load a background
+            max_background_attempts = 5
+            for attempt in range(max_background_attempts):
+                # Select a background image path
+                selected_background_path = background_mgr.select_background()
+                if not selected_background_path:
+                    logging.debug(f"Batch '{batch_name}': No background images available")
+                    break
+
+                try:
+                    # For validation, we need to know the final canvas size
+                    # Since canvas is generated dynamically, we'll estimate a typical size
+                    # Text is roughly font_size * text_length for width estimation
+                    estimated_text_width = font_size * len(text_line)
+                    estimated_text_height = font_size * 2
+                    min_padding = task.get('canvas_min_padding', 10)
+
+                    # Estimate canvas size (will be refined by generate_random_canvas_size)
+                    from canvas_placement import generate_random_canvas_size
+                    estimated_text_size = (estimated_text_width, estimated_text_height)
+                    canvas_size_estimate = generate_random_canvas_size(
+                        estimated_text_size,
+                        min_padding=min_padding,
+                        max_megapixels=task.get('canvas_max_megapixels', 12.0)
+                    )
+
+                    # Validate background against estimated canvas
+                    is_valid, reason, penalty = background_mgr.validate_background(
+                        selected_background_path,
+                        canvas_size_estimate,
+                        estimated_text_size
+                    )
+
+                    if not is_valid:
+                        logging.debug(f"Background {os.path.basename(selected_background_path)} invalid: {reason}")
+                        background_mgr.update_score(selected_background_path, penalty, reason)
+                        selected_background_path = None
+                        continue
+
+                    # Background is valid, load and crop it
+                    background_img = background_mgr.load_and_crop_background(
+                        selected_background_path,
+                        canvas_size_estimate
+                    )
+
+                    if background_img is None:
+                        logging.debug(f"Failed to load background {os.path.basename(selected_background_path)}")
+                        background_mgr.update_score(selected_background_path, 0.3, "load_failed")
+                        selected_background_path = None
+                        continue
+
+                    # Successfully loaded background
+                    logging.debug(f"Using background: {os.path.basename(selected_background_path)}")
+                    break
+
+                except Exception as e:
+                    logging.debug(f"Error processing background {os.path.basename(selected_background_path)}: {e}")
+                    background_mgr.update_score(selected_background_path, 0.5, "processing_error")
+                    selected_background_path = None
+                    background_img = None
+                    continue
+
+            # If no valid background found and fallback is disabled, skip this generation
+            if background_img is None and not task.get('use_solid_background_fallback', True):
+                logging.debug(f"Batch '{batch_name}': No valid background and fallback disabled. Skipping.")
+                failed_attempts += 1
+                continue
+
         try:
             # Generate image with augmentations and canvas placement
             final_image, metadata, text, augmentations_applied = generator.generate_image(
@@ -155,7 +261,8 @@ def generate_with_batches(batch_config, font_files, background_images, args, OCR
                 canvas_enabled=True,
                 canvas_min_padding=task.get('canvas_min_padding', 10),
                 canvas_placement=task.get('canvas_placement', 'weighted_random'),
-                canvas_max_megapixels=task.get('canvas_max_megapixels', 12.0)
+                canvas_max_megapixels=task.get('canvas_max_megapixels', 12.0),
+                background_image=background_img
             )
 
             # Save image
@@ -197,6 +304,10 @@ def generate_with_batches(batch_config, font_files, background_images, args, OCR
             if _font_health_manager:
                 _font_health_manager.record_success(font_path, text_line)
 
+            # Record success in background manager
+            if background_mgr and selected_background_path:
+                background_mgr.update_score(selected_background_path, 0.0, "success")
+
             # Mark task as successfully completed in batch manager
             batch_manager.mark_task_success(task)
 
@@ -230,6 +341,12 @@ def generate_with_batches(batch_config, font_files, background_images, args, OCR
         _font_health_manager.save_state()
         health_report = _font_health_manager.get_summary_report()
         logging.info(f"Font health summary: {health_report}")
+
+    # Finalize background managers and save scores
+    for batch_name, bg_mgr in _background_managers.items():
+        if bg_mgr:
+            bg_mgr.finalize()
+            logging.info(f"Finalized BackgroundImageManager for batch '{batch_name}'")
 
     # Report final statistics
     logging.info(f"\n{batch_manager.get_progress_summary()}")

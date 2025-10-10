@@ -100,7 +100,7 @@ def main():
     parser.add_argument('--output-dir', type=str, default=config.get('output_dir'),
                        help='Path to the directory to save the generated images and labels.')
     parser.add_argument('--backgrounds-dir', type=str, default=config.get('backgrounds_dir'),
-                       help='Optional: Path to a directory of background images.')
+                       help='DEPRECATED: Background images are now configured per-batch in YAML config files. See batch configuration documentation.')
     parser.add_argument('--num-images', type=int, default=config.get('num_images', 1000),
                        help='Number of images to generate.')
     parser.add_argument('--max-execution-time', type=float, default=config.get('max_execution_time'),
@@ -197,7 +197,9 @@ def main():
         os.makedirs(args.output_dir)
 
     # Initialize Font Health Manager
-    # Save font health to timestamped file in log directory
+    # For batch mode: use session-only scoring (no persistence across jobs)
+    # For standard mode: persist scores to disk for learning across runs
+    enable_font_persistence = not args.batch_config
     font_health_path = os.path.join(args.log_dir, f'font_health_{run_timestamp}.json')
     font_health_manager = FontHealthManager(
         health_file=font_health_path,
@@ -205,9 +207,13 @@ def main():
         success_increment=1.0,
         failure_decrement=10.0,
         cooldown_base_seconds=300.0,  # 5 minutes
-        auto_save_interval=50
+        auto_save_interval=50,
+        enable_persistence=enable_font_persistence
     )
-    logging.info(f"Font health tracking enabled (saving to {font_health_path})")
+    if enable_font_persistence:
+        logging.info(f"Font health tracking enabled with persistence (saving to {font_health_path})")
+    else:
+        logging.info("Font health tracking enabled (session-only, no persistence across batch jobs)")
 
     # Set the global font health manager in other modules
     set_font_utils_health_manager(font_health_manager)
@@ -247,13 +253,15 @@ def main():
 
     logging.info(f"Loaded {len(font_files)} fonts")
 
-    # Load background images (optional)
+    # Load background images (optional, deprecated)
     background_images = []
     if args.backgrounds_dir and os.path.isdir(args.backgrounds_dir):
+        logging.warning("--backgrounds-dir is deprecated. Background images should be configured per-batch in YAML config files.")
+        logging.warning("The --backgrounds-dir parameter is no longer used and will be ignored.")
         background_images = [os.path.join(args.backgrounds_dir, f)
                            for f in os.listdir(args.backgrounds_dir)
                            if f.lower().endswith(('.png', '.jpg', '.jpeg'))]
-        logging.info(f"Loaded {len(background_images)} background images")
+        logging.info(f"Found {len(background_images)} background images (but they will not be used)")
 
     # --- Check for Batch Configuration ---
     if args.batch_config:

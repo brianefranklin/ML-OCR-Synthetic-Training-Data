@@ -266,38 +266,8 @@ def erode_dilate(image):
 
     return cv2_to_pil(result_cv).convert(original_mode)
 
-def add_background(image, background_images):
-    """Adds a random background from a list of images."""
-    logging.debug("Applying add_background augmentation")
-    if not background_images:
-        return image
-
-    # Check if image is valid
-    if image.size[0] == 0 or image.size[1] == 0:
-        logging.warning("add_background received empty image, skipping")
-        return image
-
-    bg_path = random.choice(background_images)
-    try:
-        bg_image = Image.open(bg_path).convert('RGB')
-        bg_image = bg_image.resize(image.size)
-
-        # Handle RGBA images - use alpha channel as mask
-        if image.mode == 'RGBA':
-            # Composite RGBA text onto RGB background using alpha channel
-            bg_image.paste(image, (0, 0), image)
-            return bg_image
-        else:
-            # Create a mask from the text (dark pixels = text, light pixels = background)
-            # Mask should be 255 where text is (to show original text) and 0 where background is
-            mask = image.convert('L').point(lambda x: 255 if x < 200 else 0, '1')
-
-            # Composite the text onto the background
-            bg_image.paste(image, (0, 0), mask)
-            return bg_image
-    except Exception as e:
-        logging.error(f"Could not apply background {bg_path}: {e}")
-        return image
+# DEPRECATED: Background images are now applied at canvas placement stage, not during augmentation
+# This function has been removed. See background_manager.py and canvas_placement.py for the new implementation.
 
 
 def add_shadow(image):
@@ -360,11 +330,14 @@ def cutout(image):
 
 # --- Main Augmentation Pipeline ---
 
-def apply_augmentations(image, char_bboxes, background_images, augmentations_to_apply=None):
+def apply_augmentations(image, char_bboxes, background_images=None, augmentations_to_apply=None):
     """
     Applies a pipeline of augmentations to an image and its character bounding boxes.
     If augmentations_to_apply is provided, it applies the specified augmentations.
     Otherwise, it applies a random pipeline.
+
+    NOTE: background_images parameter is deprecated and ignored. Backgrounds are now
+    applied at the canvas placement stage via background_manager.py
     """
     # Start with a clean image and original bboxes
     augmented_image = image
@@ -389,11 +362,7 @@ def apply_augmentations(image, char_bboxes, background_images, augmentations_to_
             augmented_image = add_shadow(augmented_image)
             augmentations_applied['shadow'] = True
 
-        # Background and lighting
-        if random.random() < 0.6:
-            augmented_image = add_background(augmented_image, background_images)
-            augmentations_applied['background'] = True
-        
+        # Lighting adjustments
         augmented_image = adjust_brightness_contrast(augmented_image)
         augmentations_applied['brightness_contrast'] = True
 
@@ -429,8 +398,9 @@ def apply_augmentations(image, char_bboxes, background_images, augmentations_to_
                 augmented_image = add_shadow(augmented_image)
                 augmentations_applied['shadow'] = True
             elif aug_name == 'background':
-                augmented_image = add_background(augmented_image, background_images)
-                augmentations_applied['background'] = True
+                # Deprecated: backgrounds are now applied at canvas placement stage
+                logging.warning("'background' augmentation is deprecated. Backgrounds are now applied at canvas placement stage.")
+                pass
             elif aug_name == 'brightness_contrast':
                 augmented_image = adjust_brightness_contrast(augmented_image)
                 augmentations_applied['brightness_contrast'] = True

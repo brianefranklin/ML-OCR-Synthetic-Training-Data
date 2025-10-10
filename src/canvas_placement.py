@@ -125,7 +125,8 @@ def place_on_canvas(
     min_padding: int = 10,
     placement: str = 'weighted_random',
     background_color: Tuple[int, int, int] = (255, 255, 255),
-    text_offset: Tuple[int, int] = None
+    text_offset: Tuple[int, int] = None,
+    background_image: Image.Image = None
 ) -> Tuple[Image.Image, Dict]:
     """
     Place text image on a larger canvas.
@@ -136,8 +137,9 @@ def place_on_canvas(
         canvas_size: Canvas dimensions (if None, generates random size)
         min_padding: Minimum padding around text
         placement: Placement strategy ('uniform_random', 'weighted_random', 'center')
-        background_color: Background color for canvas (default white)
+        background_color: Background color for canvas (default white) - used if background_image is None
         text_offset: Explicit text placement coordinates (x, y). If provided, overrides placement strategy.
+        background_image: Optional PIL Image to use as background (should already be cropped to canvas_size)
 
     Returns:
         Tuple of (canvas_image, metadata_dict)
@@ -146,6 +148,7 @@ def place_on_canvas(
             - text_placement: [x_offset, y_offset]
             - line_bbox: [x_min, y_min, x_max, y_max]
             - char_bboxes: List of adjusted character bboxes
+            - used_background_image: bool (whether background image was used)
     """
     text_width, text_height = text_image.size
 
@@ -158,10 +161,25 @@ def place_on_canvas(
 
     canvas_width, canvas_height = canvas_size
 
-    # Create background canvas in RGBA mode to preserve transparency
-    # Use transparent background color
-    transparent_bg = background_color + (0,) if len(background_color) == 3 else background_color
-    canvas = Image.new('RGBA', canvas_size, color=transparent_bg)
+    # Create background canvas
+    if background_image is not None:
+        # Use provided background image
+        # Ensure it's in RGB mode and correct size
+        if background_image.size != canvas_size:
+            # This shouldn't happen, but handle gracefully
+            import logging
+            logging.warning(f"Background image size {background_image.size} doesn't match canvas size {canvas_size}, resizing")
+            background_image = background_image.resize(canvas_size)
+
+        # Convert to RGBA for consistency
+        canvas = background_image.convert('RGBA')
+        used_background_image = True
+    else:
+        # Create solid color background in RGBA mode
+        # Use transparent background color
+        transparent_bg = background_color + (0,) if len(background_color) == 3 else background_color
+        canvas = Image.new('RGBA', canvas_size, color=transparent_bg)
+        used_background_image = False
 
     # Calculate text placement (or use provided offset for deterministic regeneration)
     if text_offset is not None:
@@ -207,7 +225,8 @@ def place_on_canvas(
         'canvas_size': list(canvas_size),
         'text_placement': [x_offset, y_offset],
         'line_bbox': line_bbox,
-        'char_bboxes': adjusted_char_bboxes
+        'char_bboxes': adjusted_char_bboxes,
+        'used_background_image': used_background_image
     }
 
     return canvas, metadata
