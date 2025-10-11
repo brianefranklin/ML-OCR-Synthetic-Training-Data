@@ -5,7 +5,7 @@ Tests for image effects.
 import pytest
 from PIL import Image, ImageDraw
 import numpy as np
-from src.effects import apply_ink_bleed, apply_drop_shadow
+from src.effects import apply_ink_bleed, apply_drop_shadow, add_noise, apply_blur
 
 def test_ink_bleed_is_applied():
     """Tests that applying ink bleed modifies the source image."""
@@ -36,3 +36,27 @@ def test_drop_shadow_is_applied():
 
     # The images should not be identical
     assert not np.array_equal(original_array, shadow_array)
+
+def test_add_noise_is_applied():
+    """Tests that adding noise modifies the source image."""
+    image = Image.new("RGBA", (100, 50), "white")
+    original_array = np.array(image)
+
+    # Apply noise
+    noisy_image = add_noise(image, amount=0.1)
+    noisy_array = np.array(noisy_image)
+
+    assert not np.array_equal(original_array, noisy_array)
+
+def test_blur_is_applied():
+    """Tests that applying blur modifies the source image."""
+    image = Image.new("RGBA", (100, 50), (0, 0, 0, 0))
+    draw = ImageDraw.Draw(image)
+    draw.rectangle((20, 10, 80, 40), fill="black")
+    original_array = np.array(image)
+
+    # Apply blur
+    blurred_image = apply_blur(image, radius=2)
+    blurred_array = np.array(blurred_image)
+
+    assert not np.array_equal(original_array, blurred_array)

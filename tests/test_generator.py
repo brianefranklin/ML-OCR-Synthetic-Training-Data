@@ -101,19 +101,15 @@ def test_glyph_overlap_reduces_width():
     text = "hello"
     direction = "left_to_right"
 
-    # Plan with overlap
-    plan_overlap = generator.plan_generation(
-        text=text, font_path=font_path, direction=direction, glyph_overlap_intensity=0.5
+    # Render with overlap
+    image_overlap, _ = generator._render_text(
+        text, font_path, direction, glyph_overlap_intensity=0.5
     )
-    image_overlap, _ = generator.generate_from_plan(plan_overlap)
 
-    # Plan without overlap (control)
-    plan_no_overlap = generator.plan_generation(
-        text=text, font_path=font_path, direction=direction, glyph_overlap_intensity=0.0
+    # Render without overlap
+    image_no_overlap, _ = generator._render_text(
+        text, font_path, direction, glyph_overlap_intensity=0.0
     )
-    # Use the same seed for a fair comparison of canvas size, etc.
-    plan_no_overlap["seed"] = plan_overlap["seed"]
-    image_no_overlap, _ = generator.generate_from_plan(plan_no_overlap)
 
     assert image_overlap.width < image_no_overlap.width
 
@@ -158,3 +154,220 @@ def test_ink_bleed_integration():
 
     # The images should not be identical
     assert not np.array_equal(np.array(image_bleed), np.array(image_no_bleed))
+
+def test_drop_shadow_integration():
+    """Tests that the drop_shadow effect is correctly integrated."""
+    generator = OCRDataGenerator()
+    font_path = "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf"
+    text = "hello"
+    direction = "left_to_right"
+    shadow_options = {"offset": (5, 5), "radius": 2, "color": (0, 0, 0, 128)}
+
+    # Plan with shadow
+    plan_shadow = generator.plan_generation(
+        text=text, font_path=font_path, direction=direction, drop_shadow_options=shadow_options
+    )
+    image_shadow, _ = generator.generate_from_plan(plan_shadow)
+
+    # Plan without shadow (control)
+    plan_no_shadow = generator.plan_generation(
+        text=text, font_path=font_path, direction=direction, drop_shadow_options=None
+    )
+    plan_no_shadow["seed"] = plan_shadow["seed"]
+    image_no_shadow, _ = generator.generate_from_plan(plan_no_shadow)
+
+    # The images should not be identical
+    assert not np.array_equal(np.array(image_shadow), np.array(image_no_shadow))
+
+def test_per_glyph_color_is_applied():
+    """Tests that per-glyph coloring is applied correctly."""
+    generator = OCRDataGenerator()
+    font_path = "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf"
+    text = "ab"
+    direction = "left_to_right"
+    colors = [(255, 0, 0, 255), (0, 255, 0, 255)] # Red, Green
+
+    # We test the internal rendering method directly to check the text surface
+    text_surface, bboxes = generator._render_text(
+        text, 
+        font_path, 
+        direction, 
+        color_mode='per_glyph',
+        color_palette=colors
+    )
+
+    # Check color of first character 'a'
+    bbox_a = bboxes[0]
+    found_color_a = False
+    # Scan the entire bounding box for the correct color
+    for x in range(bbox_a['x0'], bbox_a['x1']):
+        for y in range(bbox_a['y0'], bbox_a['y1']):
+            if text_surface.getpixel((x, y)) == colors[0]:
+                found_color_a = True
+                break
+        if found_color_a:
+            break
+    assert found_color_a, "Did not find correct color for first character"
+
+    # Check color of second character 'b'
+    bbox_b = bboxes[1]
+    found_color_b = False
+    for x in range(bbox_b['x0'], bbox_b['x1']):
+        for y in range(bbox_b['y0'], bbox_b['y1']):
+            if text_surface.getpixel((x, y)) == colors[1]:
+                found_color_b = True
+                break
+        if found_color_b:
+            break
+    assert found_color_b, "Did not find correct color for second character"
+
+
+def test_horizontal_gradient_color_is_applied():
+    """Tests that a horizontal gradient is applied correctly."""
+    generator = OCRDataGenerator()
+    font_path = "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf"
+    text = "hello"
+    direction = "left_to_right"
+    colors = [(255, 0, 0, 255), (0, 0, 255, 255)] # Red to Blue
+
+    text_surface, bboxes = generator._render_text(
+        text, 
+        font_path, 
+        direction, 
+        color_mode='gradient',
+        color_palette=colors
+    )
+
+    # Check color of first character 'h'
+    bbox_first = bboxes[0]
+    found_color_first = False
+    for x in range(bbox_first['x0'], bbox_first['x1']):
+        for y in range(bbox_first['y0'], bbox_first['y1']):
+            if text_surface.getpixel((x, y)) == colors[0]:
+                found_color_first = True
+                break
+        if found_color_first:
+            break
+    assert found_color_first, "Did not find red pixel in first character"
+
+    # Check color of last character 'o'
+    bbox_last = bboxes[-1]
+    found_color_last = False
+    for x in range(bbox_last['x0'], bbox_last['x1']):
+        for y in range(bbox_last['y0'], bbox_last['y1']):
+            if text_surface.getpixel((x, y)) == colors[1]:
+                found_color_last = True
+                break
+        if found_color_last:
+            break
+    assert found_color_last, "Did not find blue pixel in last character"
+
+def test_vertical_gradient_color_is_applied():
+    """Tests that a vertical gradient is applied correctly."""
+    generator = OCRDataGenerator()
+    font_path = "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf"
+    text = "VERTICAL"
+    direction = "top_to_bottom"
+    colors = [(255, 0, 0, 255), (0, 0, 255, 255)] # Red to Blue
+
+    text_surface, bboxes = generator._render_text(
+        text, 
+        font_path, 
+        direction, 
+        color_mode='gradient',
+        color_palette=colors
+    )
+
+    # Check color of first character 'V'
+    bbox_first = bboxes[0]
+    found_color_first = False
+    for x in range(bbox_first['x0'], bbox_first['x1']):
+        for y in range(bbox_first['y0'], bbox_first['y1']):
+            if text_surface.getpixel((x, y)) == colors[0]:
+                found_color_first = True
+                break
+        if found_color_first:
+            break
+    assert found_color_first, "Did not find red pixel in first character"
+
+    # Check color of last character 'L'
+    bbox_last = bboxes[-1]
+    found_color_last = False
+    for x in range(bbox_last['x0'], bbox_last['x1']):
+        for y in range(bbox_last['y0'], bbox_last['y1']):
+            if text_surface.getpixel((x, y)) == colors[1]:
+                found_color_last = True
+                break
+        if found_color_last:
+            break
+    assert found_color_last, "Did not find blue pixel in last character"
+
+
+def test_rotation_integration():
+    """Tests that the rotation augmentation is correctly integrated."""
+    generator = OCRDataGenerator()
+    font_path = "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf"
+    text = "hello"
+
+    # Plan with rotation
+    plan_rotated = generator.plan_generation(text=text, font_path=font_path, direction='left_to_right', rotation_angle=30)
+    image_rotated, _ = generator.generate_from_plan(plan_rotated)
+
+    # Plan without rotation
+    plan_no_rotation = generator.plan_generation(text=text, font_path=font_path, direction='left_to_right', rotation_angle=0)
+    plan_no_rotation["seed"] = plan_rotated["seed"]
+    image_no_rotation, _ = generator.generate_from_plan(plan_no_rotation)
+
+    assert image_rotated.size != image_no_rotation.size
+
+def test_perspective_warp_integration():
+    """Tests that the perspective warp augmentation is correctly integrated."""
+    generator = OCRDataGenerator()
+    font_path = "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf"
+    text = "hello"
+
+    # Plan with warp
+    plan_warped = generator.plan_generation(text=text, font_path=font_path, direction='left_to_right', perspective_warp_magnitude=0.2)
+    _, bboxes_warped = generator.generate_from_plan(plan_warped)
+
+    # Plan without warp
+    plan_no_warp = generator.plan_generation(text=text, font_path=font_path, direction='left_to_right', perspective_warp_magnitude=0.0)
+    plan_no_warp["seed"] = plan_warped["seed"]
+    _, bboxes_no_warp = generator.generate_from_plan(plan_no_warp)
+
+    assert bboxes_warped[0]["x0"] != bboxes_no_warp[0]["x0"]
+
+def test_elastic_distortion_integration():
+    """Tests that the elastic distortion augmentation is correctly integrated."""
+    generator = OCRDataGenerator()
+    font_path = "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf"
+    text = "hello"
+    elastic_options = {"alpha": 34, "sigma": 4}
+
+    # Plan with distortion
+    plan_distorted = generator.plan_generation(text=text, font_path=font_path, direction='left_to_right', elastic_distortion_options=elastic_options)
+    image_distorted, _ = generator.generate_from_plan(plan_distorted)
+
+    # Plan without distortion
+    plan_no_distortion = generator.plan_generation(text=text, font_path=font_path, direction='left_to_right', elastic_distortion_options=None)
+    plan_no_distortion["seed"] = plan_distorted["seed"]
+    image_no_distortion, _ = generator.generate_from_plan(plan_no_distortion)
+
+    assert not np.array_equal(np.array(image_distorted), np.array(image_no_distortion))
+
+def test_noise_integration():
+    """Tests that the noise augmentation is correctly integrated."""
+    generator = OCRDataGenerator()
+    font_path = "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf"
+    text = "hello"
+
+    # Plan with noise
+    plan_noisy = generator.plan_generation(text=text, font_path=font_path, direction='left_to_right', noise_amount=0.1)
+    image_noisy, _ = generator.generate_from_plan(plan_noisy)
+
+    # Plan without noise
+    plan_no_noise = generator.plan_generation(text=text, font_path=font_path, direction='left_to_right', noise_amount=0.0)
+    plan_no_noise["seed"] = plan_noisy["seed"]
+    image_no_noise, _ = generator.generate_from_plan(plan_no_noise)
+
+    assert not np.array_equal(np.array(image_noisy), np.array(image_no_noise))

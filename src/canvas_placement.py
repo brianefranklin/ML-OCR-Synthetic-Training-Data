@@ -72,8 +72,8 @@ def place_on_canvas(
     Returns:
         A tuple containing the final canvas image and the adjusted bounding boxes.
     """
-    # Create a new canvas (solid white for now)
-    canvas = Image.new("RGBA", (canvas_w, canvas_h), (255, 255, 255, 255))
+    # Create a new transparent canvas
+    canvas = Image.new("RGBA", (canvas_w, canvas_h), (0, 0, 0, 0))
     
     # Paste the text image onto the canvas
     canvas.paste(text_image, (placement_x, placement_y), text_image) # Use text_image as mask for transparency

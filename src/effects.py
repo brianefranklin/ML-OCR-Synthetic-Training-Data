@@ -3,6 +3,8 @@ This module contains functions for applying various image effects and augmentati
 """
 
 from PIL import Image, ImageFilter
+import numpy as np
+import random
 
 def apply_ink_bleed(image: Image.Image, radius: float) -> Image.Image:
     """
@@ -59,3 +61,30 @@ def apply_drop_shadow(
     new_image.paste(image, image_pos, image)
 
     return new_image
+
+def add_noise(image: Image.Image, amount: float) -> Image.Image:
+    """
+    Adds salt-and-pepper noise to an image.
+
+    Args:
+        image: The source PIL Image.
+        amount: The proportion of pixels to be affected by noise (0.0 to 1.0).
+
+    Returns:
+        The processed PIL Image with noise applied.
+    """
+    img_np = np.array(image)
+    h, w = img_np.shape[:2]
+    num_pixels = int(amount * w * h)
+
+    for _ in range(num_pixels):
+        y = random.randint(0, h - 1)
+        x = random.randint(0, w - 1)
+        
+        # Salt or pepper
+        if random.random() > 0.5:
+            img_np[y, x] = 255
+        else:
+            img_np[y, x] = 0
+
+    return Image.fromarray(img_np)
