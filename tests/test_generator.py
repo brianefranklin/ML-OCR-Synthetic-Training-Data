@@ -511,6 +511,28 @@ def test_block_shadow_integration():
 
     assert not np.array_equal(np.array(image_shadow), np.array(image_no_shadow))
 
+def test_cutout_integration():
+    """Tests that the cutout augmentation is correctly integrated."""
+    generator = OCRDataGenerator()
+    font_path = "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf"
+    text = "hello"
+    cutout_options = {"cutout_size": (20, 10)}
+
+    # Plan with cutout
+    plan_cutout = generator.plan_generation(
+        text=text, font_path=font_path, direction='left_to_right', cutout_options=cutout_options
+    )
+    image_cutout, _ = generator.generate_from_plan(plan_cutout)
+
+    # Plan without cutout
+    plan_no_cutout = generator.plan_generation(
+        text=text, font_path=font_path, direction='left_to_right', cutout_options=None
+    )
+    plan_no_cutout["seed"] = plan_cutout["seed"]
+    image_no_cutout, _ = generator.generate_from_plan(plan_no_cutout)
+
+    assert not np.array_equal(np.array(image_cutout), np.array(image_no_cutout))
+
 def test_background_image_is_applied(background_manager):
     """Tests that a background image from the manager is used in the final image."""
     generator = OCRDataGenerator()

@@ -12,7 +12,8 @@ from src.effects import (
     apply_blur, 
     apply_brightness_contrast,
     apply_erosion_dilation,
-    apply_block_shadow
+    apply_block_shadow,
+    apply_cutout
 )
 
 def test_ink_bleed_is_applied():
@@ -109,3 +110,14 @@ def test_block_shadow_is_applied():
     shadow_array = np.array(shadow_image)
 
     assert not np.array_equal(original_array, shadow_array)
+
+def test_cutout_is_applied():
+    """Tests that applying cutout modifies the source image."""
+    image = Image.new("RGBA", (100, 50), "white")
+    original_array = np.array(image)
+
+    # Apply cutout
+    cutout_image = apply_cutout(image, cutout_size=(20, 10))
+    cutout_array = np.array(cutout_image)
+
+    assert not np.array_equal(original_array, cutout_array)

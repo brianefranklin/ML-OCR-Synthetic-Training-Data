@@ -14,7 +14,8 @@ from src.effects import (
     apply_blur, 
     apply_brightness_contrast,
     apply_erosion_dilation,
-    apply_block_shadow
+    apply_block_shadow,
+    apply_cutout
 )
 from src.augmentations import (
     apply_rotation, 
@@ -49,6 +50,7 @@ class OCRDataGenerator:
         elastic_distortion_options: dict = None,
         grid_distortion_options: dict = None,
         optical_distortion_options: dict = None,
+        cutout_options: dict = None,
         noise_amount: float = 0.0,
         blur_radius: float = 0.0,
         brightness_factor: float = 1.0,
@@ -88,6 +90,7 @@ class OCRDataGenerator:
             "elastic_distortion_options": elastic_distortion_options,
             "grid_distortion_options": grid_distortion_options,
             "optical_distortion_options": optical_distortion_options,
+            "cutout_options": cutout_options,
             "noise_amount": noise_amount,
             "blur_radius": blur_radius,
             "brightness_factor": brightness_factor,
@@ -152,6 +155,10 @@ class OCRDataGenerator:
         optical_distortion_options = plan.get("optical_distortion_options")
         if optical_distortion_options:
             final_image, final_bboxes = apply_optical_distortion(final_image, final_bboxes, **optical_distortion_options)
+
+        cutout_options = plan.get("cutout_options")
+        if cutout_options:
+            final_image = apply_cutout(final_image, **cutout_options)
 
         erosion_dilation_options = plan.get("erosion_dilation_options")
         if erosion_dilation_options:

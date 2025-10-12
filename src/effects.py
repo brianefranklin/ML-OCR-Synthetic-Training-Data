@@ -2,7 +2,7 @@
 This module contains functions for applying various image effects and augmentations.
 """
 
-from PIL import Image, ImageFilter, ImageEnhance
+from PIL import Image, ImageFilter, ImageEnhance, ImageDraw
 import numpy as np
 import random
 import cv2
@@ -117,8 +117,35 @@ def apply_brightness_contrast(image: Image.Image, brightness_factor: float, cont
     """
     enhancer = ImageEnhance.Brightness(image)
     image = enhancer.enhance(brightness_factor)
-    
     enhancer = ImageEnhance.Contrast(image)
+    image = enhancer.enhance(contrast_factor)
+    
+    return image
+
+def apply_cutout(image: Image.Image, cutout_size: tuple[int, int]) -> Image.Image:
+    """
+    Applies a cutout (erasing a random rectangle) to an image.
+
+    Args:
+        image: The source PIL Image.
+        cutout_size: A tuple (width, height) for the cutout rectangle.
+
+    Returns:
+        The processed PIL Image with the cutout applied.
+    """
+    w, h = image.size
+    cutout_w, cutout_h = cutout_size
+
+    # Choose a random top-left corner for the cutout
+    x0 = random.randint(0, w - cutout_w)
+    y0 = random.randint(0, h - cutout_h)
+    x1 = x0 + cutout_w
+    y1 = y0 + cutout_h
+
+    # Draw a black rectangle for the cutout
+    draw = ImageDraw.Draw(image)
+    draw.rectangle([x0, y0, x1, y1], fill="black")
+
     return image
 
 def apply_block_shadow(
