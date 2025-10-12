@@ -24,6 +24,7 @@ from src.augmentations import (
     apply_grid_distortion,
     apply_optical_distortion
 )
+from src.batch_config import BatchSpecification
 
 class OCRDataGenerator:
     """
@@ -34,34 +35,11 @@ class OCRDataGenerator:
         """Initializes the OCRDataGenerator."""
         pass
 
-    def plan_generation(
-        self, 
-        text: str, 
-        font_path: str, 
-        direction: str, 
-        glyph_overlap_intensity: float = 0.0, 
-        ink_bleed_radius: float = 0.0,
-        drop_shadow_options: dict = None,
-        block_shadow_options: dict = None,
-        color_mode: str = 'uniform',
-        color_palette: list = None,
-        rotation_angle: float = 0.0,
-        perspective_warp_magnitude: float = 0.0,
-        elastic_distortion_options: dict = None,
-        grid_distortion_options: dict = None,
-        optical_distortion_options: dict = None,
-        cutout_options: dict = None,
-        noise_amount: float = 0.0,
-        blur_radius: float = 0.0,
-        brightness_factor: float = 1.0,
-        contrast_factor: float = 1.0,
-        erosion_dilation_options: dict = None,
-        background_manager = None,
-    ):
+    def plan_generation(self, spec: BatchSpecification, text: str, font_path: str, background_manager = None):
         """Creates a plan (a dictionary of truth data) for generating an image."""
-        text_surface, _ = self._render_text(
-            text, font_path, direction, glyph_overlap_intensity, color_mode, color_palette
-        )
+        # This is a temporary, minimal implementation to get the text surface size.
+        # In the future, this will be more sophisticated.
+        text_surface, _ = self._render_text(text, font_path, spec.text_direction, 0.0, 'uniform', None)
         
         canvas_w, canvas_h = generate_random_canvas_size(text_surface.width, text_surface.height)
         placement_x, placement_y = calculate_text_placement(
@@ -73,29 +51,29 @@ class OCRDataGenerator:
         return {
             "text": text,
             "font_path": font_path,
-            "direction": direction,
+            "direction": spec.text_direction,
             "seed": random.randint(0, 2**32 - 1),
             "canvas_w": canvas_w,
             "canvas_h": canvas_h,
             "placement_x": placement_x,
             "placement_y": placement_y,
-            "glyph_overlap_intensity": glyph_overlap_intensity,
-            "ink_bleed_radius": ink_bleed_radius,
-            "drop_shadow_options": drop_shadow_options,
-            "block_shadow_options": block_shadow_options,
-            "color_mode": color_mode,
-            "color_palette": color_palette,
-            "rotation_angle": rotation_angle,
-            "perspective_warp_magnitude": perspective_warp_magnitude,
-            "elastic_distortion_options": elastic_distortion_options,
-            "grid_distortion_options": grid_distortion_options,
-            "optical_distortion_options": optical_distortion_options,
-            "cutout_options": cutout_options,
-            "noise_amount": noise_amount,
-            "blur_radius": blur_radius,
-            "brightness_factor": brightness_factor,
-            "contrast_factor": contrast_factor,
-            "erosion_dilation_options": erosion_dilation_options,
+            "glyph_overlap_intensity": 0.0,
+            "ink_bleed_radius": 0.0,
+            "drop_shadow_options": None,
+            "block_shadow_options": None,
+            "color_mode": 'uniform',
+            "color_palette": None,
+            "rotation_angle": 0.0,
+            "perspective_warp_magnitude": 0.0,
+            "elastic_distortion_options": None,
+            "grid_distortion_options": None,
+            "optical_distortion_options": None,
+            "cutout_options": None,
+            "noise_amount": 0.0,
+            "blur_radius": 0.0,
+            "brightness_factor": 1.0,
+            "contrast_factor": 1.0,
+            "erosion_dilation_options": None,
             "background_path": background_path,
         }
 
