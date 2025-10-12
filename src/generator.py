@@ -13,7 +13,8 @@ from src.effects import (
     add_noise, 
     apply_blur, 
     apply_brightness_contrast,
-    apply_erosion_dilation
+    apply_erosion_dilation,
+    apply_block_shadow
 )
 from src.augmentations import (
     apply_rotation, 
@@ -40,6 +41,7 @@ class OCRDataGenerator:
         glyph_overlap_intensity: float = 0.0, 
         ink_bleed_radius: float = 0.0,
         drop_shadow_options: dict = None,
+        block_shadow_options: dict = None,
         color_mode: str = 'uniform',
         color_palette: list = None,
         rotation_angle: float = 0.0,
@@ -78,6 +80,7 @@ class OCRDataGenerator:
             "glyph_overlap_intensity": glyph_overlap_intensity,
             "ink_bleed_radius": ink_bleed_radius,
             "drop_shadow_options": drop_shadow_options,
+            "block_shadow_options": block_shadow_options,
             "color_mode": color_mode,
             "color_palette": color_palette,
             "rotation_angle": rotation_angle,
@@ -114,6 +117,10 @@ class OCRDataGenerator:
         drop_shadow_options = plan.get("drop_shadow_options")
         if drop_shadow_options:
             text_surface = apply_drop_shadow(text_surface, **drop_shadow_options)
+
+        block_shadow_options = plan.get("block_shadow_options")
+        if block_shadow_options:
+            text_surface = apply_block_shadow(text_surface, **block_shadow_options)
 
         final_image, final_bboxes = place_on_canvas(
             text_image=text_surface,

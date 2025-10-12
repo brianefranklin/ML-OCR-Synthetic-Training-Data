@@ -11,7 +11,8 @@ from src.effects import (
     add_noise, 
     apply_blur, 
     apply_brightness_contrast,
-    apply_erosion_dilation
+    apply_erosion_dilation,
+    apply_block_shadow
 )
 
 def test_ink_bleed_is_applied():
@@ -95,3 +96,16 @@ def test_erosion_dilation_is_applied():
     dilated_image = apply_erosion_dilation(image, mode='dilate', kernel_size=3)
     dilated_black_pixels = np.sum(np.array(dilated_image) == 0)
     assert dilated_black_pixels > original_black_pixels
+
+def test_block_shadow_is_applied():
+    """Tests that a block shadow is applied correctly."""
+    image = Image.new("RGBA", (100, 50), (0, 0, 0, 0))
+    draw = ImageDraw.Draw(image)
+    draw.rectangle((20, 10, 80, 40), fill="black")
+    original_array = np.array(image)
+
+    # Apply block shadow
+    shadow_image = apply_block_shadow(image, offset=(5, 5), radius=2, color=(0, 0, 0, 128))
+    shadow_array = np.array(shadow_image)
+
+    assert not np.array_equal(original_array, shadow_array)

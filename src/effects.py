@@ -119,9 +119,42 @@ def apply_brightness_contrast(image: Image.Image, brightness_factor: float, cont
     image = enhancer.enhance(brightness_factor)
     
     enhancer = ImageEnhance.Contrast(image)
-    image = enhancer.enhance(contrast_factor)
-    
     return image
+
+def apply_block_shadow(
+    image: Image.Image, 
+    offset: tuple[int, int], 
+    radius: float, 
+    color: tuple[int, int, int, int]
+) -> Image.Image:
+    """
+    Applies a block shadow effect to an image.
+
+    Args:
+        image: The source PIL Image (must be RGBA).
+        offset: A tuple (x, y) for how far to offset the shadow.
+        radius: The radius of the Gaussian blur for the shadow.
+        color: The color of the shadow as an (R, G, B, A) tuple.
+
+    Returns:
+        A new PIL Image with the block shadow applied.
+    """
+    # Create a new image for the shadow, using the alpha channel of the original
+    shadow = Image.new("RGBA", image.size, color)
+    shadow.putalpha(image.split()[3]) # Use original image's alpha
+
+    # Blur the shadow
+    if radius > 0:
+        shadow = shadow.filter(ImageFilter.GaussianBlur(radius))
+
+    # Create a new canvas
+    new_image = Image.new("RGBA", image.size, (0, 0, 0, 0))
+
+    # Paste the shadow, then the original image on top
+    new_image.paste(shadow, offset, shadow)
+    new_image.paste(image, (0,0), image)
+
+    return new_image
 
 def apply_erosion_dilation(image: Image.Image, mode: str, kernel_size: int) -> Image.Image:
     """

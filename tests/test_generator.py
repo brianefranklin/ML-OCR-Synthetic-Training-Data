@@ -489,6 +489,28 @@ def test_optical_distortion_integration():
 
     assert not np.array_equal(np.array(image_distorted), np.array(image_no_distortion))
 
+def test_block_shadow_integration():
+    """Tests that the block shadow effect is correctly integrated."""
+    generator = OCRDataGenerator()
+    font_path = "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf"
+    text = "hello"
+    shadow_options = {"offset": (5, 5), "radius": 2, "color": (0, 0, 0, 128)}
+
+    # Plan with shadow
+    plan_shadow = generator.plan_generation(
+        text=text, font_path=font_path, direction='left_to_right', block_shadow_options=shadow_options
+    )
+    image_shadow, _ = generator.generate_from_plan(plan_shadow)
+
+    # Plan without shadow
+    plan_no_shadow = generator.plan_generation(
+        text=text, font_path=font_path, direction='left_to_right', block_shadow_options=None
+    )
+    plan_no_shadow["seed"] = plan_shadow["seed"]
+    image_no_shadow, _ = generator.generate_from_plan(plan_no_shadow)
+
+    assert not np.array_equal(np.array(image_shadow), np.array(image_no_shadow))
+
 def test_background_image_is_applied(background_manager):
     """Tests that a background image from the manager is used in the final image."""
     generator = OCRDataGenerator()
