@@ -63,3 +63,26 @@ def test_background_image_is_applied(background_manager):
     # Check a corner pixel for the background color
     corner_pixel_color = image.getpixel((0, 0))
     assert corner_pixel_color == (255, 0, 0, 255) # Red
+
+def test_text_surface_handles_descenders():
+    """Tests that the rendered text surface is tall enough for glyphs with descenders."""
+    generator = OCRDataGenerator()
+    font_path = "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf"
+    # The letter 'g' has a descender
+    text_with_descender = "glyph"
+    # The letter 'a' does not
+    text_without_descender = "alpha"
+
+    # Render both texts directly to surfaces
+    surface_desc, _ = generator._render_text(text_with_descender, font_path, "left_to_right")
+    surface_no_desc, _ = generator._render_text(text_without_descender, font_path, "left_to_right")
+
+    # Find the actual height of the rendered pixels by checking the alpha channel
+    alpha_desc = np.array(surface_desc.split()[3])
+    rendered_height_desc = np.max(np.where(alpha_desc > 0)[0]) - np.min(np.where(alpha_desc > 0)[0])
+
+    alpha_no_desc = np.array(surface_no_desc.split()[3])
+    rendered_height_no_desc = np.max(np.where(alpha_no_desc > 0)[0]) - np.min(np.where(alpha_no_desc > 0)[0])
+
+    # The text with a descender should produce a taller rendered surface
+    assert rendered_height_desc > rendered_height_no_desc

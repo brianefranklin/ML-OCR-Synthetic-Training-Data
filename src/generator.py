@@ -37,8 +37,6 @@ class OCRDataGenerator:
 
     def plan_generation(self, spec: BatchSpecification, text: str, font_path: str, background_manager = None):
         """Creates a plan (a dictionary of truth data) for generating an image."""
-        # This is a temporary, minimal implementation to get the text surface size.
-        # In the future, this will be more sophisticated.
         text_surface, _ = self._render_text(text, font_path, spec.text_direction, 0.0, 'uniform', None)
         
         canvas_w, canvas_h = generate_random_canvas_size(text_surface.width, text_surface.height)
@@ -196,17 +194,19 @@ class OCRDataGenerator:
         char_widths = []
         char_heights = []
         total_height = 0
+        ascent, descent = font.getmetrics()
         for char in text:
             try:
                 bbox = font.getbbox(char)
                 char_width = bbox[2] - bbox[0]
-                char_height = bbox[3] - bbox[1]
+                char_height = ascent + descent
                 char_widths.append(char_width)
                 char_heights.append(char_height)
                 total_height += char_height * (1 - glyph_overlap_intensity)
             except AttributeError:
                 w, h = font.getsize(char)
                 char_widths.append(w)
+                h = ascent + descent
                 char_heights.append(h)
                 total_height += h * (1 - glyph_overlap_intensity)
 
@@ -280,7 +280,8 @@ class OCRDataGenerator:
 
         # First pass: calculate total dimensions
         total_width = 0
-        max_height = 0
+        ascent, descent = font.getmetrics()
+        max_height = ascent + descent
         char_widths = []
         for char in text_to_render:
             try:
@@ -288,12 +289,10 @@ class OCRDataGenerator:
                 char_width = bbox[2] - bbox[0]
                 char_widths.append(char_width)
                 total_width += char_width * (1 - glyph_overlap_intensity)
-                max_height = max(max_height, bbox[3] - bbox[1])
             except AttributeError:
                 w, h = font.getsize(char)
                 char_widths.append(w)
                 total_width += w * (1 - glyph_overlap_intensity)
-                max_height = max(max_height, h)
 
         margin = 10
         image_width = int(total_width + margin * 2)
@@ -305,11 +304,7 @@ class OCRDataGenerator:
         current_x = margin
         for i, char in enumerate(text_to_render):
             char_width = char_widths[i]
-            try:
-                bbox = font.getbbox(char)
-                char_height = bbox[3] - bbox[1]
-            except AttributeError:
-                _, char_height = font.getsize(char)
+            char_height = ascent + descent
 
             fill = "black" # Default
             if color_mode == 'per_glyph' and color_palette:
@@ -330,8 +325,8 @@ class OCRDataGenerator:
 
             # Record bounding box
             x0 = current_x
-            y0 = margin
             x1 = current_x + char_width
+            y0 = margin
             y1 = margin + char_height
             bboxes.append({"char": char, "x0": int(x0), "y0": int(y0), "x1": int(x1), "y1": int(y1)})
 
