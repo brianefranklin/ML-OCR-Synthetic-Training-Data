@@ -26,7 +26,7 @@ class GenerationOrchestrator:
     BatchManager and various resource managers.
     """
     def __init__(self, batch_config: BatchConfig, corpus_map: Dict[str, str], 
-                 all_fonts: List[str], all_backgrounds: List[str]):
+                 all_fonts: List[str], background_manager: BackgroundImageManager):
         """
         Initializes the GenerationOrchestrator.
 
@@ -34,15 +34,14 @@ class GenerationOrchestrator:
             batch_config (BatchConfig): The main batch configuration.
             corpus_map (Dict[str, str]): A map from corpus file names to paths.
             all_fonts (List[str]): A list of all available font paths.
-            all_backgrounds (List[str]): A list of all available background paths.
+            background_manager (BackgroundImageManager): An initialized background manager.
         """
         self.batch_config = batch_config
         self.all_fonts = all_fonts
-        self.all_backgrounds = all_backgrounds
         
         self.batch_manager = BatchManager(batch_config)
         self.font_health_manager = FontHealthManager()
-        self.background_manager = BackgroundImageManager()
+        self.background_manager = background_manager
         
         self._corpus_managers: Dict[str, CorpusManager] = {}
         for spec in batch_config.specifications:
@@ -65,7 +64,7 @@ class GenerationOrchestrator:
         if not available_fonts:
             raise RuntimeError("No available fonts to generate images with.")
 
-        available_backgrounds = self.background_manager.get_available_backgrounds(self.all_backgrounds)
+        available_backgrounds = self.background_manager.get_available_backgrounds()
         if not available_backgrounds:
             raise RuntimeError("No available backgrounds to generate images with.")
 
@@ -74,7 +73,7 @@ class GenerationOrchestrator:
             text = corpus_manager.extract_text_segment(min_text_len, max_text_len)
             
             font_path = self.font_health_manager.select_font(list(available_fonts))
-            background_path = self.background_manager.select_background(list(available_backgrounds))
+            background_path = self.background_manager.select_background()
             
             task = GenerationTask(
                 source_spec=spec, 

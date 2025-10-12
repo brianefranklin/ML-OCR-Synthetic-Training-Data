@@ -6,7 +6,12 @@ import pytest
 from PIL import Image, ImageDraw
 import numpy as np
 import random
-from src.augmentations import apply_rotation, apply_perspective_warp, apply_elastic_distortion
+from src.augmentations import (
+    apply_rotation, 
+    apply_perspective_warp, 
+    apply_elastic_distortion,
+    apply_grid_distortion
+)
 
 def test_rotation_ltr_updates_bboxes():
     """Tests that rotation correctly transforms bounding boxes for LTR text."""
@@ -85,6 +90,20 @@ def test_elastic_distortion_is_applied():
 
     # Apply distortion
     distorted_image, _ = apply_elastic_distortion(image, [], alpha=34, sigma=4)
+    distorted_array = np.array(distorted_image)
+
+    assert not np.array_equal(original_array, distorted_array)
+
+def test_grid_distortion_is_applied():
+    """Tests that grid distortion modifies the source image."""
+    random.seed(0)
+    image = Image.new("RGBA", (200, 100), (0, 0, 0, 0))
+    draw = ImageDraw.Draw(image)
+    draw.rectangle((50, 30, 150, 70), fill="black")
+    original_array = np.array(image)
+
+    # Apply distortion
+    distorted_image, _ = apply_grid_distortion(image, [], num_steps=5, distort_limit=10)
     distorted_array = np.array(distorted_image)
 
     assert not np.array_equal(original_array, distorted_array)

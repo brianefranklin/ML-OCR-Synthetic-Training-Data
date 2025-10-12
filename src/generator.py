@@ -1,7 +1,3 @@
-"""
-Core component for generating synthetic OCR data.
-"""
-
 from PIL import Image, ImageDraw, ImageFont
 import bidi.algorithm
 import random
@@ -11,8 +7,20 @@ from src.canvas_placement import (
     calculate_text_placement,
     place_on_canvas,
 )
-from src.effects import apply_ink_bleed, apply_drop_shadow, add_noise
-from src.augmentations import apply_rotation, apply_perspective_warp, apply_elastic_distortion
+from src.effects import (
+    apply_ink_bleed, 
+    apply_drop_shadow, 
+    add_noise, 
+    apply_blur, 
+    apply_brightness_contrast,
+    apply_erosion_dilation
+)
+from src.augmentations import (
+    apply_rotation, 
+    apply_perspective_warp, 
+    apply_elastic_distortion,
+    apply_grid_distortion
+)
 
 class OCRDataGenerator:
     """
@@ -36,7 +44,13 @@ class OCRDataGenerator:
         rotation_angle: float = 0.0,
         perspective_warp_magnitude: float = 0.0,
         elastic_distortion_options: dict = None,
+        grid_distortion_options: dict = None,
         noise_amount: float = 0.0,
+        blur_radius: float = 0.0,
+        brightness_factor: float = 1.0,
+        contrast_factor: float = 1.0,
+        erosion_dilation_options: dict = None,
+        background_manager = None,
     ):
         """Creates a plan (a dictionary of truth data) for generating an image."""
         text_surface, _ = self._render_text(
@@ -47,6 +61,8 @@ class OCRDataGenerator:
         placement_x, placement_y = calculate_text_placement(
             canvas_w, canvas_h, text_surface.width, text_surface.height, "uniform_random"
         )
+
+        background_path = background_manager.select_background() if background_manager else None
 
         return {
             "text": text,
@@ -65,7 +81,13 @@ class OCRDataGenerator:
             "rotation_angle": rotation_angle,
             "perspective_warp_magnitude": perspective_warp_magnitude,
             "elastic_distortion_options": elastic_distortion_options,
+            "grid_distortion_options": grid_distortion_options,
             "noise_amount": noise_amount,
+            "blur_radius": blur_radius,
+            "brightness_factor": brightness_factor,
+            "contrast_factor": contrast_factor,
+            "erosion_dilation_options": erosion_dilation_options,
+            "background_path": background_path,
         }
 
     def generate_from_plan(self, plan: dict):
@@ -97,6 +119,7 @@ class OCRDataGenerator:
             placement_x=plan["placement_x"],
             placement_y=plan["placement_y"],
             original_bboxes=bboxes,
+            background_path=plan.get("background_path"),
         )
 
         # Apply augmentations
@@ -111,10 +134,27 @@ class OCRDataGenerator:
         elastic_options = plan.get("elastic_distortion_options")
         if elastic_options:
             final_image, final_bboxes = apply_elastic_distortion(final_image, final_bboxes, **elastic_options)
-        
+
+        grid_distortion_options = plan.get("grid_distortion_options")
+        if grid_distortion_options:
+            final_image, final_bboxes = apply_grid_distortion(final_image, final_bboxes, **grid_distortion_options)
+
+        erosion_dilation_options = plan.get("erosion_dilation_options")
+        if erosion_dilation_options:
+            final_image = apply_erosion_dilation(final_image, **erosion_dilation_options)
+
         noise_amount = plan.get("noise_amount", 0.0)
         if noise_amount > 0.0:
             final_image = add_noise(final_image, noise_amount)
+
+        blur_radius = plan.get("blur_radius", 0.0)
+        if blur_radius > 0.0:
+            final_image = apply_blur(final_image, blur_radius)
+
+        brightness_factor = plan.get("brightness_factor", 1.0)
+        contrast_factor = plan.get("contrast_factor", 1.0)
+        if brightness_factor != 1.0 or contrast_factor != 1.0:
+            final_image = apply_brightness_contrast(final_image, brightness_factor, contrast_factor)
 
         return final_image, final_bboxes
 
@@ -176,7 +216,7 @@ class OCRDataGenerator:
         margin = 10
         image_width = max_width + margin * 2
         image_height = int(total_height + margin * 2)
-        image = Image.new("RGBA", (image_width, image_height), (255, 255, 255, 0))
+        image = Image.new("RGBA", (image_width, image_height), (0, 0, 0, 0))
         draw = ImageDraw.Draw(image)
 
         if is_bottom_to_top:
@@ -259,7 +299,7 @@ class OCRDataGenerator:
         margin = 10
         image_width = int(total_width + margin * 2)
         image_height = max_height + margin * 2
-        image = Image.new("RGBA", (image_width, image_height), (255, 255, 255, 0))
+        image = Image.new("RGBA", (image_width, image_height), (0, 0, 0, 0))
         draw = ImageDraw.Draw(image)
 
         # Second pass: draw characters and record bounding boxes
@@ -272,17 +312,14 @@ class OCRDataGenerator:
             except AttributeError:
                 _, char_height = font.getsize(char)
 
-            # Draw character
             fill = "black" # Default
             if color_mode == 'per_glyph' and color_palette:
                 fill = color_palette[i]
             elif color_mode == 'gradient' and color_palette:
                 # Horizontal gradient
+                t = i / (len(text_to_render) - 1) if len(text_to_render) > 1 else 0
                 start_color = np.array(color_palette[0])
                 end_color = np.array(color_palette[1])
-                # Interpolation factor based on character index
-                t = i / (len(text_to_render) - 1) if len(text_to_render) > 1 else 0
-                # Linear interpolation
                 inter_color = tuple((start_color + t * (end_color - start_color)).astype(int))
                 fill = inter_color
 
@@ -303,4 +340,3 @@ class OCRDataGenerator:
             current_x += char_width * (1 - glyph_overlap_intensity)
 
         return image, bboxes
-

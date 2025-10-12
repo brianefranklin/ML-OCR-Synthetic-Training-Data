@@ -12,7 +12,7 @@
 - When Test Driven Development is not practical, consider writing new test cases or updating existing test cases before implementing the feature 
 
 ## Regarding Dependencies:
-- Avoid introducing new external dependencies unless there is a need
+- Built-in python libraries are fine to add but avoid introducing new external dependencies unless there is a need. 
 - If a new dependency is required, confirm with the user
 - After a new python dependency is confirmed, add it to ./requirements.txt
 - After a new system dependency is confirmed, add it to ./Dockerfile

@@ -1,7 +1,3 @@
-"""
-This module contains functions for applying geometric and image-level augmentations.
-"""
-
 from PIL import Image
 import numpy as np
 import cv2
@@ -179,9 +175,78 @@ def apply_elastic_distortion(
         char_img_np = img_np[y0:y1, x0:x1]
 
         # Apply the same distortion to the character snippet
-        char_map_x = map_x[y0:y1, x0:x1]
-        char_map_y = map_y[y0:y1, x0:x1]
-        distorted_char_np = cv2.remap(char_img_np, char_map_x - x0, char_map_y - y0, interpolation=cv2.INTER_LINEAR, borderMode=cv2.BORDER_CONSTANT, borderValue=(0,0,0,0))
+        distorted_char_np = cv2.remap(img_np, map_x, map_y, interpolation=cv2.INTER_LINEAR, borderMode=cv2.BORDER_CONSTANT, borderValue=(0,0,0,0))[y0:y1, x0:x1]
+
+        # Find the new bounding box by searching for non-transparent pixels
+        alpha_channel = distorted_char_np[:, :, 3]
+        coords = np.argwhere(alpha_channel > 0)
+        
+        if coords.size > 0:
+            min_y, min_x = coords.min(axis=0)
+            max_y, max_x = coords.max(axis=0)
+
+            new_bbox = bbox.copy()
+            new_bbox['x0'] = x0 + min_x
+            new_bbox['y0'] = y0 + min_y
+            new_bbox['x1'] = x0 + max_x
+            new_bbox['y1'] = y0 + max_y
+            transformed_bboxes.append(new_bbox)
+        else:
+            # If the character disappears, append the original bbox
+            transformed_bboxes.append(bbox)
+
+    return distorted_image, transformed_bboxes
+
+def apply_grid_distortion(
+    image: Image.Image, 
+    bboxes: List[Dict[str, Any]], 
+    num_steps: int, 
+    distort_limit: int
+) -> Tuple[Image.Image, List[Dict[str, Any]]]:
+    """
+    Applies grid distortion to an image and its bounding boxes.
+
+    Args:
+        image: The source PIL Image.
+        bboxes: A list of bounding box dictionaries.
+        num_steps: The number of grid steps.
+        distort_limit: The limit of the distortion.
+
+    Returns:
+        A tuple containing the distorted image and transformed bounding boxes.
+    """
+    img_np = np.array(image)
+    h, w = img_np.shape[:2]
+
+    # Create the grid
+    x_steps = np.linspace(0, w, num_steps)
+    y_steps = np.linspace(0, h, num_steps)
+
+    # Create a random displacement field
+    dx = np.random.uniform(-distort_limit, distort_limit, size=(num_steps, num_steps))
+    dy = np.random.uniform(-distort_limit, distort_limit, size=(num_steps, num_steps))
+
+    # Create the meshgrid
+    xx, yy = np.meshgrid(x_steps, y_steps)
+
+    # Create the map
+    map_x = (xx + dx).astype(np.float32)
+    map_y = (yy + dy).astype(np.float32)
+
+    # Apply the distortion to the full image
+    distorted_img_np = cv2.remap(img_np, map_x, map_y, interpolation=cv2.INTER_LINEAR, borderMode=cv2.BORDER_CONSTANT, borderValue=(0,0,0,0))
+    distorted_image = Image.fromarray(distorted_img_np)
+
+    # Update bounding boxes
+    transformed_bboxes = []
+    for bbox in bboxes:
+        x0, y0, x1, y1 = bbox['x0'], bbox['y0'], bbox['x1'], bbox['y1']
+        
+        # Crop the character from the original image
+        char_img_np = img_np[y0:y1, x0:x1]
+
+        # Apply the same distortion to the character snippet
+        distorted_char_np = cv2.remap(img_np, map_x, map_y, interpolation=cv2.INTER_LINEAR, borderMode=cv2.BORDER_CONSTANT, borderValue=(0,0,0,0))[y0:y1, x0:x1]
 
         # Find the new bounding box by searching for non-transparent pixels
         alpha_channel = distorted_char_np[:, :, 3]

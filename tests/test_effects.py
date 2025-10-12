@@ -5,7 +5,14 @@ Tests for image effects.
 import pytest
 from PIL import Image, ImageDraw
 import numpy as np
-from src.effects import apply_ink_bleed, apply_drop_shadow, add_noise, apply_blur
+from src.effects import (
+    apply_ink_bleed, 
+    apply_drop_shadow, 
+    add_noise, 
+    apply_blur, 
+    apply_brightness_contrast,
+    apply_erosion_dilation
+)
 
 def test_ink_bleed_is_applied():
     """Tests that applying ink bleed modifies the source image."""
@@ -60,3 +67,31 @@ def test_blur_is_applied():
     blurred_array = np.array(blurred_image)
 
     assert not np.array_equal(original_array, blurred_array)
+
+def test_brightness_contrast_is_applied():
+    """Tests that adjusting brightness and contrast modifies the source image."""
+    image = Image.new("RGB", (100, 50), "gray")
+    original_array = np.array(image)
+
+    # Apply brightness and contrast
+    adjusted_image = apply_brightness_contrast(image, brightness_factor=1.5, contrast_factor=1.5)
+    adjusted_array = np.array(adjusted_image)
+
+    assert not np.array_equal(original_array, adjusted_array)
+
+def test_erosion_dilation_is_applied():
+    """Tests that erosion and dilation modify the image as expected."""
+    image = Image.new("L", (100, 50), "white")
+    draw = ImageDraw.Draw(image)
+    draw.rectangle((20, 10, 80, 40), fill="black")
+    original_black_pixels = np.sum(np.array(image) == 0)
+
+    # Test Erosion
+    eroded_image = apply_erosion_dilation(image, mode='erode', kernel_size=3)
+    eroded_black_pixels = np.sum(np.array(eroded_image) == 0)
+    assert eroded_black_pixels < original_black_pixels
+
+    # Test Dilation
+    dilated_image = apply_erosion_dilation(image, mode='dilate', kernel_size=3)
+    dilated_black_pixels = np.sum(np.array(dilated_image) == 0)
+    assert dilated_black_pixels > original_black_pixels

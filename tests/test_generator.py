@@ -2,6 +2,7 @@ import pytest
 from PIL import Image
 import numpy as np
 from src.generator import OCRDataGenerator
+from src.background_manager import BackgroundImageManager
 
 
 def test_ocr_data_generator_initialization():
@@ -371,3 +372,110 @@ def test_noise_integration():
     image_no_noise, _ = generator.generate_from_plan(plan_no_noise)
 
     assert not np.array_equal(np.array(image_noisy), np.array(image_no_noise))
+
+def test_blur_integration():
+    """Tests that the blur augmentation is correctly integrated."""
+    generator = OCRDataGenerator()
+    font_path = "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf"
+    text = "hello"
+
+    # Plan with blur
+    plan_blurred = generator.plan_generation(text=text, font_path=font_path, direction='left_to_right', blur_radius=2.0)
+    image_blurred, _ = generator.generate_from_plan(plan_blurred)
+
+    # Plan without blur
+    plan_no_blur = generator.plan_generation(text=text, font_path=font_path, direction='left_to_right', blur_radius=0.0)
+    plan_no_blur["seed"] = plan_blurred["seed"]
+    image_no_blur, _ = generator.generate_from_plan(plan_no_blur)
+
+    assert not np.array_equal(np.array(image_blurred), np.array(image_no_blur))
+
+from src.background_manager import BackgroundImageManager
+
+@pytest.fixture
+def background_manager(tmp_path):
+    """Creates a dummy background image and a BackgroundImageManager."""
+    bg_dir = tmp_path / "backgrounds"
+    bg_dir.mkdir()
+    bg_image = Image.new("RGB", (300, 200), "red")
+    bg_path = bg_dir / "background.png"
+    bg_image.save(bg_path)
+    return BackgroundImageManager(dir_weights={str(bg_dir): 1.0})
+
+def test_brightness_contrast_integration():
+    """Tests that brightness and contrast are correctly integrated."""
+    generator = OCRDataGenerator()
+    font_path = "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf"
+    text = "hello"
+
+    # Plan with adjustments
+    plan_adjusted = generator.plan_generation(
+        text=text, font_path=font_path, direction='left_to_right', brightness_factor=1.5, contrast_factor=1.5
+    )
+    image_adjusted, _ = generator.generate_from_plan(plan_adjusted)
+
+    # Plan without adjustments
+    plan_no_adjust = generator.plan_generation(
+        text=text, font_path=font_path, direction='left_to_right', brightness_factor=1.0, contrast_factor=1.0
+    )
+    plan_no_adjust["seed"] = plan_adjusted["seed"]
+    image_no_adjust, _ = generator.generate_from_plan(plan_no_adjust)
+
+    assert not np.array_equal(np.array(image_adjusted), np.array(image_no_adjust))
+
+def test_erosion_dilation_integration():
+    """Tests that erosion/dilation is correctly integrated."""
+    generator = OCRDataGenerator()
+    font_path = "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf"
+    text = "hello"
+    erosion_options = {"mode": "erode", "kernel_size": 3}
+
+    # Plan with erosion
+    plan_eroded = generator.plan_generation(
+        text=text, font_path=font_path, direction='left_to_right', erosion_dilation_options=erosion_options
+    )
+    image_eroded, _ = generator.generate_from_plan(plan_eroded)
+
+    # Plan without erosion
+    plan_no_erosion = generator.plan_generation(
+        text=text, font_path=font_path, direction='left_to_right', erosion_dilation_options=None
+    )
+    plan_no_erosion["seed"] = plan_eroded["seed"]
+    image_no_erosion, _ = generator.generate_from_plan(plan_no_erosion)
+
+    assert not np.array_equal(np.array(image_eroded), np.array(image_no_erosion))
+
+def test_grid_distortion_integration():
+    """Tests that the grid distortion augmentation is correctly integrated."""
+    generator = OCRDataGenerator()
+    font_path = "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf"
+    text = "hello"
+    grid_options = {"num_steps": 5, "distort_limit": 10}
+
+    # Plan with distortion
+    plan_distorted = generator.plan_generation(
+        text=text, font_path=font_path, direction='left_to_right', grid_distortion_options=grid_options
+    )
+    image_distorted, _ = generator.generate_from_plan(plan_distorted)
+
+    # Plan without distortion
+    plan_no_distortion = generator.plan_generation(
+        text=text, font_path=font_path, direction='left_to_right', grid_distortion_options=None
+    )
+    plan_no_distortion["seed"] = plan_distorted["seed"]
+    image_no_distortion, _ = generator.generate_from_plan(plan_no_distortion)
+
+    assert not np.array_equal(np.array(image_distorted), np.array(image_no_distortion))
+
+def test_background_image_is_applied(background_manager):
+    """Tests that a background image from the manager is used in the final image."""
+    generator = OCRDataGenerator()
+    font_path = "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf"
+    text = "hello"
+
+    plan = generator.plan_generation(text=text, font_path=font_path, direction='left_to_right', background_manager=background_manager)
+    image, _ = generator.generate_from_plan(plan)
+
+    # Check a corner pixel for the background color
+    corner_pixel_color = image.getpixel((0, 0))
+    assert corner_pixel_color == (255, 0, 0, 255) # Red

@@ -57,6 +57,7 @@ def place_on_canvas(
     placement_x: int,
     placement_y: int,
     original_bboxes: List[Dict[str, Any]],
+    background_path: str = None,
 ) -> Tuple[Image.Image, List[Dict[str, Any]]]:
     """
     Places the text image onto a new canvas and adjusts bounding boxes.
@@ -68,15 +69,22 @@ def place_on_canvas(
         placement_x: The x-coordinate for the top-left corner of the text.
         placement_y: The y-coordinate for the top-left corner of the text.
         original_bboxes: The list of original bounding boxes for the text image.
+        background_path: Optional path to a background image.
 
     Returns:
         A tuple containing the final canvas image and the adjusted bounding boxes.
     """
-    # Create a new transparent canvas
-    canvas = Image.new("RGBA", (canvas_w, canvas_h), (0, 0, 0, 0))
+    if background_path:
+        # Load and crop the background
+        bg_image = Image.open(background_path).convert("RGBA")
+        # Simple crop from top-left for now
+        canvas = bg_image.crop((0, 0, canvas_w, canvas_h))
+    else:
+        # Create a new transparent canvas
+        canvas = Image.new("RGBA", (canvas_w, canvas_h), (0, 0, 0, 0))
     
     # Paste the text image onto the canvas
-    canvas.paste(text_image, (placement_x, placement_y), text_image) # Use text_image as mask for transparency
+    canvas.paste(text_image, (placement_x, placement_y), text_image)
 
     # Adjust bounding boxes
     adjusted_bboxes = []

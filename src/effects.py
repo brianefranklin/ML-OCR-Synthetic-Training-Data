@@ -2,9 +2,10 @@
 This module contains functions for applying various image effects and augmentations.
 """
 
-from PIL import Image, ImageFilter
+from PIL import Image, ImageFilter, ImageEnhance
 import numpy as np
 import random
+import cv2
 
 def apply_ink_bleed(image: Image.Image, radius: float) -> Image.Image:
     """
@@ -17,10 +18,7 @@ def apply_ink_bleed(image: Image.Image, radius: float) -> Image.Image:
     Returns:
         The processed PIL Image with the blur applied.
     """
-    if radius <= 0:
-        return image
-    
-    return image.filter(ImageFilter.GaussianBlur(radius=radius))
+    return apply_blur(image, radius)
 
 def apply_drop_shadow(
     image: Image.Image, 
@@ -88,3 +86,68 @@ def add_noise(image: Image.Image, amount: float) -> Image.Image:
             img_np[y, x] = 0
 
     return Image.fromarray(img_np)
+
+def apply_blur(image: Image.Image, radius: float) -> Image.Image:
+    """
+    Applies a Gaussian blur to an image.
+
+    Args:
+        image: The source PIL Image.
+        radius: The radius of the Gaussian blur.
+
+    Returns:
+        The processed PIL Image with the blur applied.
+    """
+    if radius <= 0:
+        return image
+    
+    return image.filter(ImageFilter.GaussianBlur(radius=radius))
+
+def apply_brightness_contrast(image: Image.Image, brightness_factor: float, contrast_factor: float) -> Image.Image:
+    """
+    Adjusts the brightness and contrast of an image.
+
+    Args:
+        image: The source PIL Image.
+        brightness_factor: The brightness enhancement factor. 1.0 is original.
+        contrast_factor: The contrast enhancement factor. 1.0 is original.
+
+    Returns:
+        The processed PIL Image with adjustments applied.
+    """
+    enhancer = ImageEnhance.Brightness(image)
+    image = enhancer.enhance(brightness_factor)
+    
+    enhancer = ImageEnhance.Contrast(image)
+    image = enhancer.enhance(contrast_factor)
+    
+    return image
+
+def apply_erosion_dilation(image: Image.Image, mode: str, kernel_size: int) -> Image.Image:
+    """
+    Applies erosion or dilation to an image.
+
+    Args:
+        image: The source PIL Image.
+        mode: 'erode' or 'dilate'.
+        kernel_size: The size of the kernel for the operation.
+
+    Returns:
+        The processed PIL Image.
+    """
+    img_np = np.array(image)
+    # Invert the image so the object is white and background is black
+    img_np = cv2.bitwise_not(img_np)
+    kernel = np.ones((kernel_size, kernel_size), np.uint8)
+
+    if mode == 'erode':
+        result_np = cv2.erode(img_np, kernel, iterations=1)
+    elif mode == 'dilate':
+        result_np = cv2.dilate(img_np, kernel, iterations=1)
+    else:
+        raise ValueError(f"Unsupported mode: {mode}")
+
+    # Invert back
+    result_np = cv2.bitwise_not(result_np)
+
+    return Image.fromarray(result_np)
