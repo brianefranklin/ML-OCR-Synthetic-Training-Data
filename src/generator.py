@@ -19,7 +19,8 @@ from src.augmentations import (
     apply_rotation, 
     apply_perspective_warp, 
     apply_elastic_distortion,
-    apply_grid_distortion
+    apply_grid_distortion,
+    apply_optical_distortion
 )
 
 class OCRDataGenerator:
@@ -45,6 +46,7 @@ class OCRDataGenerator:
         perspective_warp_magnitude: float = 0.0,
         elastic_distortion_options: dict = None,
         grid_distortion_options: dict = None,
+        optical_distortion_options: dict = None,
         noise_amount: float = 0.0,
         blur_radius: float = 0.0,
         brightness_factor: float = 1.0,
@@ -82,6 +84,7 @@ class OCRDataGenerator:
             "perspective_warp_magnitude": perspective_warp_magnitude,
             "elastic_distortion_options": elastic_distortion_options,
             "grid_distortion_options": grid_distortion_options,
+            "optical_distortion_options": optical_distortion_options,
             "noise_amount": noise_amount,
             "blur_radius": blur_radius,
             "brightness_factor": brightness_factor,
@@ -138,6 +141,10 @@ class OCRDataGenerator:
         grid_distortion_options = plan.get("grid_distortion_options")
         if grid_distortion_options:
             final_image, final_bboxes = apply_grid_distortion(final_image, final_bboxes, **grid_distortion_options)
+
+        optical_distortion_options = plan.get("optical_distortion_options")
+        if optical_distortion_options:
+            final_image, final_bboxes = apply_optical_distortion(final_image, final_bboxes, **optical_distortion_options)
 
         erosion_dilation_options = plan.get("erosion_dilation_options")
         if erosion_dilation_options:

@@ -197,6 +197,70 @@ def apply_elastic_distortion(
 
     return distorted_image, transformed_bboxes
 
+def apply_optical_distortion(
+    image: Image.Image, 
+    bboxes: List[Dict[str, Any]], 
+    distort_limit: float
+) -> Tuple[Image.Image, List[Dict[str, Any]]]:
+    """
+    Applies optical distortion to an image and its bounding boxes.
+
+    Args:
+        image: The source PIL Image.
+        bboxes: A list of bounding box dictionaries.
+        distort_limit: The limit of the distortion.
+
+    Returns:
+        A tuple containing the distorted image and transformed bounding boxes.
+    """
+    img_np = np.array(image)
+    h, w = img_np.shape[:2]
+
+    # Define camera matrix
+    camera_matrix = np.array([
+        [w, 0, w/2],
+        [0, h, h/2],
+        [0, 0, 1]
+    ], dtype=np.float32)
+
+    # Define distortion coefficients
+    dist_coeffs = np.array([distort_limit, distort_limit, 0, 0], dtype=np.float32)
+
+    # Apply the distortion to the full image
+    distorted_img_np = cv2.undistort(img_np, camera_matrix, dist_coeffs)
+    distorted_image = Image.fromarray(distorted_img_np)
+
+    # Update bounding boxes
+    transformed_bboxes = []
+    for bbox in bboxes:
+        x0, y0, x1, y1 = bbox['x0'], bbox['y0'], bbox['x1'], bbox['y1']
+        
+        # Crop the character from the original image
+        char_img_np = img_np[y0:y1, x0:x1]
+
+        # Apply the same distortion to the character snippet
+        distorted_char_np = cv2.undistort(char_img_np, camera_matrix, dist_coeffs)
+
+        # Find the new bounding box by searching for non-transparent pixels
+        alpha_channel = distorted_char_np[:, :, 3]
+        coords = np.argwhere(alpha_channel > 0)
+        
+        if coords.size > 0:
+            min_y, min_x = coords.min(axis=0)
+            max_y, max_x = coords.max(axis=0)
+
+            new_bbox = bbox.copy()
+            new_bbox['x0'] = x0 + min_x
+            new_bbox['y0'] = y0 + min_y
+            new_bbox['x1'] = x0 + max_x
+            new_bbox['y1'] = y0 + max_y
+            transformed_bboxes.append(new_bbox)
+        else:
+            # If the character disappears, append the original bbox
+            transformed_bboxes.append(bbox)
+
+    return distorted_image, transformed_bboxes
+
 def apply_grid_distortion(
     image: Image.Image, 
     bboxes: List[Dict[str, Any]], 

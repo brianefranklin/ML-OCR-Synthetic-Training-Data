@@ -467,6 +467,28 @@ def test_grid_distortion_integration():
 
     assert not np.array_equal(np.array(image_distorted), np.array(image_no_distortion))
 
+def test_optical_distortion_integration():
+    """Tests that the optical distortion augmentation is correctly integrated."""
+    generator = OCRDataGenerator()
+    font_path = "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf"
+    text = "hello"
+    optical_options = {"distort_limit": 0.1}
+
+    # Plan with distortion
+    plan_distorted = generator.plan_generation(
+        text=text, font_path=font_path, direction='left_to_right', optical_distortion_options=optical_options
+    )
+    image_distorted, _ = generator.generate_from_plan(plan_distorted)
+
+    # Plan without distortion
+    plan_no_distortion = generator.plan_generation(
+        text=text, font_path=font_path, direction='left_to_right', optical_distortion_options=None
+    )
+    plan_no_distortion["seed"] = plan_distorted["seed"]
+    image_no_distortion, _ = generator.generate_from_plan(plan_no_distortion)
+
+    assert not np.array_equal(np.array(image_distorted), np.array(image_no_distortion))
+
 def test_background_image_is_applied(background_manager):
     """Tests that a background image from the manager is used in the final image."""
     generator = OCRDataGenerator()

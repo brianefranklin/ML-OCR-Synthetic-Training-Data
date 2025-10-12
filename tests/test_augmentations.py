@@ -10,7 +10,8 @@ from src.augmentations import (
     apply_rotation, 
     apply_perspective_warp, 
     apply_elastic_distortion,
-    apply_grid_distortion
+    apply_grid_distortion,
+    apply_optical_distortion
 )
 
 def test_rotation_ltr_updates_bboxes():
@@ -104,6 +105,19 @@ def test_grid_distortion_is_applied():
 
     # Apply distortion
     distorted_image, _ = apply_grid_distortion(image, [], num_steps=5, distort_limit=10)
+    distorted_array = np.array(distorted_image)
+
+    assert not np.array_equal(original_array, distorted_array)
+
+def test_optical_distortion_is_applied():
+    """Tests that optical distortion modifies the source image."""
+    image = Image.new("RGBA", (200, 100), (0, 0, 0, 0))
+    draw = ImageDraw.Draw(image)
+    draw.rectangle((50, 30, 150, 70), fill="black")
+    original_array = np.array(image)
+
+    # Apply distortion
+    distorted_image, _ = apply_optical_distortion(image, [], distort_limit=0.1)
     distorted_array = np.array(distorted_image)
 
     assert not np.array_equal(original_array, distorted_array)
