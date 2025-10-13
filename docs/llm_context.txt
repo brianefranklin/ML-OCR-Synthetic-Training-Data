@@ -1,0 +1,45 @@
+# Project Overview: Synthetic OCR Data Generator v2.0
+
+## 1. Core Mission
+
+The primary goal of this project is to create a highly configurable, language-agnostic pipeline for generating synthetic text images for training Optical Character Recognition (OCR) models. The key is universality—it should work for any writing system without making assumptions about character sets, directionality, or glyphs.
+
+## 2. Core Architecture: Plan-Then-Execute
+
+The generator is built on a two-stage, deterministic architecture:
+
+1.  **The "Plan" Stage (`OCRDataGenerator.plan_generation`):** This stage decides *what* to generate. It takes a high-level `BatchSpecification` (from a YAML file) and produces a "plan." This plan is a Python dictionary containing a specific, concrete value for every single parameter needed to create one image, from the text and font to be used, to the exact angle of rotation, to the specific colors in a gradient. It also includes a master `seed` for the random number generator.
+
+2.  **The "Execute" Stage (`OCRDataGenerator.generate_from_plan`):** This stage deterministically executes the plan. It takes the plan dictionary, seeds the RNG with the plan's `seed`, and generates a pixel-perfect image and its corresponding bounding boxes based *only* on the parameters in the plan. 
+
+This separation ensures perfect reproducibility. Any generated image can be recreated from its JSON label file, which is simply the saved "plan."
+
+## 3. Key Components & Workflow
+
+The main script (`src/main.py`) orchestrates the following components:
+
+- **`src/batch_config.py`**: Defines the `BatchSpecification` dataclass, which holds the *ranges* of parameters for a batch (e.g., `rotation_angle_min`, `rotation_angle_max`). This is what the user defines in a YAML file to control the variety of the output.
+
+- **Resource Managers (`src/resource_manager.py`, etc.):**
+    - A generic `ResourceManager` tracks the "health" of assets like fonts and backgrounds using a scoring system, prioritizing healthy assets.
+    - `FontHealthManager` and `BackgroundImageManager` are specialized subclasses that extend this functionality to discover and manage fonts and background images from directories.
+
+- **`src/generation_orchestrator.py`**: This component takes the user's `BatchConfig` and creates a full, interleaved list of concrete `GenerationTask` objects. For each task, it pre-selects a font, a background, and a text segment from the corpus.
+
+- **`src/generator.py` (`OCRDataGenerator`):** This is the core engine. It takes a `GenerationTask` from the orchestrator, uses its `plan_generation` method to create the detailed plan, and then its `generate_from_plan` method to execute it.
+
+- **The Generation Pipeline (inside `generate_from_plan`):**
+    1.  **Text Rendering:** Renders the text onto a transparent RGBA surface. Supports four directions (LTR, RTL, TTB, BTT) and calculates per-character bounding boxes.
+    2.  **Text Effects (`src/effects.py`):** Applies effects directly to the text surface. This includes:
+        - `glyph_overlap`, `ink_bleed`, `drop_shadow`, `block_shadow`, and color variations (`per_glyph`, `gradient`).
+    3.  **Canvas Placement (`src/canvas_placement.py`):** Places the text surface onto a larger canvas, which can be a solid color or a background image. It correctly adjusts all bounding box coordinates.
+    4.  **Image Augmentations (`src/augmentations.py`):** Applies distortions to the final composited image. This includes:
+        - **Linear Distortions:** `rotation` (updates bbox math-based).
+        - **Non-Linear Distortions:** `perspective_warp`, `elastic_distortion`, `grid_distortion`, `optical_distortion` (these trigger a more complex, pixel-based recalculation of bounding boxes to ensure accuracy).
+        - **Image-Level Effects:** `noise`, `blur`, `brightness_contrast`, `erosion_dilation`, `cutout`.
+
+## 4. Output
+
+For each generated image, the script produces two files:
+1.  **Image File (`.png`):** The final, augmented image.
+2.  **Label File (`.json`):** The complete "plan" dictionary, including the ground-truth text and the final, accurate bounding box coordinates for every character.

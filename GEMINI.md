@@ -50,3 +50,5 @@ This project adheres to the following principles:
     -   `feat: add support for custom font loading`
     -   `fix: resolve bug in image rotation logic`
     -   `docs: update tutorial for background generation`
+-   **Commit Message Formatting**:
+    When you provide a commit message, you must format it as plain text only. Do not wrap it in Markdown code blocks or any other formatting. The output should be clean and ready to be copied directly into a terminal.
