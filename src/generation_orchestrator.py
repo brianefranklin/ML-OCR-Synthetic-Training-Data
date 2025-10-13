@@ -1,9 +1,11 @@
-"""
-Orchestrates the generation of synthetic OCR data.
+"""Orchestrates the generation of synthetic OCR data.
+
+This module is the central hub that connects the batch configuration with all
+the resource managers to produce a list of concrete generation tasks.
 """
 
 from dataclasses import dataclass
-from typing import List, Dict
+from typing import List, Dict, Optional
 
 from src.batch_config import BatchConfig, BatchSpecification, BatchManager
 from src.corpus_manager import CorpusManager
@@ -12,29 +14,32 @@ from src.background_manager import BackgroundImageManager
 
 @dataclass
 class GenerationTask:
-    """
-    Represents a single, complete set of parameters for generating one image.
+    """Represents a single, complete set of parameters for generating one image.
+    
+    This is a simple data structure to hold the results of the orchestration
+    process before they are passed to the final planning and generation stage.
     """
     source_spec: BatchSpecification
     text: str
     font_path: str
-    background_path: str
+    background_path: Optional[str]
 
 class GenerationOrchestrator:
-    """
-    Orchestrates the creation of generation tasks by integrating the
-    BatchManager and various resource managers.
+    """Orchestrates the creation of generation tasks.
+
+    This class integrates the BatchManager, CorpusManager, FontHealthManager, and
+    BackgroundImageManager to create a definitive list of tasks for the entire
+    batch, with all resources pre-selected.
     """
     def __init__(self, batch_config: BatchConfig, corpus_map: Dict[str, str], 
                  all_fonts: List[str], background_manager: BackgroundImageManager):
-        """
-        Initializes the GenerationOrchestrator.
+        """Initializes the GenerationOrchestrator.
 
         Args:
-            batch_config (BatchConfig): The main batch configuration.
-            corpus_map (Dict[str, str]): A map from corpus file names to paths.
-            all_fonts (List[str]): A list of all available font paths.
-            background_manager (BackgroundImageManager): An initialized background manager.
+            batch_config: The main batch configuration.
+            corpus_map: A map from corpus file names to their full paths.
+            all_fonts: A list of all available font paths.
+            background_manager: An initialized background manager.
         """
         self.batch_config = batch_config
         self.all_fonts = all_fonts
@@ -43,6 +48,7 @@ class GenerationOrchestrator:
         self.font_health_manager = FontHealthManager()
         self.background_manager = background_manager
         
+        # Create a dictionary of CorpusManager instances, one for each unique corpus file.
         self._corpus_managers: Dict[str, CorpusManager] = {}
         for spec in batch_config.specifications:
             corpus_file_name = spec.corpus_file
@@ -53,25 +59,39 @@ class GenerationOrchestrator:
                 self._corpus_managers[corpus_file_name] = CorpusManager.from_file(full_path)
 
     def create_task_list(self, min_text_len: int, max_text_len: int) -> List[GenerationTask]:
-        """
-        Creates a complete list of GenerationTask objects for the entire batch.
+        """Creates a complete list of GenerationTask objects for the entire batch.
+
+        Args:
+            min_text_len: The minimum length of text segments to extract.
+            max_text_len: The maximum length of text segments to extract.
+
+        Returns:
+            A list of GenerationTask objects.
+        
+        Raises:
+            RuntimeError: If no healthy fonts or backgrounds are available.
         """
         full_task_list: List[GenerationTask] = []
         
+        # Get the interleaved list of which batch spec to use for each image.
         spec_list = self.batch_manager.task_list()
         
+        # Get the initial set of healthy resources.
         available_fonts = self.font_health_manager.get_available_fonts(self.all_fonts)
         if not available_fonts:
             raise RuntimeError("No available fonts to generate images with.")
 
         available_backgrounds = self.background_manager.get_available_backgrounds()
         if not available_backgrounds:
-            raise RuntimeError("No available backgrounds to generate images with.")
+            # It's okay to not have backgrounds, we can use a transparent canvas.
+            print("Warning: No available backgrounds found.")
 
+        # For each spec in the interleaved list, create a concrete task.
         for spec in spec_list:
             corpus_manager = self._corpus_managers[spec.corpus_file]
             text = corpus_manager.extract_text_segment(min_text_len, max_text_len)
             
+            # Select resources for this specific task.
             font_path = self.font_health_manager.select_font(list(available_fonts))
             background_path = self.background_manager.select_background()
             
