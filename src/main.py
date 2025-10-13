@@ -3,16 +3,21 @@ import yaml
 import json
 from pathlib import Path
 from tqdm import tqdm
+from typing import Dict, List, Any
 
 from src.batch_config import BatchConfig
 from src.corpus_manager import CorpusManager
 from src.font_health_manager import FontHealthManager
 from src.background_manager import BackgroundImageManager
-from src.generation_orchestrator import GenerationOrchestrator
+from src.generation_orchestrator import GenerationOrchestrator, GenerationTask
 from src.generator import OCRDataGenerator
 
 def main():
-    """Main entry point for the OCR data generation script."""
+    """Main entry point for the OCR data generation script.
+    
+    This function parses command-line arguments, initializes all necessary
+    managers and components, and runs the main image generation loop.
+    """
     parser = argparse.ArgumentParser(description="Generate synthetic OCR data.")
     parser.add_argument("--batch-config", type=str, required=True, help="Path to the batch configuration YAML file.")
     parser.add_argument("--output-dir", type=str, required=True, help="Directory to save the generated images and labels.")
@@ -26,17 +31,17 @@ def main():
     output_path.mkdir(parents=True, exist_ok=True)
 
     # Load batch configuration
-    batch_config = BatchConfig.from_yaml(args.batch_config)
+    batch_config: BatchConfig = BatchConfig.from_yaml(args.batch_config)
 
     # Initialize managers
     font_health_manager = FontHealthManager()
     background_manager = BackgroundImageManager(dir_weights={args.background_dir: 1.0})
     
     # Create a map of corpus file names to their full paths
-    corpus_map = {f.name: str(f) for f in Path(args.corpus_dir).rglob('*.txt')}
+    corpus_map: Dict[str, str] = {f.name: str(f) for f in Path(args.corpus_dir).rglob('*.txt')}
 
     # Get a list of all available fonts
-    all_fonts = [str(p) for p in Path(args.font_dir).rglob('*.ttf')]
+    all_fonts: List[str] = [str(p) for p in Path(args.font_dir).rglob('*.ttf')]
 
     # Initialize the main components
     orchestrator = GenerationOrchestrator(
@@ -50,12 +55,12 @@ def main():
     print(f"Generating {batch_config.total_images} images...")
     
     # Create the full list of generation tasks
-    tasks = orchestrator.create_task_list(min_text_len=10, max_text_len=50)
+    tasks: List[GenerationTask] = orchestrator.create_task_list(min_text_len=10, max_text_len=50)
 
     # Main generation loop
     for i, task in enumerate(tqdm(tasks, desc="Generating Images")):
         # Generate a plan for this task
-        plan = generator.plan_generation(
+        plan: Dict[str, Any] = generator.plan_generation(
             spec=task.source_spec,
             text=task.text,
             font_path=task.font_path,

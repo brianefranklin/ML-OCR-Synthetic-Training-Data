@@ -6,10 +6,10 @@ from PIL import Image, ImageFilter, ImageEnhance, ImageDraw
 import numpy as np
 import random
 import cv2
+from typing import Tuple
 
 def apply_ink_bleed(image: Image.Image, radius: float) -> Image.Image:
-    """
-    Simulates an ink bleed effect by applying a Gaussian blur.
+    """Simulates an ink bleed effect by applying a Gaussian blur.
 
     Args:
         image: The source PIL Image.
@@ -22,12 +22,11 @@ def apply_ink_bleed(image: Image.Image, radius: float) -> Image.Image:
 
 def apply_drop_shadow(
     image: Image.Image, 
-    offset: tuple[int, int], 
+    offset: Tuple[int, int], 
     radius: float, 
-    color: tuple[int, int, int, int]
+    color: Tuple[int, int, int, int]
 ) -> Image.Image:
-    """
-    Applies a drop shadow effect to an image.
+    """Applies a drop shadow effect to an image.
 
     Args:
         image: The source PIL Image (must be RGBA).
@@ -61,8 +60,7 @@ def apply_drop_shadow(
     return new_image
 
 def add_noise(image: Image.Image, amount: float) -> Image.Image:
-    """
-    Adds salt-and-pepper noise to an image.
+    """Adds salt-and-pepper noise to an image.
 
     Args:
         image: The source PIL Image.
@@ -88,8 +86,7 @@ def add_noise(image: Image.Image, amount: float) -> Image.Image:
     return Image.fromarray(img_np)
 
 def apply_blur(image: Image.Image, radius: float) -> Image.Image:
-    """
-    Applies a Gaussian blur to an image.
+    """Applies a Gaussian blur to an image.
 
     Args:
         image: The source PIL Image.
@@ -104,8 +101,7 @@ def apply_blur(image: Image.Image, radius: float) -> Image.Image:
     return image.filter(ImageFilter.GaussianBlur(radius=radius))
 
 def apply_brightness_contrast(image: Image.Image, brightness_factor: float, contrast_factor: float) -> Image.Image:
-    """
-    Adjusts the brightness and contrast of an image.
+    """Adjusts the brightness and contrast of an image.
 
     Args:
         image: The source PIL Image.
@@ -122,9 +118,8 @@ def apply_brightness_contrast(image: Image.Image, brightness_factor: float, cont
     
     return image
 
-def apply_cutout(image: Image.Image, cutout_size: tuple[int, int]) -> Image.Image:
-    """
-    Applies a cutout (erasing a random rectangle) to an image.
+def apply_cutout(image: Image.Image, cutout_size: Tuple[int, int]) -> Image.Image:
+    """Applies a cutout (erasing a random rectangle) to an image.
 
     Args:
         image: The source PIL Image.
@@ -150,12 +145,11 @@ def apply_cutout(image: Image.Image, cutout_size: tuple[int, int]) -> Image.Imag
 
 def apply_block_shadow(
     image: Image.Image, 
-    offset: tuple[int, int], 
+    offset: Tuple[int, int], 
     radius: float, 
-    color: tuple[int, int, int, int]
+    color: Tuple[int, int, int, int]
 ) -> Image.Image:
-    """
-    Applies a block shadow effect to an image.
+    """Applies a block shadow effect to an image.
 
     Args:
         image: The source PIL Image (must be RGBA).
@@ -184,8 +178,7 @@ def apply_block_shadow(
     return new_image
 
 def apply_erosion_dilation(image: Image.Image, mode: str, kernel_size: int) -> Image.Image:
-    """
-    Applies erosion or dilation to an image.
+    """Applies erosion or dilation to an image.
 
     Args:
         image: The source PIL Image.
@@ -197,6 +190,7 @@ def apply_erosion_dilation(image: Image.Image, mode: str, kernel_size: int) -> I
     """
     img_np = np.array(image)
     # Invert the image so the object is white and background is black
+    # This is because OpenCV's morphology operations assume a white foreground
     img_np = cv2.bitwise_not(img_np)
     kernel = np.ones((kernel_size, kernel_size), np.uint8)
 
@@ -207,7 +201,7 @@ def apply_erosion_dilation(image: Image.Image, mode: str, kernel_size: int) -> I
     else:
         raise ValueError(f"Unsupported mode: {mode}")
 
-    # Invert back
+    # Invert back to original color scheme
     result_np = cv2.bitwise_not(result_np)
 
     return Image.fromarray(result_np)

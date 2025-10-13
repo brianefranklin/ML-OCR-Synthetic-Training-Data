@@ -2,6 +2,8 @@ from PIL import Image, ImageDraw, ImageFont
 import bidi.algorithm
 import random
 import numpy as np
+from typing import List, Dict, Any, Tuple, Optional
+
 from src.canvas_placement import (
     generate_random_canvas_size,
     calculate_text_placement,
@@ -25,18 +27,41 @@ from src.augmentations import (
     apply_optical_distortion
 )
 from src.batch_config import BatchSpecification
+from src.background_manager import BackgroundImageManager
 
 class OCRDataGenerator:
+    """Orchestrates the entire image generation pipeline.
+    
+    This class brings together all the components of the generation process,
+    from planning the parameters to rendering text, applying effects, and augmenting
+    the final image.
     """
-    Orchestrates the entire image generation pipeline, from rendering text
-    to applying augmentations.
-    """
+
     def __init__(self):
         """Initializes the OCRDataGenerator."""
         pass
 
-    def plan_generation(self, spec: BatchSpecification, text: str, font_path: str, background_manager = None):
-        """Creates a plan (a dictionary of truth data) for generating an image."""
+    def plan_generation(
+        self, 
+        spec: BatchSpecification, 
+        text: str, 
+        font_path: str, 
+        background_manager: Optional[BackgroundImageManager] = None
+    ) -> Dict[str, Any]:
+        """Creates a plan (a dictionary of truth data) for generating an image.
+
+        Args:
+            spec: The BatchSpecification defining the parameters for this generation.
+            text: The text string to be rendered.
+            font_path: The path to the font file to use.
+            background_manager: An optional manager for selecting background images.
+
+        Returns:
+            A dictionary containing the complete plan for generating a single image.
+        """
+        # Render a temporary surface to get the dimensions for canvas calculation.
+        # This is a simplified approach; a more advanced implementation could estimate
+        # size without a full preliminary render.
         text_surface, _ = self._render_text(text, font_path, spec.text_direction, 0.0, 'uniform', None)
         
         canvas_w, canvas_h = generate_random_canvas_size(text_surface.width, text_surface.height)
@@ -46,6 +71,7 @@ class OCRDataGenerator:
 
         background_path = background_manager.select_background() if background_manager else None
 
+        # Build the final plan dictionary
         return {
             "text": text,
             "font_path": font_path,
@@ -55,30 +81,40 @@ class OCRDataGenerator:
             "canvas_h": canvas_h,
             "placement_x": placement_x,
             "placement_y": placement_y,
-            "glyph_overlap_intensity": 0.0,
-            "ink_bleed_radius": 0.0,
-            "drop_shadow_options": None,
-            "block_shadow_options": None,
-            "color_mode": 'uniform',
-            "color_palette": None,
-            "rotation_angle": 0.0,
-            "perspective_warp_magnitude": 0.0,
-            "elastic_distortion_options": None,
-            "grid_distortion_options": None,
-            "optical_distortion_options": None,
-            "cutout_options": None,
-            "noise_amount": 0.0,
-            "blur_radius": 0.0,
-            "brightness_factor": 1.0,
-            "contrast_factor": 1.0,
-            "erosion_dilation_options": None,
+            "glyph_overlap_intensity": 0.0, # Placeholder
+            "ink_bleed_radius": 0.0, # Placeholder
+            "drop_shadow_options": None, # Placeholder
+            "block_shadow_options": None, # Placeholder
+            "color_mode": 'uniform', # Placeholder
+            "color_palette": None, # Placeholder
+            "rotation_angle": 0.0, # Placeholder
+            "perspective_warp_magnitude": 0.0, # Placeholder
+            "elastic_distortion_options": None, # Placeholder
+            "grid_distortion_options": None, # Placeholder
+            "optical_distortion_options": None, # Placeholder
+            "cutout_options": None, # Placeholder
+            "noise_amount": 0.0, # Placeholder
+            "blur_radius": 0.0, # Placeholder
+            "brightness_factor": 1.0, # Placeholder
+            "contrast_factor": 1.0, # Placeholder
+            "erosion_dilation_options": None, # Placeholder
             "background_path": background_path,
         }
 
-    def generate_from_plan(self, plan: dict):
-        """Generates an image deterministically from a plan dictionary."""
+    def generate_from_plan(self, plan: Dict[str, Any]) -> Tuple[Image.Image, List[Dict[str, Any]]]:
+        """Generates an image deterministically from a plan dictionary.
+
+        Args:
+            plan: The dictionary containing all parameters for generation.
+
+        Returns:
+            A tuple containing the final generated PIL Image and a list of
+            bounding box dictionaries.
+        """
+        # Seeding the random number generator is the key to deterministic output.
         random.seed(plan["seed"])
 
+        # 1. Render the basic text surface with all text-level effects.
         text_surface, bboxes = self._render_text(
             plan["text"], 
             plan["font_path"], 
@@ -88,7 +124,7 @@ class OCRDataGenerator:
             plan.get("color_palette"),
         )
 
-        # Apply effects
+        # 2. Apply post-rendering text effects.
         ink_bleed_radius = plan.get("ink_bleed_radius", 0.0)
         if ink_bleed_radius > 0:
             text_surface = apply_ink_bleed(text_surface, ink_bleed_radius)
@@ -101,6 +137,7 @@ class OCRDataGenerator:
         if block_shadow_options:
             text_surface = apply_block_shadow(text_surface, **block_shadow_options)
 
+        # 3. Place the text surface onto the final canvas.
         final_image, final_bboxes = place_on_canvas(
             text_image=text_surface,
             canvas_w=plan["canvas_w"],
@@ -111,7 +148,7 @@ class OCRDataGenerator:
             background_path=plan.get("background_path"),
         )
 
-        # Apply augmentations
+        # 4. Apply final image-level augmentations.
         rotation_angle = plan.get("rotation_angle", 0.0)
         if rotation_angle != 0.0:
             final_image, final_bboxes = apply_rotation(final_image, final_bboxes, rotation_angle)
@@ -155,7 +192,7 @@ class OCRDataGenerator:
 
         return final_image, final_bboxes
 
-    def _render_text(self, text: str, font_path: str, direction: str, glyph_overlap_intensity: float = 0.0, color_mode: str = 'uniform', color_palette: list = None):
+    def _render_text(self, text: str, font_path: str, direction: str, glyph_overlap_intensity: float = 0.0, color_mode: str = 'uniform', color_palette: Optional[list] = None) -> Tuple[Image.Image, List[Dict[str, Any]]]:
         """Internal dispatcher for rendering text surfaces."""
         if direction == "left_to_right":
             return self._render_left_to_right(text, font_path, glyph_overlap_intensity, color_mode, color_palette)
@@ -168,24 +205,24 @@ class OCRDataGenerator:
         else:
             raise ValueError(f"Unsupported text direction: {direction}")
 
-    def _render_left_to_right(self, text: str, font_path: str, glyph_overlap_intensity: float, color_mode: str, color_palette: list):
+    def _render_left_to_right(self, text: str, font_path: str, glyph_overlap_intensity: float, color_mode: str, color_palette: Optional[list]):
         """Renders left-to-right text."""
         return self._render_text_surface(text, font_path, glyph_overlap_intensity, color_mode, color_palette)
 
-    def _render_right_to_left(self, text: str, font_path: str, glyph_overlap_intensity: float, color_mode: str, color_palette: list):
+    def _render_right_to_left(self, text: str, font_path: str, glyph_overlap_intensity: float, color_mode: str, color_palette: Optional[list]):
         """Renders right-to-left text after reshaping."""
         reshaped_text = bidi.algorithm.get_display(text)
         return self._render_text_surface(reshaped_text, font_path, glyph_overlap_intensity, color_mode, color_palette)
 
-    def _render_top_to_bottom(self, text: str, font_path: str, glyph_overlap_intensity: float, color_mode: str, color_palette: list):
+    def _render_top_to_bottom(self, text: str, font_path: str, glyph_overlap_intensity: float, color_mode: str, color_palette: Optional[list]):
         """Renders text vertically from top to bottom."""
         return self._render_vertical_text(text, font_path, is_bottom_to_top=False, glyph_overlap_intensity=glyph_overlap_intensity, color_mode=color_mode, color_palette=color_palette)
 
-    def _render_bottom_to_top(self, text: str, font_path: str, glyph_overlap_intensity: float, color_mode: str, color_palette: list):
+    def _render_bottom_to_top(self, text: str, font_path: str, glyph_overlap_intensity: float, color_mode: str, color_palette: Optional[list]):
         """Renders text vertically from bottom to top."""
         return self._render_vertical_text(text, font_path, is_bottom_to_top=True, glyph_overlap_intensity=glyph_overlap_intensity, color_mode=color_mode, color_palette=color_palette)
 
-    def _render_vertical_text(self, text: str, font_path: str, is_bottom_to_top: bool, glyph_overlap_intensity: float, color_mode: str, color_palette: list):
+    def _render_vertical_text(self, text: str, font_path: str, is_bottom_to_top: bool, glyph_overlap_intensity: float, color_mode: str, color_palette: Optional[list]):
         """Renders text vertically, either TTB or BTT."""
         font_size = 32
         font = ImageFont.truetype(font_path, font_size)
@@ -216,7 +253,6 @@ class OCRDataGenerator:
         image_width = max_width + margin * 2
         image_height = int(total_height + margin * 2)
         image = Image.new("RGBA", (image_width, image_height), (0, 0, 0, 0))
-        draw = ImageDraw.Draw(image)
 
         if is_bottom_to_top:
             current_y = image_height - margin
@@ -269,7 +305,7 @@ class OCRDataGenerator:
 
         return image, bboxes
 
-    def _render_text_surface(self, text_to_render: str, font_path: str, glyph_overlap_intensity: float, color_mode: str, color_palette: list):
+    def _render_text_surface(self, text_to_render: str, font_path: str, glyph_overlap_intensity: float, color_mode: str, color_palette: Optional[list]):
         """
         A common method to render a string of text onto a new image surface,
         calculating per-character bounding boxes.
@@ -298,7 +334,6 @@ class OCRDataGenerator:
         image_width = int(total_width + margin * 2)
         image_height = max_height + margin * 2
         image = Image.new("RGBA", (image_width, image_height), (0, 0, 0, 0))
-        draw = ImageDraw.Draw(image)
 
         # Second pass: draw characters and record bounding boxes
         current_x = margin
