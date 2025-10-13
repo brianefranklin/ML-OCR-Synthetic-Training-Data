@@ -10,24 +10,25 @@ from src.canvas_placement import (
     place_on_canvas,
 )
 from src.effects import (
-    apply_ink_bleed, 
-    apply_drop_shadow, 
-    add_noise, 
-    apply_blur, 
+    apply_ink_bleed,
+    apply_drop_shadow,
+    add_noise,
+    apply_blur,
     apply_brightness_contrast,
     apply_erosion_dilation,
     apply_block_shadow,
     apply_cutout
 )
 from src.augmentations import (
-    apply_rotation, 
-    apply_perspective_warp, 
+    apply_rotation,
+    apply_perspective_warp,
     apply_elastic_distortion,
     apply_grid_distortion,
     apply_optical_distortion
 )
 from src.batch_config import BatchSpecification
 from src.background_manager import BackgroundImageManager
+from src.distributions import sample_parameter
 
 class OCRDataGenerator:
     """Orchestrates the entire image generation pipeline.
@@ -80,47 +81,127 @@ class OCRDataGenerator:
             "canvas_h": canvas_h,
             "placement_x": placement_x,
             "placement_y": placement_y,
-            "glyph_overlap_intensity": random.uniform(spec.glyph_overlap_intensity_min, spec.glyph_overlap_intensity_max),
-            "ink_bleed_radius": random.uniform(spec.ink_bleed_radius_min, spec.ink_bleed_radius_max),
+            "glyph_overlap_intensity": sample_parameter(
+                spec.glyph_overlap_intensity_min,
+                spec.glyph_overlap_intensity_max,
+                spec.glyph_overlap_intensity_distribution
+            ),
+            "ink_bleed_radius": sample_parameter(
+                spec.ink_bleed_radius_min,
+                spec.ink_bleed_radius_max,
+                spec.ink_bleed_radius_distribution
+            ),
             "drop_shadow_options": None, # Placeholder for more complex options
             "block_shadow_options": None, # Placeholder
             "color_mode": 'uniform', # Placeholder
             "color_palette": None, # Placeholder
-            "rotation_angle": random.uniform(spec.rotation_angle_min, spec.rotation_angle_max),
-            "perspective_warp_magnitude": random.uniform(spec.perspective_warp_magnitude_min, spec.perspective_warp_magnitude_max),
+            "rotation_angle": sample_parameter(
+                spec.rotation_angle_min,
+                spec.rotation_angle_max,
+                spec.rotation_angle_distribution
+            ),
+            "perspective_warp_magnitude": sample_parameter(
+                spec.perspective_warp_magnitude_min,
+                spec.perspective_warp_magnitude_max,
+                spec.perspective_warp_magnitude_distribution
+            ),
             "elastic_distortion_options": {
-                "alpha": random.uniform(spec.elastic_distortion_alpha_min, spec.elastic_distortion_alpha_max),
-                "sigma": random.uniform(spec.elastic_distortion_sigma_min, spec.elastic_distortion_sigma_max)
+                "alpha": sample_parameter(
+                    spec.elastic_distortion_alpha_min,
+                    spec.elastic_distortion_alpha_max,
+                    spec.elastic_distortion_alpha_distribution
+                ),
+                "sigma": sample_parameter(
+                    spec.elastic_distortion_sigma_min,
+                    spec.elastic_distortion_sigma_max,
+                    spec.elastic_distortion_sigma_distribution
+                )
             },
             "grid_distortion_options": {
-                "num_steps": random.randint(spec.grid_distortion_steps_min, spec.grid_distortion_steps_max),
-                "distort_limit": random.randint(spec.grid_distortion_limit_min, spec.grid_distortion_limit_max)
+                "num_steps": int(sample_parameter(
+                    spec.grid_distortion_steps_min,
+                    spec.grid_distortion_steps_max,
+                    spec.grid_distortion_steps_distribution
+                )),
+                "distort_limit": int(sample_parameter(
+                    spec.grid_distortion_limit_min,
+                    spec.grid_distortion_limit_max,
+                    spec.grid_distortion_limit_distribution
+                ))
             },
             "optical_distortion_options": {
-                "distort_limit": random.uniform(spec.optical_distortion_limit_min, spec.optical_distortion_limit_max)
+                "distort_limit": sample_parameter(
+                    spec.optical_distortion_limit_min,
+                    spec.optical_distortion_limit_max,
+                    spec.optical_distortion_limit_distribution
+                )
             },
             "cutout_options": {
                 "cutout_size": (
-                    random.randint(spec.cutout_width_min, spec.cutout_width_max),
-                    random.randint(spec.cutout_height_min, spec.cutout_height_max)
+                    int(sample_parameter(
+                        spec.cutout_width_min,
+                        spec.cutout_width_max,
+                        spec.cutout_width_distribution
+                    )),
+                    int(sample_parameter(
+                        spec.cutout_height_min,
+                        spec.cutout_height_max,
+                        spec.cutout_height_distribution
+                    ))
                 )
             },
-            "noise_amount": random.uniform(spec.noise_amount_min, spec.noise_amount_max),
-            "blur_radius": random.uniform(spec.blur_radius_min, spec.blur_radius_max),
-            "brightness_factor": random.uniform(spec.brightness_factor_min, spec.brightness_factor_max),
-            "contrast_factor": random.uniform(spec.contrast_factor_min, spec.contrast_factor_max),
+            "noise_amount": sample_parameter(
+                spec.noise_amount_min,
+                spec.noise_amount_max,
+                spec.noise_amount_distribution
+            ),
+            "blur_radius": sample_parameter(
+                spec.blur_radius_min,
+                spec.blur_radius_max,
+                spec.blur_radius_distribution
+            ),
+            "brightness_factor": sample_parameter(
+                spec.brightness_factor_min,
+                spec.brightness_factor_max,
+                spec.brightness_factor_distribution
+            ),
+            "contrast_factor": sample_parameter(
+                spec.contrast_factor_min,
+                spec.contrast_factor_max,
+                spec.contrast_factor_distribution
+            ),
             "erosion_dilation_options": {
                 "mode": random.choice(['erode', 'dilate']),
-                "kernel_size": random.randint(spec.erosion_dilation_kernel_min, spec.erosion_dilation_kernel_max)
+                "kernel_size": int(sample_parameter(
+                    spec.erosion_dilation_kernel_min,
+                    spec.erosion_dilation_kernel_max,
+                    spec.erosion_dilation_kernel_distribution
+                ))
             },
             "background_path": background_path,
             # Curve parameters - always included for consistent ML feature vectors
             "curve_type": spec.curve_type,
-            "arc_radius": random.uniform(spec.arc_radius_min, spec.arc_radius_max),
+            "arc_radius": sample_parameter(
+                spec.arc_radius_min,
+                spec.arc_radius_max,
+                spec.arc_radius_distribution
+            ),
             "arc_concave": spec.arc_concave,
-            "sine_amplitude": random.uniform(spec.sine_amplitude_min, spec.sine_amplitude_max),
-            "sine_frequency": random.uniform(spec.sine_frequency_min, spec.sine_frequency_max),
-            "sine_phase": random.uniform(spec.sine_phase_min, spec.sine_phase_max),
+            "sine_amplitude": sample_parameter(
+                spec.sine_amplitude_min,
+                spec.sine_amplitude_max,
+                spec.sine_amplitude_distribution
+            ),
+            "sine_frequency": sample_parameter(
+                spec.sine_frequency_min,
+                spec.sine_frequency_max,
+                spec.sine_frequency_distribution
+            ),
+            "sine_phase": sample_parameter(
+                spec.sine_phase_min,
+                spec.sine_phase_max,
+                spec.sine_phase_distribution
+            ),
         }
 
     def generate_from_plan(self, plan: Dict[str, Any]) -> Tuple[Image.Image, List[Dict[str, Any]]]:

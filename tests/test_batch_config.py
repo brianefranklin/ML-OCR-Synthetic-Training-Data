@@ -152,3 +152,337 @@ specifications:
     # Sine parameters should still have defaults
     assert spec.sine_amplitude_min == 0.0
     assert spec.sine_amplitude_max == 0.0
+
+
+def test_batch_specification_has_distribution_fields():
+    """
+    Tests that BatchSpecification includes distribution fields with correct defaults.
+    """
+    spec = BatchSpecification(
+        name="test",
+        proportion=1.0,
+        text_direction="left_to_right",
+        corpus_file="test.txt"
+    )
+
+    # Test exponential defaults (degradation effects usually absent)
+    assert spec.arc_radius_distribution == "exponential"
+    assert spec.sine_amplitude_distribution == "exponential"
+    assert spec.glyph_overlap_intensity_distribution == "exponential"
+    assert spec.ink_bleed_radius_distribution == "exponential"
+    assert spec.perspective_warp_magnitude_distribution == "exponential"
+    assert spec.elastic_distortion_alpha_distribution == "exponential"
+    assert spec.elastic_distortion_sigma_distribution == "exponential"
+    assert spec.grid_distortion_limit_distribution == "exponential"
+    assert spec.optical_distortion_limit_distribution == "exponential"
+    assert spec.noise_amount_distribution == "exponential"
+    assert spec.blur_radius_distribution == "exponential"
+
+    # Test normal defaults (parameters with natural center)
+    assert spec.rotation_angle_distribution == "normal"
+    assert spec.brightness_factor_distribution == "normal"
+    assert spec.contrast_factor_distribution == "normal"
+
+    # Test uniform defaults (discrete or no natural bias)
+    assert spec.grid_distortion_steps_distribution == "uniform"
+    assert spec.erosion_dilation_kernel_distribution == "uniform"
+    assert spec.cutout_width_distribution == "uniform"
+    assert spec.cutout_height_distribution == "uniform"
+    assert spec.sine_frequency_distribution == "uniform"
+    assert spec.sine_phase_distribution == "uniform"
+
+
+def test_load_batch_config_with_custom_distributions(tmp_path: Path):
+    """
+    Tests that custom distribution types can be loaded from YAML.
+    """
+    yaml_content = """
+total_images: 50
+specifications:
+  - name: "custom_distributions"
+    proportion: 1.0
+    text_direction: "left_to_right"
+    corpus_file: "test.txt"
+    curve_type: "arc"
+    arc_radius_min: 0.0
+    arc_radius_max: 200.0
+    arc_radius_distribution: "uniform"
+    rotation_angle_min: -15.0
+    rotation_angle_max: 15.0
+    rotation_angle_distribution: "exponential"
+    blur_radius_min: 0.0
+    blur_radius_max: 5.0
+    blur_radius_distribution: "normal"
+    brightness_factor_min: 0.8
+    brightness_factor_max: 1.2
+    brightness_factor_distribution: "uniform"
+"""
+    yaml_file = tmp_path / "test_config.yaml"
+    yaml_file.write_text(yaml_content, encoding="utf-8")
+
+    config = BatchConfig.from_yaml(str(yaml_file))
+    spec = config.specifications[0]
+
+    # Verify custom distributions override defaults
+    assert spec.arc_radius_distribution == "uniform"
+    assert spec.rotation_angle_distribution == "exponential"
+    assert spec.blur_radius_distribution == "normal"
+    assert spec.brightness_factor_distribution == "uniform"
+
+    # Verify parameters were loaded correctly
+    assert spec.arc_radius_min == 0.0
+    assert spec.arc_radius_max == 200.0
+    assert spec.rotation_angle_min == -15.0
+    assert spec.rotation_angle_max == 15.0
+
+
+# =============================================================================
+# Tests for configuration validation
+# =============================================================================
+
+def test_invalid_distribution_type_raises_error(tmp_path: Path):
+    """Tests that invalid distribution types raise ValueError."""
+    yaml_content = """
+total_images: 10
+specifications:
+  - name: "invalid_dist"
+    proportion: 1.0
+    text_direction: "left_to_right"
+    corpus_file: "test.txt"
+    arc_radius_min: 0.0
+    arc_radius_max: 100.0
+    arc_radius_distribution: "invalid_distribution_type"
+"""
+    yaml_file = tmp_path / "invalid_dist.yaml"
+    yaml_file.write_text(yaml_content, encoding="utf-8")
+
+    with pytest.raises(ValueError, match="Invalid distribution.*arc_radius_distribution"):
+        BatchConfig.from_yaml(str(yaml_file))
+
+
+def test_multiple_invalid_distributions_reported(tmp_path: Path):
+    """Tests that multiple invalid distributions are all reported."""
+    yaml_content = """
+total_images: 10
+specifications:
+  - name: "multiple_invalid"
+    proportion: 1.0
+    text_direction: "left_to_right"
+    corpus_file: "test.txt"
+    arc_radius_distribution: "bad_dist1"
+    blur_radius_distribution: "bad_dist2"
+    rotation_angle_distribution: "bad_dist3"
+"""
+    yaml_file = tmp_path / "multiple_invalid.yaml"
+    yaml_file.write_text(yaml_content, encoding="utf-8")
+
+    with pytest.raises(ValueError, match="Invalid distribution"):
+        config = BatchConfig.from_yaml(str(yaml_file))
+
+
+def test_valid_distribution_types_accepted(tmp_path: Path):
+    """Tests that all valid distribution types are accepted."""
+    yaml_content = """
+total_images: 10
+specifications:
+  - name: "all_valid"
+    proportion: 1.0
+    text_direction: "left_to_right"
+    corpus_file: "test.txt"
+    arc_radius_distribution: "uniform"
+    blur_radius_distribution: "normal"
+    rotation_angle_distribution: "exponential"
+"""
+    yaml_file = tmp_path / "all_valid.yaml"
+    yaml_file.write_text(yaml_content, encoding="utf-8")
+
+    # Should not raise
+    config = BatchConfig.from_yaml(str(yaml_file))
+    spec = config.specifications[0]
+    assert spec.arc_radius_distribution == "uniform"
+    assert spec.blur_radius_distribution == "normal"
+    assert spec.rotation_angle_distribution == "exponential"
+
+
+def test_invalid_curve_type_raises_error(tmp_path: Path):
+    """Tests that invalid curve_type values raise ValueError."""
+    yaml_content = """
+total_images: 10
+specifications:
+  - name: "invalid_curve"
+    proportion: 1.0
+    text_direction: "left_to_right"
+    corpus_file: "test.txt"
+    curve_type: "invalid_curve_type"
+"""
+    yaml_file = tmp_path / "invalid_curve.yaml"
+    yaml_file.write_text(yaml_content, encoding="utf-8")
+
+    with pytest.raises(ValueError, match="Invalid curve_type"):
+        BatchConfig.from_yaml(str(yaml_file))
+
+
+def test_valid_curve_types_accepted(tmp_path: Path):
+    """Tests that all valid curve types are accepted."""
+    for curve_type in ["none", "arc", "sine"]:
+        yaml_content = f"""
+total_images: 10
+specifications:
+  - name: "test_{curve_type}"
+    proportion: 1.0
+    text_direction: "left_to_right"
+    corpus_file: "test.txt"
+    curve_type: "{curve_type}"
+"""
+        yaml_file = tmp_path / f"curve_{curve_type}.yaml"
+        yaml_file.write_text(yaml_content, encoding="utf-8")
+
+        # Should not raise
+        config = BatchConfig.from_yaml(str(yaml_file))
+        assert config.specifications[0].curve_type == curve_type
+
+
+def test_curve_type_none_with_nonzero_curve_parameters_warning(tmp_path: Path):
+    """Tests that curve_type='none' with non-zero curve params raises warning or error."""
+    yaml_content = """
+total_images: 10
+specifications:
+  - name: "inconsistent_curve"
+    proportion: 1.0
+    text_direction: "left_to_right"
+    corpus_file: "test.txt"
+    curve_type: "none"
+    arc_radius_min: 100.0
+    arc_radius_max: 200.0
+"""
+    yaml_file = tmp_path / "inconsistent_curve.yaml"
+    yaml_file.write_text(yaml_content, encoding="utf-8")
+
+    with pytest.raises(ValueError, match="curve_type is 'none' but.*arc_radius"):
+        BatchConfig.from_yaml(str(yaml_file))
+
+
+def test_curve_type_none_with_nonzero_sine_parameters_warning(tmp_path: Path):
+    """Tests that curve_type='none' with non-zero sine params raises error."""
+    yaml_content = """
+total_images: 10
+specifications:
+  - name: "inconsistent_sine"
+    proportion: 1.0
+    text_direction: "left_to_right"
+    corpus_file: "test.txt"
+    curve_type: "none"
+    sine_amplitude_min: 5.0
+    sine_amplitude_max: 15.0
+"""
+    yaml_file = tmp_path / "inconsistent_sine.yaml"
+    yaml_file.write_text(yaml_content, encoding="utf-8")
+
+    with pytest.raises(ValueError, match="curve_type is 'none' but.*sine_amplitude"):
+        BatchConfig.from_yaml(str(yaml_file))
+
+
+def test_curve_type_arc_with_zero_arc_radius_accepted(tmp_path: Path):
+    """Tests that curve_type='arc' with zero arc_radius is allowed (edge case)."""
+    yaml_content = """
+total_images: 10
+specifications:
+  - name: "arc_zero"
+    proportion: 1.0
+    text_direction: "left_to_right"
+    corpus_file: "test.txt"
+    curve_type: "arc"
+    arc_radius_min: 0.0
+    arc_radius_max: 0.0
+"""
+    yaml_file = tmp_path / "arc_zero.yaml"
+    yaml_file.write_text(yaml_content, encoding="utf-8")
+
+    # Should not raise - this is valid (will produce straight text)
+    config = BatchConfig.from_yaml(str(yaml_file))
+    spec = config.specifications[0]
+    assert spec.curve_type == "arc"
+    assert spec.arc_radius_min == 0.0
+
+
+def test_curve_type_sine_with_zero_amplitude_accepted(tmp_path: Path):
+    """Tests that curve_type='sine' with zero amplitude is allowed (edge case)."""
+    yaml_content = """
+total_images: 10
+specifications:
+  - name: "sine_zero"
+    proportion: 1.0
+    text_direction: "left_to_right"
+    corpus_file: "test.txt"
+    curve_type: "sine"
+    sine_amplitude_min: 0.0
+    sine_amplitude_max: 0.0
+"""
+    yaml_file = tmp_path / "sine_zero.yaml"
+    yaml_file.write_text(yaml_content, encoding="utf-8")
+
+    # Should not raise - this is valid (will produce straight text)
+    config = BatchConfig.from_yaml(str(yaml_file))
+    spec = config.specifications[0]
+    assert spec.curve_type == "sine"
+    assert spec.sine_amplitude_min == 0.0
+
+
+def test_invalid_text_direction_raises_error(tmp_path: Path):
+    """Tests that invalid text_direction values raise ValueError."""
+    yaml_content = """
+total_images: 10
+specifications:
+  - name: "invalid_direction"
+    proportion: 1.0
+    text_direction: "diagonal"
+    corpus_file: "test.txt"
+"""
+    yaml_file = tmp_path / "invalid_direction.yaml"
+    yaml_file.write_text(yaml_content, encoding="utf-8")
+
+    with pytest.raises(ValueError, match="Invalid text_direction"):
+        BatchConfig.from_yaml(str(yaml_file))
+
+
+def test_proportions_sum_validation(tmp_path: Path):
+    """Tests that proportions summing to != 1.0 raises error or warning."""
+    yaml_content = """
+total_images: 100
+specifications:
+  - name: "spec1"
+    proportion: 0.3
+    text_direction: "left_to_right"
+    corpus_file: "test1.txt"
+  - name: "spec2"
+    proportion: 0.3
+    text_direction: "left_to_right"
+    corpus_file: "test2.txt"
+"""
+    yaml_file = tmp_path / "invalid_proportions.yaml"
+    yaml_file.write_text(yaml_content, encoding="utf-8")
+
+    with pytest.raises(ValueError, match="Proportions.*do not sum to 1.0"):
+        BatchConfig.from_yaml(str(yaml_file))
+
+
+def test_proportions_sum_to_one_accepted(tmp_path: Path):
+    """Tests that proportions summing to 1.0 are accepted."""
+    yaml_content = """
+total_images: 100
+specifications:
+  - name: "spec1"
+    proportion: 0.7
+    text_direction: "left_to_right"
+    corpus_file: "test1.txt"
+  - name: "spec2"
+    proportion: 0.3
+    text_direction: "left_to_right"
+    corpus_file: "test2.txt"
+"""
+    yaml_file = tmp_path / "valid_proportions.yaml"
+    yaml_file.write_text(yaml_content, encoding="utf-8")
+
+    # Should not raise
+    config = BatchConfig.from_yaml(str(yaml_file))
+    assert len(config.specifications) == 2
