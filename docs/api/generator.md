@@ -15,6 +15,45 @@ Creates a complete plan for generating a single image by randomly selecting para
 
 **Returns:** A `dict` containing the full, concrete generation plan with specific values for all parameters.
 
+### `plan_generation_batch(tasks, background_manager)`
+
+Creates multiple generation plans at once for batch processing. This method enables separation of planning from execution, which is useful for pre-generating all parameters before starting generation, analyzing parameter distributions, or parallelizing generation workflows.
+
+- **`tasks` (`List[Tuple[BatchSpecification, str, str]]`):** A list of tuples, each containing (spec, text, font_path).
+- **`background_manager` (`BackgroundImageManager`, optional):** The manager to select backgrounds from.
+
+**Returns:** A `List[Dict[str, Any]]` containing plan dictionaries, one for each input task.
+
+**Use Cases:**
+- **Pre-planning**: Generate all plans upfront, then execute generation separately
+- **Analysis**: Examine parameter distributions before generating images
+- **Parallelization**: Enable parallel generation across multiple processes
+- **Debugging**: Inspect plans before committing to full generation
+
+**Example:**
+```python
+from src.generator import OCRDataGenerator
+from src.batch_config import BatchSpecification
+
+generator = OCRDataGenerator()
+spec1 = BatchSpecification(name="batch1", proportion=1.0, ...)
+spec2 = BatchSpecification(name="batch2", proportion=1.0, ...)
+
+# Prepare tasks
+tasks = [
+    (spec1, "hello world", "/path/to/font1.ttf"),
+    (spec2, "foo bar", "/path/to/font2.ttf")
+]
+
+# Generate all plans at once
+plans = generator.plan_generation_batch(tasks, background_manager)
+
+# Execute generation separately
+for i, plan in enumerate(plans):
+    image, bboxes = generator.generate_from_plan(plan)
+    image.save(f"image_{i}.png")
+```
+
 ### `generate_from_plan(plan)`
 
 Deterministically generates an image based on a plan dictionary.

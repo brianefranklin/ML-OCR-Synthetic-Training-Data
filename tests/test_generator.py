@@ -185,3 +185,62 @@ def test_plan_respects_curve_parameter_ranges():
     assert 5.0 <= plan["sine_amplitude"] <= 15.0
     assert 0.01 <= plan["sine_frequency"] <= 0.05
     assert 0.0 <= plan["sine_phase"] <= 3.14
+
+def test_plan_generation_batch_returns_list():
+    """Tests that plan_generation_batch returns a list of plan dictionaries."""
+    generator = OCRDataGenerator()
+    spec = BatchSpecification(name="test", proportion=1.0, text_direction="left_to_right", corpus_file="test.txt")
+    font_path = "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf"
+
+    tasks = [(spec, "hello", font_path), (spec, "world", font_path)]
+
+    plans = generator.plan_generation_batch(tasks)
+
+    assert isinstance(plans, list)
+    assert all(isinstance(plan, dict) for plan in plans)
+
+def test_plan_generation_batch_correct_count():
+    """Tests that plan_generation_batch returns the correct number of plans."""
+    generator = OCRDataGenerator()
+    spec = BatchSpecification(name="test", proportion=1.0, text_direction="left_to_right", corpus_file="test.txt")
+    font_path = "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf"
+
+    # Test with different numbers of tasks
+    for num_tasks in [0, 1, 5, 10]:
+        tasks = [(spec, f"text_{i}", font_path) for i in range(num_tasks)]
+        plans = generator.plan_generation_batch(tasks)
+        assert len(plans) == num_tasks
+
+def test_plan_generation_batch_contains_all_required_fields():
+    """Tests that each plan from plan_generation_batch contains all required fields."""
+    generator = OCRDataGenerator()
+    spec = BatchSpecification(name="test", proportion=1.0, text_direction="left_to_right", corpus_file="test.txt")
+    font_path = "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf"
+
+    tasks = [(spec, "hello", font_path)]
+    plans = generator.plan_generation_batch(tasks)
+
+    plan = plans[0]
+    required_fields = [
+        "text", "font_path", "direction", "seed", "canvas_w", "canvas_h",
+        "placement_x", "placement_y", "glyph_overlap_intensity", "ink_bleed_radius",
+        "rotation_angle", "perspective_warp_magnitude", "noise_amount", "blur_radius",
+        "brightness_factor", "contrast_factor", "curve_type", "arc_radius",
+        "arc_concave", "sine_amplitude", "sine_frequency", "sine_phase"
+    ]
+
+    for field in required_fields:
+        assert field in plan, f"Missing field: {field}"
+
+def test_plan_generation_batch_with_background_manager(background_manager):
+    """Tests that plan_generation_batch works with background manager."""
+    generator = OCRDataGenerator()
+    spec = BatchSpecification(name="test", proportion=1.0, text_direction="left_to_right", corpus_file="test.txt")
+    font_path = "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf"
+
+    tasks = [(spec, "hello", font_path)]
+    plans = generator.plan_generation_batch(tasks, background_manager=background_manager)
+
+    assert len(plans) == 1
+    assert "background_path" in plans[0]
+    assert plans[0]["background_path"] is not None

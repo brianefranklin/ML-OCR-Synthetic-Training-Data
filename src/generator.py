@@ -204,6 +204,44 @@ class OCRDataGenerator:
             ),
         }
 
+    def plan_generation_batch(
+        self,
+        tasks: List[Tuple[BatchSpecification, str, str]],
+        background_manager: Optional[BackgroundImageManager] = None
+    ) -> List[Dict[str, Any]]:
+        """Creates multiple generation plans at once for batch processing.
+
+        This method enables separation of planning from execution, which can be useful
+        for pre-generating all parameters before starting the generation process,
+        analyzing parameter distributions, or parallelizing generation workflows.
+
+        Args:
+            tasks: A list of tuples, each containing (spec, text, font_path).
+                - spec (BatchSpecification): The batch specification for this image.
+                - text (str): The text string to be rendered.
+                - font_path (str): The path to the font file to use.
+            background_manager: An optional manager for selecting background images.
+
+        Returns:
+            A list of plan dictionaries, one for each input task. Each plan contains
+            all parameters needed to generate an image via generate_from_plan().
+
+        Example:
+            >>> generator = OCRDataGenerator()
+            >>> tasks = [
+            ...     (spec1, "hello", "/path/to/font1.ttf"),
+            ...     (spec2, "world", "/path/to/font2.ttf")
+            ... ]
+            >>> plans = generator.plan_generation_batch(tasks, background_manager)
+            >>> for plan in plans:
+            ...     image, bboxes = generator.generate_from_plan(plan)
+        """
+        plans: List[Dict[str, Any]] = []
+        for spec, text, font_path in tasks:
+            plan = self.plan_generation(spec, text, font_path, background_manager)
+            plans.append(plan)
+        return plans
+
     def generate_from_plan(self, plan: Dict[str, Any]) -> Tuple[Image.Image, List[Dict[str, Any]]]:
         """Generates an image deterministically from a plan dictionary.
 
