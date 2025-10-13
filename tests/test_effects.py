@@ -121,3 +121,51 @@ def test_cutout_is_applied():
     cutout_array = np.array(cutout_image)
 
     assert not np.array_equal(original_array, cutout_array)
+
+def test_add_noise_deterministic():
+    """Tests that add_noise produces deterministic results with same numpy seed."""
+    image1 = Image.new("RGBA", (100, 50), "white")
+    image2 = Image.new("RGBA", (100, 50), "white")
+
+    # Apply noise with same seed
+    np.random.seed(42)
+    noisy1 = add_noise(image1, amount=0.1)
+
+    np.random.seed(42)
+    noisy2 = add_noise(image2, amount=0.1)
+
+    # Should produce identical results
+    assert np.array_equal(np.array(noisy1), np.array(noisy2))
+
+def test_add_noise_respects_amount_exactly():
+    """Tests that add_noise modifies the exact number of pixels specified by amount."""
+    image = Image.new("L", (100, 50), 128)  # Grayscale with value 128
+    original_array = np.array(image)
+
+    amount = 0.1
+    noisy_image = add_noise(image, amount=amount)
+    noisy_array = np.array(noisy_image)
+
+    # Count pixels that changed
+    changed_pixels = np.sum(original_array != noisy_array)
+    expected_pixels = int(amount * image.width * image.height)
+
+    # Should match exactly
+    assert changed_pixels == expected_pixels
+
+def test_add_noise_only_uses_black_and_white():
+    """Tests that add_noise only sets pixels to 0 (black) or 255 (white)."""
+    image = Image.new("L", (100, 50), 128)  # Grayscale with value 128
+
+    noisy_image = add_noise(image, amount=0.2)
+    noisy_array = np.array(noisy_image)
+
+    # Get all unique values in the noisy image
+    unique_values = np.unique(noisy_array)
+
+    # Should only contain 0, 128 (original), and 255
+    for val in unique_values:
+        assert val in [0, 128, 255], f"Found unexpected pixel value: {val}"
+
+    # Should have at least some 0s and 255s (noise was applied)
+    assert 0 in unique_values or 255 in unique_values
