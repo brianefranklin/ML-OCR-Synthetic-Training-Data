@@ -6,7 +6,7 @@ and a manager class for orchestrating interleaved generation from those batches.
 
 import yaml
 from dataclasses import dataclass, field
-from typing import List, Type, TypeVar, Dict, Any
+from typing import List, Type, TypeVar, Dict, Any, Optional, Tuple
 
 # A generic type for the from_yaml method, allowing it to be used in subclasses.
 T = TypeVar('T')
@@ -23,13 +23,34 @@ class BatchSpecification:
         proportion (float): The proportion of the total images this batch should represent.
         text_direction (str): The direction of the text rendering (e.g., 'left_to_right').
         corpus_file (str): The filename of the corpus file to use for this batch.
-        # Note: In a real application, this would be expanded to include ranges
-        # for all the various effects and augmentations.
+        font_filter (Optional[str]): A glob pattern to filter the fonts to be used.
+        min_text_length (int): The minimum length of text to generate.
+        max_text_length (int): The maximum length of text to generate.
+        glyph_overlap_intensity_min (float): The minimum intensity for glyph overlap.
+        glyph_overlap_intensity_max (float): The maximum intensity for glyph overlap.
+        ink_bleed_radius_min (float): The minimum radius for ink bleed.
+        ink_bleed_radius_max (float): The maximum radius for ink bleed.
+        rotation_angle_min (float): The minimum angle for rotation.
+        rotation_angle_max (float): The maximum angle for rotation.
+        perspective_warp_magnitude_min (float): The minimum magnitude for perspective warp.
+        perspective_warp_magnitude_max (float): The maximum magnitude for perspective warp.
+        # Add other augmentation parameter ranges here...
     """
     name: str
     proportion: float
     text_direction: str
     corpus_file: str
+    font_filter: Optional[str] = None
+    min_text_length: int = 10
+    max_text_length: int = 50
+    glyph_overlap_intensity_min: float = 0.0
+    glyph_overlap_intensity_max: float = 0.0
+    ink_bleed_radius_min: float = 0.0
+    ink_bleed_radius_max: float = 0.0
+    rotation_angle_min: float = 0.0
+    rotation_angle_max: float = 0.0
+    perspective_warp_magnitude_min: float = 0.0
+    perspective_warp_magnitude_max: float = 0.0
 
 @dataclass
 class BatchConfig:
@@ -116,7 +137,8 @@ class BatchManager:
         return self._allocation
 
     def task_list(self) -> List[BatchSpecification]:
-        """Generates a full, interleaved list of which specification to use for each image.
+        """Generates a full, interleaved list of which specification to use for
+        each image to be generated.
 
         This method produces a list of BatchSpecification objects, where the order
         is interleaved to ensure that images from different specifications are

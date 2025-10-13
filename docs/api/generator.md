@@ -6,14 +6,14 @@ This file contains the core `OCRDataGenerator` class that orchestrates the entir
 
 ### `plan_generation(spec, text, font_path, background_manager)`
 
-Creates a complete plan for generating a single image.
+Creates a complete plan for generating a single image by randomly selecting parameter values from the ranges defined in the `BatchSpecification`.
 
-- **`spec` (`BatchSpecification`):** The configuration object defining the ranges for this batch.
+- **`spec` (`BatchSpecification`):** The configuration object defining the ranges for all randomizable parameters.
 - **`text` (`str`):** The text string to be rendered.
 - **`font_path` (`str`):** The path to the `.ttf` font file to use.
 - **`background_manager` (`BackgroundImageManager`, optional):** The manager to select a background from.
 
-**Returns:** A `dict` containing the full generation plan.
+**Returns:** A `dict` containing the full, concrete generation plan with specific values for all parameters.
 
 ### `generate_from_plan(plan)`
 

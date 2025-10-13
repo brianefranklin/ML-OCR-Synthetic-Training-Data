@@ -6,6 +6,7 @@ the resource managers to produce a list of concrete generation tasks.
 
 from dataclasses import dataclass
 from typing import List, Dict, Optional
+import fnmatch
 
 from src.batch_config import BatchConfig, BatchSpecification, BatchManager
 from src.corpus_manager import CorpusManager
@@ -88,11 +89,20 @@ class GenerationOrchestrator:
 
         # For each spec in the interleaved list, create a concrete task.
         for spec in spec_list:
+            # Filter fonts if a filter is specified in the batch
+            if spec.font_filter:
+                available_fonts_for_spec = [f for f in available_fonts if fnmatch.fnmatch(f, spec.font_filter)]
+            else:
+                available_fonts_for_spec = list(available_fonts)
+
+            if not available_fonts_for_spec:
+                print(f"Warning: No fonts matched the filter '{spec.font_filter}' for batch '{spec.name}'. Skipping.")
+                continue
+
             corpus_manager = self._corpus_managers[spec.corpus_file]
             text = corpus_manager.extract_text_segment(min_text_len, max_text_len)
             
-            # Select resources for this specific task.
-            font_path = self.font_health_manager.select_font(list(available_fonts))
+            font_path = self.font_health_manager.select_font(available_fonts_for_spec)
             background_path = self.background_manager.select_background()
             
             task = GenerationTask(

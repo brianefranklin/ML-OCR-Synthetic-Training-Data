@@ -60,8 +60,6 @@ class OCRDataGenerator:
             A dictionary containing the complete plan for generating a single image.
         """
         # Render a temporary surface to get the dimensions for canvas calculation.
-        # This is a simplified approach; a more advanced implementation could estimate
-        # size without a full preliminary render.
         text_surface, _ = self._render_text(text, font_path, spec.text_direction, 0.0, 'uniform', None)
         
         canvas_w, canvas_h = generate_random_canvas_size(text_surface.width, text_surface.height)
@@ -81,14 +79,14 @@ class OCRDataGenerator:
             "canvas_h": canvas_h,
             "placement_x": placement_x,
             "placement_y": placement_y,
-            "glyph_overlap_intensity": 0.0, # Placeholder
-            "ink_bleed_radius": 0.0, # Placeholder
-            "drop_shadow_options": None, # Placeholder
+            "glyph_overlap_intensity": random.uniform(spec.glyph_overlap_intensity_min, spec.glyph_overlap_intensity_max),
+            "ink_bleed_radius": random.uniform(spec.ink_bleed_radius_min, spec.ink_bleed_radius_max),
+            "drop_shadow_options": None, # Placeholder for more complex options
             "block_shadow_options": None, # Placeholder
             "color_mode": 'uniform', # Placeholder
             "color_palette": None, # Placeholder
-            "rotation_angle": 0.0, # Placeholder
-            "perspective_warp_magnitude": 0.0, # Placeholder
+            "rotation_angle": random.uniform(spec.rotation_angle_min, spec.rotation_angle_max),
+            "perspective_warp_magnitude": random.uniform(spec.perspective_warp_magnitude_min, spec.perspective_warp_magnitude_max),
             "elastic_distortion_options": None, # Placeholder
             "grid_distortion_options": None, # Placeholder
             "optical_distortion_options": None, # Placeholder

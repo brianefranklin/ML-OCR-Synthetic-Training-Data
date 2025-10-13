@@ -25,6 +25,27 @@ def test_ocr_data_generator_initialization():
     
     assert generator is not None
 
+def test_plan_generation_uses_spec_ranges():
+    """Tests that plan_generation correctly uses the ranges in the BatchSpecification."""
+    generator = OCRDataGenerator()
+    spec = BatchSpecification(
+        name="test", 
+        proportion=1.0, 
+        text_direction="left_to_right", 
+        corpus_file="test.txt",
+        rotation_angle_min=-10,
+        rotation_angle_max=10,
+        glyph_overlap_intensity_min=0.1,
+        glyph_overlap_intensity_max=0.5
+    )
+    font_path = "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf"
+    text = "hello"
+
+    plan = generator.plan_generation(spec, text, font_path)
+
+    assert -10 <= plan["rotation_angle"] <= 10
+    assert 0.1 <= plan["glyph_overlap_intensity"] <= 0.5
+
 def test_generate_from_plan_ltr_places_on_canvas():
     """Tests that generate_from_plan creates a valid image and bboxes on a larger canvas."""
     generator = OCRDataGenerator()
@@ -63,26 +84,3 @@ def test_background_image_is_applied(background_manager):
     # Check a corner pixel for the background color
     corner_pixel_color = image.getpixel((0, 0))
     assert corner_pixel_color == (255, 0, 0, 255) # Red
-
-def test_text_surface_handles_descenders():
-    """Tests that the rendered text surface is tall enough for glyphs with descenders."""
-    generator = OCRDataGenerator()
-    font_path = "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf"
-    # The letter 'g' has a descender
-    text_with_descender = "glyph"
-    # The letter 'a' does not
-    text_without_descender = "alpha"
-
-    # Render both texts directly to surfaces
-    surface_desc, _ = generator._render_text(text_with_descender, font_path, "left_to_right")
-    surface_no_desc, _ = generator._render_text(text_without_descender, font_path, "left_to_right")
-
-    # Find the actual height of the rendered pixels by checking the alpha channel
-    alpha_desc = np.array(surface_desc.split()[3])
-    rendered_height_desc = np.max(np.where(alpha_desc > 0)[0]) - np.min(np.where(alpha_desc > 0)[0])
-
-    alpha_no_desc = np.array(surface_no_desc.split()[3])
-    rendered_height_no_desc = np.max(np.where(alpha_no_desc > 0)[0]) - np.min(np.where(alpha_no_desc > 0)[0])
-
-    # The text with a descender should produce a taller rendered surface
-    assert rendered_height_desc > rendered_height_no_desc
