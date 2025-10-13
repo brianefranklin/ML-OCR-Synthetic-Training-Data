@@ -87,15 +87,31 @@ class OCRDataGenerator:
             "color_palette": None, # Placeholder
             "rotation_angle": random.uniform(spec.rotation_angle_min, spec.rotation_angle_max),
             "perspective_warp_magnitude": random.uniform(spec.perspective_warp_magnitude_min, spec.perspective_warp_magnitude_max),
-            "elastic_distortion_options": None, # Placeholder
-            "grid_distortion_options": None, # Placeholder
-            "optical_distortion_options": None, # Placeholder
-            "cutout_options": None, # Placeholder
-            "noise_amount": 0.0, # Placeholder
-            "blur_radius": 0.0, # Placeholder
-            "brightness_factor": 1.0, # Placeholder
-            "contrast_factor": 1.0, # Placeholder
-            "erosion_dilation_options": None, # Placeholder
+            "elastic_distortion_options": {
+                "alpha": random.uniform(spec.elastic_distortion_alpha_min, spec.elastic_distortion_alpha_max),
+                "sigma": random.uniform(spec.elastic_distortion_sigma_min, spec.elastic_distortion_sigma_max)
+            },
+            "grid_distortion_options": {
+                "num_steps": random.randint(spec.grid_distortion_steps_min, spec.grid_distortion_steps_max),
+                "distort_limit": random.randint(spec.grid_distortion_limit_min, spec.grid_distortion_limit_max)
+            },
+            "optical_distortion_options": {
+                "distort_limit": random.uniform(spec.optical_distortion_limit_min, spec.optical_distortion_limit_max)
+            },
+            "cutout_options": {
+                "cutout_size": (
+                    random.randint(spec.cutout_width_min, spec.cutout_width_max),
+                    random.randint(spec.cutout_height_min, spec.cutout_height_max)
+                )
+            },
+            "noise_amount": random.uniform(spec.noise_amount_min, spec.noise_amount_max),
+            "blur_radius": random.uniform(spec.blur_radius_min, spec.blur_radius_max),
+            "brightness_factor": random.uniform(spec.brightness_factor_min, spec.brightness_factor_max),
+            "contrast_factor": random.uniform(spec.contrast_factor_min, spec.contrast_factor_max),
+            "erosion_dilation_options": {
+                "mode": random.choice(['erode', 'dilate']),
+                "kernel_size": random.randint(spec.erosion_dilation_kernel_min, spec.erosion_dilation_kernel_max)
+            },
             "background_path": background_path,
         }
 
@@ -156,23 +172,23 @@ class OCRDataGenerator:
             final_image, final_bboxes = apply_perspective_warp(final_image, final_bboxes, warp_magnitude)
 
         elastic_options = plan.get("elastic_distortion_options")
-        if elastic_options:
+        if elastic_options and elastic_options['alpha'] > 0 and elastic_options['sigma'] > 0:
             final_image, final_bboxes = apply_elastic_distortion(final_image, final_bboxes, **elastic_options)
 
         grid_distortion_options = plan.get("grid_distortion_options")
-        if grid_distortion_options:
+        if grid_distortion_options and grid_distortion_options['distort_limit'] > 0:
             final_image, final_bboxes = apply_grid_distortion(final_image, final_bboxes, **grid_distortion_options)
 
         optical_distortion_options = plan.get("optical_distortion_options")
-        if optical_distortion_options:
+        if optical_distortion_options and optical_distortion_options['distort_limit'] > 0:
             final_image, final_bboxes = apply_optical_distortion(final_image, final_bboxes, **optical_distortion_options)
 
         cutout_options = plan.get("cutout_options")
-        if cutout_options:
+        if cutout_options and cutout_options['cutout_size'][0] > 0 and cutout_options['cutout_size'][1] > 0:
             final_image = apply_cutout(final_image, **cutout_options)
 
         erosion_dilation_options = plan.get("erosion_dilation_options")
-        if erosion_dilation_options:
+        if erosion_dilation_options and erosion_dilation_options['kernel_size'] > 1:
             final_image = apply_erosion_dilation(final_image, **erosion_dilation_options)
 
         noise_amount = plan.get("noise_amount", 0.0)

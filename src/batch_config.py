@@ -34,7 +34,30 @@ class BatchSpecification:
         rotation_angle_max (float): The maximum angle for rotation.
         perspective_warp_magnitude_min (float): The minimum magnitude for perspective warp.
         perspective_warp_magnitude_max (float): The maximum magnitude for perspective warp.
-        # Add other augmentation parameter ranges here...
+        elastic_distortion_alpha_min (float): The minimum alpha for elastic distortion.
+        elastic_distortion_alpha_max (float): The maximum alpha for elastic distortion.
+        elastic_distortion_sigma_min (float): The minimum sigma for elastic distortion.
+        elastic_distortion_sigma_max (float): The maximum sigma for elastic distortion.
+        grid_distortion_steps_min (int): The minimum number of steps for grid distortion.
+        grid_distortion_steps_max (int): The maximum number of steps for grid distortion.
+        grid_distortion_limit_min (int): The minimum limit for grid distortion.
+        grid_distortion_limit_max (int): The maximum limit for grid distortion.
+        optical_distortion_limit_min (float): The minimum limit for optical distortion.
+        optical_distortion_limit_max (float): The maximum limit for optical distortion.
+        noise_amount_min (float): The minimum amount of noise.
+        noise_amount_max (float): The maximum amount of noise.
+        blur_radius_min (float): The minimum radius for blur.
+        blur_radius_max (float): The maximum radius for blur.
+        brightness_factor_min (float): The minimum brightness factor.
+        brightness_factor_max (float): The maximum brightness factor.
+        contrast_factor_min (float): The minimum contrast factor.
+        contrast_factor_max (float): The maximum contrast factor.
+        erosion_dilation_kernel_min (int): The minimum kernel size for erosion/dilation.
+        erosion_dilation_kernel_max (int): The maximum kernel size for erosion/dilation.
+        cutout_width_min (int): The minimum width for cutout.
+        cutout_width_max (int): The maximum width for cutout.
+        cutout_height_min (int): The minimum height for cutout.
+        cutout_height_max (int): The maximum height for cutout.
     """
     name: str
     proportion: float
@@ -51,6 +74,30 @@ class BatchSpecification:
     rotation_angle_max: float = 0.0
     perspective_warp_magnitude_min: float = 0.0
     perspective_warp_magnitude_max: float = 0.0
+    elastic_distortion_alpha_min: float = 0.0
+    elastic_distortion_alpha_max: float = 0.0
+    elastic_distortion_sigma_min: float = 0.0
+    elastic_distortion_sigma_max: float = 0.0
+    grid_distortion_steps_min: int = 2
+    grid_distortion_steps_max: int = 2
+    grid_distortion_limit_min: int = 0
+    grid_distortion_limit_max: int = 0
+    optical_distortion_limit_min: float = 0.0
+    optical_distortion_limit_max: float = 0.0
+    noise_amount_min: float = 0.0
+    noise_amount_max: float = 0.0
+    blur_radius_min: float = 0.0
+    blur_radius_max: float = 0.0
+    brightness_factor_min: float = 1.0
+    brightness_factor_max: float = 1.0
+    contrast_factor_min: float = 1.0
+    contrast_factor_max: float = 1.0
+    erosion_dilation_kernel_min: int = 1
+    erosion_dilation_kernel_max: int = 1
+    cutout_width_min: int = 0
+    cutout_width_max: int = 0
+    cutout_height_min: int = 0
+    cutout_height_max: int = 0
 
 @dataclass
 class BatchConfig:

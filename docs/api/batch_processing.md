@@ -11,7 +11,7 @@ This section describes the components responsible for managing and orchestrating
     - `proportion` (float): The proportion of the total images this batch should represent.
     - `text_direction` (str): The direction of the text rendering.
     - `corpus_file` (str): The filename of the corpus file to use.
-    - `font_filter` (Optional[str]): A glob pattern to filter the fonts to be used.
+    - `font_filter` (Optional[str]): A glob pattern to filter the fonts to be used for this batch (e.g., `"*Bold.ttf"`).
     - `min_text_length` (int): The minimum length of text to generate.
     - `max_text_length` (int): The maximum length of text to generate.
     - `glyph_overlap_intensity_min` (float): The minimum intensity for glyph overlap.
@@ -22,7 +22,30 @@ This section describes the components responsible for managing and orchestrating
     - `rotation_angle_max` (float): The maximum angle for rotation.
     - `perspective_warp_magnitude_min` (float): The minimum magnitude for perspective warp.
     - `perspective_warp_magnitude_max` (float): The maximum magnitude for perspective warp.
-    - `font_filter` (Optional[str]): A glob pattern to filter the fonts to be used for this batch (e.g., `"*Bold.ttf"`).
+    - `elastic_distortion_alpha_min` (float): The minimum alpha for elastic distortion.
+    - `elastic_distortion_alpha_max` (float): The maximum alpha for elastic distortion.
+    - `elastic_distortion_sigma_min` (float): The minimum sigma for elastic distortion.
+    - `elastic_distortion_sigma_max` (float): The maximum sigma for elastic distortion.
+    - `grid_distortion_steps_min` (int): The minimum number of steps for grid distortion.
+    - `grid_distortion_steps_max` (int): The maximum number of steps for grid distortion.
+    - `grid_distortion_limit_min` (int): The minimum limit for grid distortion.
+    - `grid_distortion_limit_max` (int): The maximum limit for grid distortion.
+    - `optical_distortion_limit_min` (float): The minimum limit for optical distortion.
+    - `optical_distortion_limit_max` (float): The maximum limit for optical distortion.
+    - `noise_amount_min` (float): The minimum amount of noise.
+    - `noise_amount_max` (float): The maximum amount of noise.
+    - `blur_radius_min` (float): The minimum radius for blur.
+    - `blur_radius_max` (float): The maximum radius for blur.
+    - `brightness_factor_min` (float): The minimum brightness factor.
+    - `brightness_factor_max` (float): The maximum brightness factor.
+    - `contrast_factor_min` (float): The minimum contrast factor.
+    - `contrast_factor_max` (float): The maximum contrast factor.
+    - `erosion_dilation_kernel_min` (int): The minimum kernel size for erosion/dilation.
+    - `erosion_dilation_kernel_max` (int): The maximum kernel size for erosion/dilation.
+    - `cutout_width_min` (int): The minimum width for cutout.
+    - `cutout_width_max` (int): The maximum width for cutout.
+    - `cutout_height_min` (int): The minimum height for cutout.
+    - `cutout_height_max` (int): The maximum height for cutout.
 
 ### `BatchConfig`
 - **Description:** A dataclass that represents the entire batch job, containing the `total_images` to be generated and a list of `BatchSpecification` objects.

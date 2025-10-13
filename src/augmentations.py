@@ -157,8 +157,9 @@ def apply_elastic_distortion(
     dy = np.random.rand(h, w) * 2 - 1
 
     # Smooth the fields with a Gaussian filter and scale by alpha.
-    dx = cv2.GaussianBlur(dx, (0, 0), sigma) * alpha
-    dy = cv2.GaussianBlur(dy, (0, 0), sigma) * alpha
+    kernel_size = int(6 * sigma) | 1
+    dx = cv2.GaussianBlur(dx, (kernel_size, kernel_size), sigma) * alpha
+    dy = cv2.GaussianBlur(dy, (kernel_size, kernel_size), sigma) * alpha
 
     # Create the remapping maps.
     x, y = np.meshgrid(np.arange(w), np.arange(h))
