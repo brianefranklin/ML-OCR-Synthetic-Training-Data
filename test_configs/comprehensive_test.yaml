@@ -1,0 +1,234 @@
+# Comprehensive Test Configuration
+# This configuration tests all features of the synthetic OCR data generator
+# with varied parameters, distributions, and text directions.
+
+total_images: 100
+
+specifications:
+  # Spec 1 (40%): Straight left-to-right text with exponential distributions
+  # Exercises: LTR direction, no curves, exponential degradation biases
+  - name: "straight_ltr"
+    proportion: 0.4
+    text_direction: "left_to_right"
+    corpus_file: "gutenberg_42671.txt"
+    min_text_length: 10
+    max_text_length: 50
+
+    # Curve parameters: straight text (curve_type="none")
+    curve_type: "none"
+
+    # Degradation effects with exponential distributions (biased toward minimum)
+    rotation_angle_min: -15.0
+    rotation_angle_max: 15.0
+    rotation_angle_distribution: "exponential"
+
+    ink_bleed_radius_min: 0.0
+    ink_bleed_radius_max: 3.0
+    ink_bleed_radius_distribution: "exponential"
+
+    noise_amount_min: 0.0
+    noise_amount_max: 0.3
+    noise_amount_distribution: "exponential"
+
+    blur_radius_min: 0.0
+    blur_radius_max: 2.5
+    blur_radius_distribution: "exponential"
+
+    perspective_warp_magnitude_min: 0.0
+    perspective_warp_magnitude_max: 0.4
+    perspective_warp_magnitude_distribution: "exponential"
+
+    elastic_distortion_alpha_min: 0.0
+    elastic_distortion_alpha_max: 100.0
+    elastic_distortion_alpha_distribution: "exponential"
+
+    elastic_distortion_sigma_min: 0.0
+    elastic_distortion_sigma_max: 10.0
+    elastic_distortion_sigma_distribution: "exponential"
+
+    # Lighting effects with normal distributions
+    brightness_factor_min: 0.7
+    brightness_factor_max: 1.3
+    brightness_factor_distribution: "normal"
+
+    contrast_factor_min: 0.8
+    contrast_factor_max: 1.2
+    contrast_factor_distribution: "normal"
+
+  # Spec 2 (30%): Curved arc right-to-left text with lognormal distributions
+  # Exercises: RTL direction, arc curves, lognormal alternative to exponential
+  - name: "curved_arc_rtl"
+    proportion: 0.3
+    text_direction: "right_to_left"
+    corpus_file: "gutenberg_42671.txt"
+    min_text_length: 10
+    max_text_length: 50
+
+    # Curve parameters: arc curves
+    curve_type: "arc"
+    arc_radius_min: 50.0
+    arc_radius_max: 300.0
+    arc_radius_distribution: "lognormal"
+    arc_concave: true
+
+    # Degradation with lognormal (heavier tail than exponential)
+    rotation_angle_min: -10.0
+    rotation_angle_max: 10.0
+    rotation_angle_distribution: "lognormal"
+
+    noise_amount_min: 0.0
+    noise_amount_max: 0.2
+    noise_amount_distribution: "lognormal"
+
+    blur_radius_min: 0.0
+    blur_radius_max: 2.0
+    blur_radius_distribution: "lognormal"
+
+    grid_distortion_steps_min: 2
+    grid_distortion_steps_max: 5
+    grid_distortion_steps_distribution: "uniform"
+
+    grid_distortion_limit_min: 0
+    grid_distortion_limit_max: 20
+    grid_distortion_limit_distribution: "lognormal"
+
+    optical_distortion_limit_min: 0.0
+    optical_distortion_limit_max: 0.3
+    optical_distortion_limit_distribution: "lognormal"
+
+    brightness_factor_min: 0.8
+    brightness_factor_max: 1.2
+    brightness_factor_distribution: "truncated_normal"
+
+    contrast_factor_min: 0.9
+    contrast_factor_max: 1.1
+    contrast_factor_distribution: "truncated_normal"
+
+  # Spec 3 (20%): Wavy sine top-to-bottom text with beta/truncated_normal
+  # Exercises: TTB direction, sine curves, beta and truncated_normal distributions
+  - name: "wavy_sine_ttb"
+    proportion: 0.2
+    text_direction: "top_to_bottom"
+    corpus_file: "gutenberg_42671.txt"
+    min_text_length: 10
+    max_text_length: 50
+
+    # Curve parameters: sine wave
+    curve_type: "sine"
+    sine_amplitude_min: 0.0
+    sine_amplitude_max: 20.0
+    sine_amplitude_distribution: "beta"
+
+    sine_frequency_min: 0.01
+    sine_frequency_max: 0.1
+    sine_frequency_distribution: "uniform"
+
+    sine_phase_min: 0.0
+    sine_phase_max: 6.28
+    sine_phase_distribution: "uniform"
+
+    # Mix of distributions
+    rotation_angle_min: -5.0
+    rotation_angle_max: 5.0
+    rotation_angle_distribution: "truncated_normal"
+
+    noise_amount_min: 0.0
+    noise_amount_max: 0.15
+    noise_amount_distribution: "beta"
+
+    blur_radius_min: 0.0
+    blur_radius_max: 1.5
+    blur_radius_distribution: "beta"
+
+    brightness_factor_min: 0.9
+    brightness_factor_max: 1.1
+    brightness_factor_distribution: "truncated_normal"
+
+    erosion_dilation_kernel_min: 1
+    erosion_dilation_kernel_max: 3
+    erosion_dilation_kernel_distribution: "uniform"
+
+    cutout_width_min: 0
+    cutout_width_max: 20
+    cutout_width_distribution: "uniform"
+
+    cutout_height_min: 0
+    cutout_height_max: 20
+    cutout_height_distribution: "uniform"
+
+  # Spec 4 (10%): Stress test with bottom-to-top and uniform distributions
+  # Exercises: BTT direction, all effects maxed out, uniform distributions
+  - name: "stress_uniform_btt"
+    proportion: 0.1
+    text_direction: "bottom_to_top"
+    corpus_file: "gutenberg_42671.txt"
+    min_text_length: 10
+    max_text_length: 50
+
+    # No curves for stress test (focus on degradation)
+    curve_type: "none"
+
+    # All effects with uniform distributions (test full range equally)
+    rotation_angle_min: -30.0
+    rotation_angle_max: 30.0
+    rotation_angle_distribution: "uniform"
+
+    glyph_overlap_intensity_min: 0.0
+    glyph_overlap_intensity_max: 0.3
+    glyph_overlap_intensity_distribution: "uniform"
+
+    ink_bleed_radius_min: 0.0
+    ink_bleed_radius_max: 4.0
+    ink_bleed_radius_distribution: "uniform"
+
+    perspective_warp_magnitude_min: 0.0
+    perspective_warp_magnitude_max: 0.5
+    perspective_warp_magnitude_distribution: "uniform"
+
+    elastic_distortion_alpha_min: 0.0
+    elastic_distortion_alpha_max: 150.0
+    elastic_distortion_alpha_distribution: "uniform"
+
+    elastic_distortion_sigma_min: 0.0
+    elastic_distortion_sigma_max: 12.0
+    elastic_distortion_sigma_distribution: "uniform"
+
+    grid_distortion_steps_min: 2
+    grid_distortion_steps_max: 6
+    grid_distortion_steps_distribution: "uniform"
+
+    grid_distortion_limit_min: 0
+    grid_distortion_limit_max: 30
+    grid_distortion_limit_distribution: "uniform"
+
+    optical_distortion_limit_min: 0.0
+    optical_distortion_limit_max: 0.5
+    optical_distortion_limit_distribution: "uniform"
+
+    noise_amount_min: 0.0
+    noise_amount_max: 0.4
+    noise_amount_distribution: "uniform"
+
+    blur_radius_min: 0.0
+    blur_radius_max: 3.0
+    blur_radius_distribution: "uniform"
+
+    brightness_factor_min: 0.6
+    brightness_factor_max: 1.4
+    brightness_factor_distribution: "uniform"
+
+    contrast_factor_min: 0.7
+    contrast_factor_max: 1.3
+    contrast_factor_distribution: "uniform"
+
+    erosion_dilation_kernel_min: 1
+    erosion_dilation_kernel_max: 5
+    erosion_dilation_kernel_distribution: "uniform"
+
+    cutout_width_min: 0
+    cutout_width_max: 30
+    cutout_width_distribution: "uniform"
+
+    cutout_height_min: 0
+    cutout_height_max: 30
+    cutout_height_distribution: "uniform"
