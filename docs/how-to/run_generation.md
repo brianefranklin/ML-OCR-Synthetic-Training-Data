@@ -37,3 +37,75 @@ PYTHONPATH=. python3 src/main.py \
 ```
 
 This command will start the generation process, displaying a progress bar in the console. Upon completion, the `output` directory will contain the generated images and their JSON labels.
+
+## Batch Planning Mode
+
+For advanced use cases, you can separate the planning phase from the execution phase using the `plan_generation_batch()` method. This allows you to:
+
+- Pre-generate all parameters before starting generation
+- Analyze parameter distributions to verify your configuration
+- Parallelize generation across multiple processes or machines
+- Debug parameter selection without running full generation
+
+### Example: Using Batch Planning Mode
+
+```python
+from src.batch_config import BatchConfig
+from src.generation_orchestrator import GenerationOrchestrator
+from src.generator import OCRDataGenerator
+from src.background_manager import BackgroundImageManager
+from pathlib import Path
+import json
+
+# Load configuration
+batch_config = BatchConfig.from_yaml("batch_config.yaml")
+
+# Initialize managers
+background_manager = BackgroundImageManager(dir_weights={"./backgrounds": 1.0})
+corpus_map = {f.name: str(f) for f in Path("./corpus").rglob('*.txt')}
+all_fonts = [str(p) for p in Path("./fonts").rglob('*.ttf')]
+
+# Create orchestrator to get tasks
+orchestrator = GenerationOrchestrator(
+    batch_config=batch_config,
+    corpus_map=corpus_map,
+    all_fonts=all_fonts,
+    background_manager=background_manager
+)
+
+# Get task list
+tasks = orchestrator.create_task_list(min_text_len=10, max_text_len=50)
+
+# Initialize generator
+generator = OCRDataGenerator()
+
+# PHASE 1: Generate all plans at once
+print("Planning phase...")
+task_tuples = [(task.source_spec, task.text, task.font_path) for task in tasks]
+plans = generator.plan_generation_batch(task_tuples, background_manager)
+
+# Save plans for later use or analysis
+with open("plans.json", "w") as f:
+    json.dump(plans, f, indent=2)
+
+print(f"Generated {len(plans)} plans")
+
+# PHASE 2: Execute generation (can be done separately or in parallel)
+print("Execution phase...")
+for i, plan in enumerate(plans):
+    image, bboxes = generator.generate_from_plan(plan)
+    image.save(f"output/image_{i:05d}.png")
+
+    # Add bboxes to plan and save
+    plan["bboxes"] = bboxes
+    with open(f"output/image_{i:05d}.json", "w") as f:
+        json.dump(plan, f, indent=4)
+```
+
+### Benefits of Batch Planning Mode
+
+1. **Faster Iteration**: Test parameter distributions without full generation
+2. **Parallelization**: Generate images in parallel across multiple processes
+3. **Debugging**: Inspect exact parameters before committing compute resources
+4. **Analysis**: Export plans for statistical analysis of parameter distributions
+5. **Reproducibility**: Save plans to regenerate exact images later

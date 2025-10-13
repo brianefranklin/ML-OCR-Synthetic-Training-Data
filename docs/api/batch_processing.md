@@ -58,15 +58,35 @@ For each randomizable parameter, there are three related fields:
 
 **Note on Curve Parameters:** All curve parameters are always present in `BatchSpecification` and in generated plans, even when `curve_type="none"`. This ensures consistent feature vectors for machine learning analysis. Zero values (`arc_radius=0.0`, `sine_amplitude=0.0`) explicitly represent straight-line text. See [Curved Text Rendering](../conceptual/curved_text.md) for details.
 
-**Note on Distribution Types:** Distribution types control the probability of sampling values within the specified range:
+**Note on Distribution Types:** Distribution types control the probability of sampling values within the specified range. Six distribution types are supported:
 - `"uniform"`: Equal probability across entire range (default for discrete parameters)
 - `"normal"`: Bell curve centered at midpoint (for parameters with natural center like rotation)
-- `"exponential"`: Biased toward minimum with exponential decay (for effects usually absent in real-world data)
+- `"exponential"`: Strong bias toward minimum with exponential decay (for degradation effects)
+- `"beta"`: Naturally bounded [0,1] distribution (for probabilities/proportions)
+- `"lognormal"`: Right-skewed with heavier tail than exponential (alternative for degradation)
+- `"truncated_normal"`: Properly truncated normal without edge accumulation
+
+All distribution types are validated at configuration load time. Invalid distribution types will raise a `ValueError` with a clear error message.
 
 See [Statistical Distributions](../conceptual/distributions.md) for detailed guidance on choosing distributions.
 
 ### `BatchConfig`
 - **Description:** A dataclass that represents the entire batch job, containing the `total_images` to be generated and a list of `BatchSpecification` objects.
+- **Key Methods:**
+    - `from_yaml(yaml_path: str) -> BatchConfig`: Loads a YAML configuration file and returns a validated `BatchConfig` instance. Automatically calls `validate()` before returning.
+    - `validate() -> None`: Validates the entire configuration, checking that proportions sum to 1.0 and validating each specification.
+    - `_validate_specification(spec: BatchSpecification) -> None`: Static method that validates a single batch specification.
+
+**Validation Rules:**
+1. **Proportion Validation**: All specification proportions must sum to 1.0 (within 0.001 tolerance)
+2. **Distribution Type Validation**: All `*_distribution` fields must use valid distribution types
+3. **Curve Type Validation**: `curve_type` must be one of: `"none"`, `"arc"`, `"sine"`
+4. **Curve Consistency Validation**:
+   - If `curve_type="none"`, arc and sine parameters must be zero
+   - Prevents misconfiguration where curve_type doesn't match curve parameters
+5. **Text Direction Validation**: `text_direction` must be one of: `"left_to_right"`, `"right_to_left"`, `"top_to_bottom"`, `"bottom_to_top"`
+
+All validation errors are collected and reported together with clear error messages indicating which specification failed and why.
 
 ### `BatchManager`
 - **Description:** Manages the interleaved generation of images from different batches based on their proportions.

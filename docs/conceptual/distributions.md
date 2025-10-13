@@ -18,6 +18,8 @@ Using appropriate distributions creates more realistic training data, improving 
 
 ## Available Distributions
 
+The system supports six probability distributions, each designed for different parameter characteristics:
+
 ### Uniform Distribution
 
 **When to use**: Parameters with no natural bias, or discrete values.
@@ -119,11 +121,115 @@ Distribution decreases monotonically from min to max
 - Few samples between 200-300
 - Creates realistic ratio: ~70% straight, ~30% curved
 
+### Beta Distribution
+
+**When to use**: Parameters naturally bounded in [0, 1] representing probabilities or proportions.
+
+**Behavior**: Flexible distribution naturally bounded in [0, 1] without rescaling. Shape controlled by alpha and beta parameters.
+
+**Current Implementation**: Default parameters (alpha=2.0, beta=5.0) bias toward 0, similar to exponential but with smoother falloff.
+
+**Potential Use Cases** (currently not used by default):
+- Probability-based parameters if added in future
+- Proportion-based effects (e.g., percentage of characters to modify)
+- Mixing ratios between effects
+
+**Statistical properties**:
+```
+Naturally bounded: [0, 1]
+Mean = alpha / (alpha + beta)
+Mode = (alpha - 1) / (alpha + beta - 2)  [when alpha, beta > 1]
+Shape varies with alpha/beta:
+  - alpha > beta: skewed toward 1
+  - alpha < beta: skewed toward 0
+  - alpha = beta = 1: uniform
+```
+
+**Example**: For range [0.0, 1.0] with alpha=2.0, beta=5.0:
+- Mean ≈ 0.29 (biased toward 0)
+- Most samples < 0.5
+- Smooth falloff toward 1.0
+
+**Note**: Beta distribution is provided for future extensions and specialized use cases. No default parameters currently use beta distribution, but it can be specified in custom batch configurations.
+
+### Log-Normal Distribution
+
+**When to use**: Alternative to exponential for degradation effects with heavier tail distribution.
+
+**Behavior**: Right-skewed distribution similar to exponential but with a heavier tail, meaning slightly more samples at higher values.
+
+**Comparison with Exponential**:
+- **Exponential**: Very strong bias toward minimum (~63% in first 10% of range)
+- **Log-normal**: Still biased toward minimum but more generous with mid-range values
+- **Use log-normal when**: You want degradation effects present but less extreme clustering at minimum
+
+**Examples**:
+Can be used as an alternative to exponential for any degradation parameter:
+- `blur_radius`: When you want more variation in blur intensity
+- `noise_amount`: When moderate noise should be more common
+- `arc_radius`: When you want more curved text in the training set
+
+**Statistical properties**:
+```
+Right-skewed with heavier tail than exponential
+Mean > median (right-skewed)
+More samples in mid-range compared to exponential
+```
+
+**Example**: For `noise_amount_min: 0.0` and `noise_amount_max: 1.0`:
+- Still biased toward 0.0 (clean images)
+- More samples in 0.2-0.6 range than exponential
+- Long tail allows occasional high noise
+
+**When to choose log-normal over exponential**:
+- You want degradation effects but find exponential too extreme
+- Your real-world data has more variation than exponential suggests
+- You're training for domains with moderate quality loss (e.g., consumer phone photos vs professional scans)
+
+### Truncated Normal Distribution
+
+**When to use**: Parameters with a natural center but requiring hard bounds without probability accumulation.
+
+**Behavior**: True normal distribution shape, properly truncated at boundaries (not clipped).
+
+**Comparison with Normal (Clipped)**:
+- **Normal (clipped)**: Samples generated then clipped to bounds, accumulating probability at edges
+- **Truncated normal**: Proper truncation maintains normal shape, no edge accumulation
+- **Practical difference**: More pronounced for narrow ranges relative to sigma
+
+**Examples**:
+- `rotation_angle`: When you want precise control over rotation distribution
+- `brightness_factor`: When you want true normal without edge effects
+- `contrast_factor`: When you want precise centering around 1.0
+
+**Statistical properties**:
+```
+Mean = (min + max) / 2 (centered)
+Standard deviation = (max - min) / 6 (3-sigma rule)
+Proper probability density within bounds (no accumulation)
+Uses scipy.stats.truncnorm for correct truncation
+```
+
+**Example**: For `rotation_angle_min: -15.0` and `rotation_angle_max: 15.0`:
+- Mean = 0° (centered)
+- σ = 5°
+- ~68% between -5° and +5°
+- Proper probability distribution throughout range
+- No artificial accumulation at -15° or +15°
+
+**When to choose truncated normal over normal**:
+- Mathematical rigor required (research, publications)
+- Narrow ranges where clipping artifacts matter
+- Need exact statistical properties without edge effects
+- Default clipped normal is sufficient for most practical applications
+
 ## Configuration
 
 ### YAML Configuration
 
-Each parameter with a `_min` and `_max` range has a corresponding `_distribution` field:
+Each parameter with a `_min` and `_max` range has a corresponding `_distribution` field. The system validates all distribution types at configuration load time.
+
+**Valid distribution types**: `uniform`, `normal`, `exponential`, `beta`, `lognormal`, `truncated_normal`
 
 ```yaml
 specifications:
@@ -142,9 +248,21 @@ specifications:
     rotation_angle_max: 15.0
     rotation_angle_distribution: "normal"  # Default
 
-    # Override default: test extreme rotation with uniform distribution
-    rotation_angle_distribution: "uniform"  # Custom
+    # Override with alternative distribution
+    blur_radius_min: 0.0
+    blur_radius_max: 3.0
+    blur_radius_distribution: "lognormal"  # Alternative to exponential
+
+    # Use truncated normal for precise control
+    brightness_factor_min: 0.7
+    brightness_factor_max: 1.3
+    brightness_factor_distribution: "truncated_normal"  # Proper truncation
 ```
+
+**Configuration Validation**: The system automatically validates configurations when loading YAML files:
+- Invalid distribution types are rejected with clear error messages
+- Inconsistent option combinations are detected (e.g., `curve_type: "none"` with non-zero curve parameters)
+- Invalid values for `text_direction` and `curve_type` are caught at load time
 
 ### Default Distribution Choices
 
