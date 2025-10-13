@@ -29,7 +29,11 @@ The main script (`src/main.py`) orchestrates the following components:
 - **`src/generator.py` (`OCRDataGenerator`):** This is the core engine. It takes a `GenerationTask` from the orchestrator, uses its `plan_generation` method to create the detailed plan, and then its `generate_from_plan` method to execute it.
 
 - **The Generation Pipeline (inside `generate_from_plan`):**
-    1.  **Text Rendering:** Renders the text onto a transparent RGBA surface. Supports four directions (LTR, RTL, TTB, BTT) and calculates per-character bounding boxes.
+    1.  **Text Rendering:** Renders the text onto a transparent RGBA surface. Supports:
+        - **Four Directions:** LTR, RTL, TTB, BTT (all treated equally)
+        - **Straight Text:** Traditional horizontal/vertical text rendering
+        - **Curved Text:** Arc curves (circular) and sine wave curves
+        - All rendering includes per-character bounding box calculation using transform-based methods
     2.  **Text Effects (`src/effects.py`):** Applies effects directly to the text surface. This includes:
         - `glyph_overlap`, `ink_bleed`, `drop_shadow`, `block_shadow`, and color variations (`per_glyph`, `gradient`).
     3.  **Canvas Placement (`src/canvas_placement.py`):** Places the text surface onto a larger canvas, which can be a solid color or a background image. It correctly adjusts all bounding box coordinates.

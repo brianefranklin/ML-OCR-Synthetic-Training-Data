@@ -58,6 +58,16 @@ class BatchSpecification:
         cutout_width_max (int): The maximum width for cutout.
         cutout_height_min (int): The minimum height for cutout.
         cutout_height_max (int): The maximum height for cutout.
+        curve_type (str): The type of curve to apply ("none", "arc", "sine").
+        arc_radius_min (float): The minimum radius for arc curves (0.0 = straight line).
+        arc_radius_max (float): The maximum radius for arc curves.
+        arc_concave (bool): Whether the arc curves concavely (True) or convexly (False).
+        sine_amplitude_min (float): The minimum amplitude for sine wave curves (0.0 = straight line).
+        sine_amplitude_max (float): The maximum amplitude for sine wave curves.
+        sine_frequency_min (float): The minimum frequency for sine wave curves.
+        sine_frequency_max (float): The maximum frequency for sine wave curves.
+        sine_phase_min (float): The minimum phase offset for sine wave curves.
+        sine_phase_max (float): The maximum phase offset for sine wave curves.
     """
     name: str
     proportion: float
@@ -98,6 +108,17 @@ class BatchSpecification:
     cutout_width_max: int = 0
     cutout_height_min: int = 0
     cutout_height_max: int = 0
+    # Curve parameters - always present for consistent ML feature vectors
+    curve_type: str = "none"
+    arc_radius_min: float = 0.0
+    arc_radius_max: float = 0.0
+    arc_concave: bool = True
+    sine_amplitude_min: float = 0.0
+    sine_amplitude_max: float = 0.0
+    sine_frequency_min: float = 0.0
+    sine_frequency_max: float = 0.0
+    sine_phase_min: float = 0.0
+    sine_phase_max: float = 0.0
 
 @dataclass
 class BatchConfig:

@@ -25,6 +25,12 @@ Deterministically generates an image based on a plan dictionary.
 
 ### Internal Rendering Methods
 
-- **`_render_text(...)`**: A dispatcher that calls the correct rendering function based on the text `direction`.
-- **`_render_text_surface(...)`**: Renders horizontal (LTR, RTL) text.
-- **`_render_vertical_text(...)`**: Renders vertical (TTB, BTT) text.
+- **`_render_text(...)`**: A dispatcher that calls the correct rendering function based on the text `direction` and `curve_type`. When curve parameters exceed threshold values (arc_radius > 1.0 or sine_amplitude > 0.1), dispatches to curved text renderers.
+- **`_render_arc_text(...)`**: Renders text along a circular arc. Characters are positioned on a circle and rotated tangent to the curve. Uses transform-based bounding box calculation. Works with all 4 text directions.
+- **`_render_sine_text(...)`**: Renders text along a sine wave pattern. Characters oscillate vertically (horizontal text) or horizontally (vertical text) following a sine function. Characters are rotated according to the wave's tangent. Works with all 4 text directions.
+- **`_render_left_to_right(...)`**: Renders straight left-to-right text.
+- **`_render_right_to_left(...)`**: Renders straight right-to-left text after BiDi reshaping.
+- **`_render_top_to_bottom(...)`**: Renders straight vertical text from top to bottom.
+- **`_render_bottom_to_top(...)`**: Renders straight vertical text from bottom to top.
+- **`_render_text_surface(...)`**: Common helper for rendering horizontal straight text.
+- **`_render_vertical_text(...)`**: Common helper for rendering vertical straight text.

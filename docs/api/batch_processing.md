@@ -46,6 +46,18 @@ This section describes the components responsible for managing and orchestrating
     - `cutout_width_max` (int): The maximum width for cutout.
     - `cutout_height_min` (int): The minimum height for cutout.
     - `cutout_height_max` (int): The maximum height for cutout.
+    - `curve_type` (str): The type of curve to apply ("none", "arc", "sine"). Default: "none".
+    - `arc_radius_min` (float): The minimum radius for arc curves (0.0 = straight line). Default: 0.0.
+    - `arc_radius_max` (float): The maximum radius for arc curves. Default: 0.0.
+    - `arc_concave` (bool): Whether the arc curves concavely (True) or convexly (False). Default: True.
+    - `sine_amplitude_min` (float): The minimum amplitude for sine wave curves (0.0 = straight line). Default: 0.0.
+    - `sine_amplitude_max` (float): The maximum amplitude for sine wave curves. Default: 0.0.
+    - `sine_frequency_min` (float): The minimum frequency for sine wave curves. Default: 0.0.
+    - `sine_frequency_max` (float): The maximum frequency for sine wave curves. Default: 0.0.
+    - `sine_phase_min` (float): The minimum phase offset for sine wave curves (radians). Default: 0.0.
+    - `sine_phase_max` (float): The maximum phase offset for sine wave curves (radians). Default: 0.0.
+
+**Note on Curve Parameters:** All curve parameters are always present in `BatchSpecification` and in generated plans, even when `curve_type="none"`. This ensures consistent feature vectors for machine learning analysis. Zero values (`arc_radius=0.0`, `sine_amplitude=0.0`) explicitly represent straight-line text. See [Curved Text Rendering](../conceptual/curved_text.md) for details.
 
 ### `BatchConfig`
 - **Description:** A dataclass that represents the entire batch job, containing the `total_images` to be generated and a list of `BatchSpecification` objects.

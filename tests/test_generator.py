@@ -120,3 +120,68 @@ def test_background_image_is_applied(background_manager):
     # Check a corner pixel for the background color
     corner_pixel_color = image.getpixel((0, 0))
     assert corner_pixel_color == (255, 0, 0, 255) # Red
+
+def test_plan_includes_all_curve_parameters():
+    """Tests that plan_generation always includes all curve parameters for ML feature consistency."""
+    generator = OCRDataGenerator()
+    spec = BatchSpecification(
+        name="test",
+        proportion=1.0,
+        text_direction="left_to_right",
+        corpus_file="test.txt"
+        # No curve parameters specified - should get defaults
+    )
+    font_path = "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf"
+    text = "hello"
+
+    plan = generator.plan_generation(spec, text, font_path)
+
+    # Verify all curve parameters are present in the plan
+    assert "curve_type" in plan
+    assert "arc_radius" in plan
+    assert "arc_concave" in plan
+    assert "sine_amplitude" in plan
+    assert "sine_frequency" in plan
+    assert "sine_phase" in plan
+
+    # Verify defaults for straight text
+    assert plan["curve_type"] == "none"
+    assert plan["arc_radius"] == 0.0
+    assert plan["sine_amplitude"] == 0.0
+
+def test_plan_respects_curve_parameter_ranges():
+    """Tests that plan_generation selects curve parameters within specified ranges."""
+    generator = OCRDataGenerator()
+    spec = BatchSpecification(
+        name="curved_test",
+        proportion=1.0,
+        text_direction="left_to_right",
+        corpus_file="test.txt",
+        curve_type="arc",
+        arc_radius_min=100.0,
+        arc_radius_max=300.0,
+        arc_concave=False,
+        sine_amplitude_min=5.0,
+        sine_amplitude_max=15.0,
+        sine_frequency_min=0.01,
+        sine_frequency_max=0.05,
+        sine_phase_min=0.0,
+        sine_phase_max=3.14
+    )
+    font_path = "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf"
+    text = "hello"
+
+    plan = generator.plan_generation(spec, text, font_path)
+
+    # Verify curve_type is passed through
+    assert plan["curve_type"] == "arc"
+    assert plan["arc_concave"] is False
+
+    # Verify arc_radius is within range
+    assert 100.0 <= plan["arc_radius"] <= 300.0
+
+    # Verify sine parameters are within ranges (even though curve_type is "arc")
+    # This ensures all parameters are always present for ML
+    assert 5.0 <= plan["sine_amplitude"] <= 15.0
+    assert 0.01 <= plan["sine_frequency"] <= 0.05
+    assert 0.0 <= plan["sine_phase"] <= 3.14

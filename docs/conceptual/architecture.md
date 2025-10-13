@@ -11,9 +11,12 @@ The data generator is built on a two-stage, **plan-then-execute** architecture t
     - The source text.
     - The font file path.
     - All text direction and color information.
+    - Specific values for all curve parameters (e.g., `arc_radius`, `sine_amplitude`).
     - Specific values for all text effects (e.g., `ink_bleed_radius`).
     - Specific values for all image augmentations (e.g., `rotation_angle`).
     - A master `seed` for the random number generator to ensure the generation is perfectly reproducible.
+
+**Note:** All curve parameters are always present in the plan, even for straight text (`curve_type="none"`), ensuring consistent feature vectors for ML analysis.
 
 This plan dictionary is what is ultimately saved as the JSON label file for each image.
 
