@@ -17,7 +17,7 @@ Creates a complete plan for generating a single image by randomly selecting para
 
 ### `plan_generation_batch(tasks, background_manager)`
 
-Creates multiple generation plans at once for batch processing. This method enables separation of planning from execution, which is useful for pre-generating all parameters before starting generation, analyzing parameter distributions, or parallelizing generation workflows.
+Creates multiple generation plans at once for batch processing. This method enables separation of planning from execution.
 
 - **`tasks` (`List[Tuple[BatchSpecification, str, str]]`):** A list of tuples, each containing (spec, text, font_path).
 - **`background_manager` (`BackgroundImageManager`, optional):** The manager to select backgrounds from.
@@ -27,8 +27,10 @@ Creates multiple generation plans at once for batch processing. This method enab
 **Use Cases:**
 - **Pre-planning**: Generate all plans upfront, then execute generation separately
 - **Analysis**: Examine parameter distributions before generating images
-- **Parallelization**: Enable parallel generation across multiple processes
 - **Debugging**: Inspect plans before committing to full generation
+- **Separation of Concerns**: Decouple parameter selection from image rendering
+
+**Note on Parallelization**: While this method can be used as part of a parallel workflow, actual parallel generation is handled by the `generate_image_from_task()` worker function in `src/main.py`. This method itself runs sequentially.
 
 **Example:**
 ```python

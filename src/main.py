@@ -3,11 +3,13 @@ import yaml
 import json
 import sys
 import logging
+import multiprocessing
 from pathlib import Path
 from datetime import datetime
 from tqdm import tqdm
-from typing import Dict, List, Any
+from typing import Dict, List, Any, Tuple
 import numpy as np
+from PIL import Image
 
 from src.batch_config import BatchConfig
 from src.corpus_manager import CorpusManager
@@ -31,6 +33,119 @@ class NumpyEncoder(json.JSONEncoder):
             return obj.tolist()
         return super().default(obj)
 
+
+def generate_image_from_task(
+    args: Tuple[GenerationTask, int, Any]
+) -> Tuple[int, Image.Image, Dict[str, Any]]:
+    """Worker function for parallel image generation.
+
+    This function is designed to be used with multiprocessing.Pool for
+    parallel generation of images from tasks. It generates a plan, renders
+    the image, and applies all effects and augmentations.
+
+    For deterministic generation, this function sets the random seed based on
+    the task index, ensuring that the same task index always produces the
+    same output regardless of execution order or parallel vs sequential processing.
+
+    Args:
+        args: A tuple containing:
+            - task: GenerationTask containing spec, text, font_path, background_path.
+            - index: Integer index of this task in the overall batch.
+            - background_manager: Optional BackgroundImageManager for selecting backgrounds.
+
+    Returns:
+        A tuple containing:
+            - index: The task index (for maintaining order).
+            - image: The generated PIL Image.
+            - plan: Dictionary containing the generation plan with bboxes added.
+
+    Note:
+        This function must be defined at module level (not nested) for
+        multiprocessing compatibility due to pickle requirements.
+
+    Examples:
+        >>> from src.generation_orchestrator import GenerationTask
+        >>> from src.batch_config import BatchSpecification
+        >>> spec = BatchSpecification(...)
+        >>> task = GenerationTask(spec, "hello", "/path/to/font.ttf", None)
+        >>> idx, image, plan = generate_image_from_task((task, 0, None))
+    """
+    import random
+
+    task, index, background_manager = args
+
+    # Set random seed based on task index for deterministic generation
+    # This ensures the same index always produces the same output
+    random.seed(index)
+    np.random.seed(index)
+
+    # Create a generator instance (each worker needs its own)
+    generator = OCRDataGenerator()
+
+    # Generate a plan for this task
+    plan: Dict[str, Any] = generator.plan_generation(
+        spec=task.source_spec,
+        text=task.text,
+        font_path=task.font_path,
+        background_manager=background_manager
+    )
+
+    # Generate the image from the plan
+    image, bboxes = generator.generate_from_plan(plan)
+
+    # Add the final bounding boxes to the plan
+    plan["bboxes"] = bboxes
+
+    return index, image, plan
+
+
+def save_image_and_label(
+    args: Tuple[Image.Image, Dict[str, Any], Path, Path]
+) -> None:
+    """Worker function for parallel image and label saving.
+
+    This function is designed to be used with multiprocessing.Pool for
+    parallel saving of images and their corresponding JSON label files.
+    It enables significant performance improvements by parallelizing the
+    I/O-bound operations of PNG encoding and disk writes.
+
+    Args:
+        args: A tuple containing:
+            - image: PIL Image to save (RGBA, RGB, or L mode).
+            - plan: Dictionary containing generation plan and bboxes. May contain
+                   NumPy data types which will be automatically converted to
+                   native Python types during JSON serialization.
+            - image_path: Path where image should be saved (typically .png).
+            - label_path: Path where JSON label should be saved (typically .json).
+
+    Returns:
+        None. Files are written to disk as side effects.
+
+    Raises:
+        IOError: If image or label file cannot be written.
+        TypeError: If plan contains non-serializable objects.
+
+    Note:
+        This function must be defined at module level (not nested) for
+        multiprocessing compatibility due to pickle requirements.
+
+    Examples:
+        >>> from PIL import Image
+        >>> from pathlib import Path
+        >>> image = Image.new("RGBA", (100, 50), (255, 0, 0, 255))
+        >>> plan = {"text": "hello", "bboxes": []}
+        >>> save_image_and_label((image, plan, Path("out.png"), Path("out.json")))
+    """
+    image, plan, image_path, label_path = args
+
+    # Save image as PNG
+    image.save(image_path)
+
+    # Save label as JSON with NumpyEncoder for numpy type handling
+    with open(label_path, 'w', encoding='utf-8') as f:
+        json.dump(plan, f, indent=4, cls=NumpyEncoder)
+
+
 def main():
     """Main entry point for the OCR data generation script.
 
@@ -48,6 +163,12 @@ def main():
                         help="Logging level (default: INFO)")
     parser.add_argument("--log-dir", type=str, default="./logs",
                         help="Directory for log files (default: ./logs)")
+    parser.add_argument("--workers", type=int, default=4,
+                        help="Number of worker processes for parallel I/O (0 or 1 = sequential, default: 4)")
+    parser.add_argument("--io-batch-size", type=int, default=10,
+                        help="Number of images to accumulate before parallel I/O save (default: 10)")
+    parser.add_argument("--generation-workers", type=int, default=0,
+                        help="Number of worker processes for parallel image generation (0 or 1 = sequential, default: 0)")
     args = parser.parse_args()
 
     # Generate timestamp for this run
@@ -118,35 +239,112 @@ def main():
     tasks: List[GenerationTask] = orchestrator.create_task_list(min_text_len=10, max_text_len=50)
     logger.info(f"Created {len(tasks)} generation tasks")
 
-    # Main generation loop
-    for i, task in enumerate(tqdm(tasks, desc="Generating Images")):
-        logger.debug(f"Generating image {i+1}/{len(tasks)} (spec: {task.source_spec.name})")
+    # Determine if we should use parallel generation
+    use_parallel_generation = args.generation_workers > 1
+    use_parallel_io = args.workers > 1
 
-        # Generate a plan for this task
-        plan: Dict[str, Any] = generator.plan_generation(
-            spec=task.source_spec,
-            text=task.text,
-            font_path=task.font_path,
-            background_manager=background_manager
-        )
+    if use_parallel_generation:
+        logger.info(f"Using parallel image generation with {args.generation_workers} workers")
 
-        # Generate the image from the plan
-        image, bboxes = generator.generate_from_plan(plan)
+        # Prepare arguments for parallel generation
+        generation_args = [(task, i, background_manager) for i, task in enumerate(tasks)]
 
-        # Save the image and the label file
-        image_path = output_path / f"image_{i:05d}.png"
-        label_path = output_path / f"image_{i:05d}.json"
+        # Generate images in parallel
+        with multiprocessing.Pool(processes=args.generation_workers) as gen_pool:
+            # Use imap for progress tracking with tqdm
+            results = list(tqdm(
+                gen_pool.imap(generate_image_from_task, generation_args),
+                total=len(tasks),
+                desc="Generating Images"
+            ))
 
-        image.save(image_path)
+        logger.info(f"Parallel generation complete. Proceeding to save {len(results)} images")
 
-        # Add the final bounding boxes to the plan for the label file
-        plan["bboxes"] = bboxes
-        with open(label_path, 'w', encoding='utf-8') as f:
-            json.dump(plan, f, indent=4, cls=NumpyEncoder)
+        # Now save the results (either in parallel or sequentially)
+        if use_parallel_io:
+            logger.info(f"Using parallel I/O with {args.workers} workers, batch size {args.io_batch_size}")
+            save_pool = multiprocessing.Pool(processes=args.workers)
+            batch_size = args.io_batch_size
+            save_tasks: List[Tuple[Image.Image, Dict[str, Any], Path, Path]] = []
 
-        # Log progress every 10 images
-        if (i + 1) % 10 == 0:
-            logger.info(f"Progress: {i+1}/{len(tasks)} images generated")
+            for idx, image, plan in tqdm(results, desc="Saving Images"):
+                image_path = output_path / f"image_{idx:05d}.png"
+                label_path = output_path / f"image_{idx:05d}.json"
+                save_tasks.append((image, plan, image_path, label_path))
+
+                # Save batch when full or at end
+                if len(save_tasks) >= batch_size or idx == len(results) - 1:
+                    save_pool.map(save_image_and_label, save_tasks)
+                    save_tasks = []
+
+            save_pool.close()
+            save_pool.join()
+            logger.debug("Closed I/O pool")
+        else:
+            logger.info("Using sequential I/O")
+            for idx, image, plan in tqdm(results, desc="Saving Images"):
+                image_path = output_path / f"image_{idx:05d}.png"
+                label_path = output_path / f"image_{idx:05d}.json"
+                image.save(image_path)
+                with open(label_path, 'w', encoding='utf-8') as f:
+                    json.dump(plan, f, indent=4, cls=NumpyEncoder)
+    else:
+        # Sequential generation mode
+        logger.info("Using sequential image generation")
+
+        if use_parallel_io:
+            logger.info(f"Using parallel I/O with {args.workers} workers, batch size {args.io_batch_size}")
+            io_pool = multiprocessing.Pool(processes=args.workers)
+            batch_size = args.io_batch_size
+            save_tasks: List[Tuple[Image.Image, Dict[str, Any], Path, Path]] = []
+        else:
+            logger.info("Using sequential I/O")
+
+        # Sequential generation loop
+        for i, task in enumerate(tqdm(tasks, desc="Generating Images")):
+            logger.debug(f"Generating image {i+1}/{len(tasks)} (spec: {task.source_spec.name})")
+
+            # Generate a plan for this task
+            plan: Dict[str, Any] = generator.plan_generation(
+                spec=task.source_spec,
+                text=task.text,
+                font_path=task.font_path,
+                background_manager=background_manager
+            )
+
+            # Generate the image from the plan
+            image, bboxes = generator.generate_from_plan(plan)
+
+            # Add the final bounding boxes to the plan for the label file
+            plan["bboxes"] = bboxes
+
+            # Prepare file paths
+            image_path = output_path / f"image_{i:05d}.png"
+            label_path = output_path / f"image_{i:05d}.json"
+
+            if use_parallel_io:
+                # Add to batch for parallel saving
+                save_tasks.append((image, plan, image_path, label_path))
+
+                # Save batch when full or at end
+                if len(save_tasks) >= batch_size or i == len(tasks) - 1:
+                    io_pool.map(save_image_and_label, save_tasks)
+                    save_tasks = []
+            else:
+                # Sequential mode (backwards compatible)
+                image.save(image_path)
+                with open(label_path, 'w', encoding='utf-8') as f:
+                    json.dump(plan, f, indent=4, cls=NumpyEncoder)
+
+            # Log progress every 10 images
+            if (i + 1) % 10 == 0:
+                logger.info(f"Progress: {i+1}/{len(tasks)} images generated")
+
+        # Clean up I/O pool if used in sequential generation mode
+        if use_parallel_io:
+            io_pool.close()
+            io_pool.join()
+            logger.debug("Closed I/O pool")
 
     logger.info(f"Generation complete. Generated {len(tasks)} images to {output_path}")
     print("Generation complete.")

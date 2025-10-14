@@ -1,0 +1,7 @@
+  This was the larger feature you mentioned wanting to implement:
+  - Distribution Visualization Tool
+  - Statistical Analysis Tool
+  - OCR Model Integration with Random Forest Classifier
+  - Automated parameter recommendation engine
+
+While the code is feature complete from a programming standpoint, the application is not yet ready for production. This is because we do not have a good understanding of how the input paremters change the output images. From the programmer point of view, all of our inputs were requested by the user and we enforce valid ranges for them. For example, blurring the image is optional and if we blur it, we can do so minimally or to an extreme amount. However, there is a limit to each of these inputs regarding what is actually readable by Optical Character Recogition (OCR). If we destroy too much information in the augmentation process (or another feature like curves), the original text is non-recoverable even with the best OCR or human review. 
