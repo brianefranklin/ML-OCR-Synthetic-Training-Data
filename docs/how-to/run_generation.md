@@ -38,6 +38,95 @@ PYTHONPATH=. python3 src/main.py \
 
 This command will start the generation process, displaying a progress bar in the console. Upon completion, the `output` directory will contain the generated images and their JSON labels.
 
+## Additional Command-Line Options
+
+### Resume Mode (`--resume`)
+
+Resume interrupted generation jobs by skipping already-generated images:
+
+```bash
+PYTHONPATH=. python3 src/main.py \
+    --batch-config batch_config.yaml \
+    --output-dir ./output \
+    --font-dir ./data.nosync/fonts \
+    --background-dir ./data.nosync/backgrounds \
+    --corpus-dir ./data.nosync/corpus_text \
+    --resume
+```
+
+**How it works**:
+- Scans output directory for existing `image_*.png` files
+- Loads checkpoint file (`.generation_checkpoint.json`) if it exists
+- Skips generation for existing images
+- Warns if configuration has changed since last run
+- Updates checkpoint after each chunk/batch
+
+**When to use**:
+- Generation was interrupted (crash, manual stop, timeout)
+- Want to continue after partial completion
+- Need to recover from errors mid-generation
+
+**Note**: Always use the same configuration file when resuming. Changing the configuration will trigger a warning but allow resume to continue (useful for debugging, but may result in inconsistent output).
+
+### Logging Level (`--log-level`)
+
+Control the verbosity of log output:
+
+```bash
+python3 -m src.main \
+    --batch-config batch_config.yaml \
+    ... \
+    --log-level DEBUG  # Options: DEBUG, INFO, WARNING, ERROR, CRITICAL
+```
+
+- **DEBUG**: Detailed information for debugging
+- **INFO**: General progress and status messages (default)
+- **WARNING**: Only warnings and errors
+- **ERROR**: Only errors and critical issues
+
+### Parallel Processing
+
+See [Parallel Generation Guide](parallel_generation.md) for detailed information on:
+- `--generation-workers`: Parallel image generation
+- `--workers`: Parallel I/O operations
+- `--chunk-size`: Streaming chunk size for memory efficiency
+- `--io-batch-size`: I/O batching for performance
+
+## Automatic Configuration Validation
+
+Before generation starts, the system automatically validates:
+
+✓ **Resource Existence**:
+- Font directory exists and contains `.ttf` files
+- Background directory exists
+- Corpus directory exists
+- Corpus files specified in config exist
+
+✓ **Configuration Values**:
+- `total_images` is positive
+- Specifications list is not empty
+- Padding ranges are valid (min ≤ max, non-negative)
+- Font size ranges are valid (positive, min ≤ max)
+- Direction weights are non-negative
+
+✓ **Required Fields**:
+- All required top-level fields present
+- Specifications have required fields
+
+**If validation fails**, generation stops with a clear error message:
+
+```
+============================================================
+ERROR: Configuration validation failed
+============================================================
+
+Specification 'my_spec': No corpus files found matching pattern 'missing.txt'
+in directory /path/to/corpus
+
+Please fix the configuration and try again.
+============================================================
+```
+
 ## Batch Planning Mode
 
 For advanced use cases, you can separate the planning phase from the execution phase using the `plan_generation_batch()` method. This allows you to:

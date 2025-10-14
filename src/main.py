@@ -18,6 +18,7 @@ from src.background_manager import BackgroundImageManager
 from src.generation_orchestrator import GenerationOrchestrator, GenerationTask
 from src.generator import OCRDataGenerator
 from src.batch_validation import BatchValidator, ValidationError
+from src.checkpoint_manager import CheckpointManager
 
 class NumpyEncoder(json.JSONEncoder):
     """Custom JSON encoder that handles NumPy data types.
@@ -172,6 +173,8 @@ def main():
                         help="Number of worker processes for parallel image generation (0 or 1 = sequential, default: 0)")
     parser.add_argument("--chunk-size", type=int, default=100,
                         help="Number of images to generate per chunk in streaming mode (default: 100)")
+    parser.add_argument("--resume", action="store_true",
+                        help="Resume from previous incomplete generation (skips existing files)")
     args = parser.parse_args()
 
     # Generate timestamp for this run
@@ -238,6 +241,27 @@ def main():
         print(f"{'='*60}\n")
         sys.exit(1)
 
+    # Initialize checkpoint manager
+    checkpoint_manager = CheckpointManager(
+        output_dir=str(output_path),
+        config=raw_config
+    )
+
+    # Handle resume mode
+    completed_indices = set()
+    if args.resume:
+        logger.info("Resume mode enabled - checking for existing checkpoint...")
+        checkpoint_data = checkpoint_manager.load_checkpoint()
+        if checkpoint_data:
+            logger.info(f"Found checkpoint: {checkpoint_data['completed_images']} images previously completed")
+            completed_indices = checkpoint_manager.get_completed_indices()
+            logger.info(f"Scanned output directory: {len(completed_indices)} existing images found")
+            if len(completed_indices) > 0:
+                print(f"Resuming generation - skipping {len(completed_indices)} existing images")
+        else:
+            logger.info("No previous checkpoint found - starting fresh generation")
+            print("No previous checkpoint found - starting fresh generation")
+
     # Initialize managers
     font_health_manager = FontHealthManager()
     background_manager = BackgroundImageManager(dir_weights={args.background_dir: 1.0})
@@ -274,6 +298,13 @@ def main():
     if use_parallel_generation:
         logger.info(f"Using streaming parallel generation with {args.generation_workers} workers, chunk size {args.chunk_size}")
 
+        # Filter out completed tasks in resume mode
+        if args.resume and len(completed_indices) > 0:
+            remaining_tasks = [(i, task) for i, task in enumerate(tasks) if i not in completed_indices]
+            logger.info(f"Resume mode: {len(remaining_tasks)} tasks remaining, {len(completed_indices)} already completed")
+        else:
+            remaining_tasks = list(enumerate(tasks))
+
         # Create pools
         gen_pool = multiprocessing.Pool(processes=args.generation_workers)
         io_pool = multiprocessing.Pool(processes=args.workers) if use_parallel_io else None
@@ -283,27 +314,36 @@ def main():
         else:
             logger.info("Using sequential I/O")
 
-        # Overall progress bar
-        total_progress = tqdm(total=len(tasks), desc="Processing Images")
+        # Overall progress bar (total includes already completed)
+        total_images = len(tasks)
+        total_progress = tqdm(initial=len(completed_indices), total=total_images, desc="Processing Images")
+
+        # Track completed count for checkpointing
+        images_completed = len(completed_indices)
 
         try:
-            # Process tasks in chunks
-            for chunk_start in range(0, len(tasks), args.chunk_size):
-                chunk_end = min(chunk_start + args.chunk_size, len(tasks))
-                chunk_tasks = tasks[chunk_start:chunk_end]
+            # Process remaining tasks in chunks
+            for chunk_offset in range(0, len(remaining_tasks), args.chunk_size):
+                chunk_end_offset = min(chunk_offset + args.chunk_size, len(remaining_tasks))
+                chunk_items = remaining_tasks[chunk_offset:chunk_end_offset]
 
-                logger.debug(f"Processing chunk {chunk_start}-{chunk_end-1} ({len(chunk_tasks)} images)")
+                # Extract indices and tasks
+                chunk_indices = [idx for idx, _ in chunk_items]
+                chunk_tasks = [task for _, task in chunk_items]
+
+                logger.debug(f"Processing chunk {chunk_offset}-{chunk_end_offset-1} ({len(chunk_tasks)} images)")
 
                 # Prepare arguments for this chunk
                 chunk_args = [
-                    (task, i, background_manager)
-                    for i, task in enumerate(chunk_tasks, start=chunk_start)
+                    (task, idx, background_manager)
+                    for idx, task in zip(chunk_indices, chunk_tasks)
                 ]
 
                 # Generate chunk in parallel
                 chunk_results = gen_pool.map(generate_image_from_task, chunk_args)
 
                 # Save chunk immediately
+                chunk_saved_count = 0
                 if use_parallel_io:
                     # Parallel I/O: batch saves within chunk
                     io_batch_size = args.io_batch_size
@@ -314,9 +354,10 @@ def main():
                         label_path = output_path / f"image_{idx:05d}.json"
                         save_tasks.append((image, plan, image_path, label_path))
 
-                        # Save batch when full or at chunk end
-                        if len(save_tasks) >= io_batch_size or idx == chunk_end - 1:
+                        # Save batch when full or at end of results
+                        if len(save_tasks) >= io_batch_size or idx == chunk_results[-1][0]:
                             io_pool.map(save_image_and_label, save_tasks)
+                            chunk_saved_count += len(save_tasks)
                             total_progress.update(len(save_tasks))
                             save_tasks = []
                 else:
@@ -327,9 +368,13 @@ def main():
                         image.save(image_path)
                         with open(label_path, 'w', encoding='utf-8') as f:
                             json.dump(plan, f, indent=4, cls=NumpyEncoder)
+                        chunk_saved_count += 1
                         total_progress.update(1)
 
-                logger.debug(f"Chunk {chunk_start}-{chunk_end-1} complete")
+                # Update checkpoint after each chunk
+                images_completed += chunk_saved_count
+                checkpoint_manager.save_checkpoint(completed_images=images_completed)
+                logger.debug(f"Chunk complete: {chunk_saved_count} images, total {images_completed}/{total_images}")
 
         finally:
             # Clean up progress bar and pools
@@ -344,6 +389,13 @@ def main():
         # Sequential generation mode
         logger.info("Using sequential image generation")
 
+        # Filter out completed tasks in resume mode
+        if args.resume and len(completed_indices) > 0:
+            remaining_tasks = [(i, task) for i, task in enumerate(tasks) if i not in completed_indices]
+            logger.info(f"Resume mode: {len(remaining_tasks)} tasks remaining, {len(completed_indices)} already completed")
+        else:
+            remaining_tasks = list(enumerate(tasks))
+
         if use_parallel_io:
             logger.info(f"Using parallel I/O with {args.workers} workers, batch size {args.io_batch_size}")
             io_pool = multiprocessing.Pool(processes=args.workers)
@@ -352,8 +404,12 @@ def main():
         else:
             logger.info("Using sequential I/O")
 
-        # Sequential generation loop
-        for i, task in enumerate(tqdm(tasks, desc="Generating Images")):
+        # Track completed count for checkpointing
+        images_completed = len(completed_indices)
+
+        # Sequential generation loop with progress bar
+        progress = tqdm(remaining_tasks, desc="Generating Images", initial=len(completed_indices), total=len(tasks))
+        for i, task in progress:
             logger.debug(f"Generating image {i+1}/{len(tasks)} (spec: {task.source_spec.name})")
 
             # Generate a plan for this task
@@ -379,18 +435,27 @@ def main():
                 save_tasks.append((image, plan, image_path, label_path))
 
                 # Save batch when full or at end
-                if len(save_tasks) >= batch_size or i == len(tasks) - 1:
+                is_last = (i == remaining_tasks[-1][0])
+                if len(save_tasks) >= batch_size or is_last:
                     io_pool.map(save_image_and_label, save_tasks)
+                    images_completed += len(save_tasks)
                     save_tasks = []
+                    # Save checkpoint after each batch
+                    checkpoint_manager.save_checkpoint(completed_images=images_completed)
             else:
                 # Sequential mode (backwards compatible)
                 image.save(image_path)
                 with open(label_path, 'w', encoding='utf-8') as f:
                     json.dump(plan, f, indent=4, cls=NumpyEncoder)
+                images_completed += 1
+
+                # Save checkpoint every 10 images in sequential mode
+                if images_completed % 10 == 0:
+                    checkpoint_manager.save_checkpoint(completed_images=images_completed)
 
             # Log progress every 10 images
-            if (i + 1) % 10 == 0:
-                logger.info(f"Progress: {i+1}/{len(tasks)} images generated")
+            if images_completed % 10 == 0:
+                logger.info(f"Progress: {images_completed}/{len(tasks)} images generated")
 
         # Clean up I/O pool if used in sequential generation mode
         if use_parallel_io:
