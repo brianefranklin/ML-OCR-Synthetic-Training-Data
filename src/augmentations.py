@@ -89,6 +89,9 @@ def apply_perspective_warp(
     # If no destination points are provided, generate random ones.
     if dst_points is None:
         max_offset = int(min(w, h) * magnitude / 2)
+        # If offset is too small, return image unchanged (no perspective warp)
+        if max_offset < 2:
+            return image, bboxes
         dst_points = np.float32([
             [random.randint(0, max_offset), random.randint(0, max_offset)],
             [w - random.randint(1, max_offset), random.randint(0, max_offset)],
@@ -184,16 +187,16 @@ def apply_elastic_distortion(
         # Find the new bounding box by searching for non-transparent pixels.
         alpha_channel = distorted_char_np[:, :, 3]
         coords = np.argwhere(alpha_channel > 0)
-        
+
         if coords.size > 0:
             min_y, min_x = coords.min(axis=0)
             max_y, max_x = coords.max(axis=0)
 
             new_bbox = bbox.copy()
-            new_bbox['x0'] = x0 + min_x
-            new_bbox['y0'] = y0 + min_y
-            new_bbox['x1'] = x0 + max_x
-            new_bbox['y1'] = y0 + max_y
+            new_bbox['x0'] = int(x0 + min_x)
+            new_bbox['y0'] = int(y0 + min_y)
+            new_bbox['x1'] = int(x0 + max_x)
+            new_bbox['y1'] = int(y0 + max_y)
             transformed_bboxes.append(new_bbox)
         else:
             # If the character disappears off the canvas, keep the original.
@@ -251,16 +254,16 @@ def apply_grid_distortion(
 
         alpha_channel = distorted_char_np[:, :, 3]
         coords = np.argwhere(alpha_channel > 0)
-        
+
         if coords.size > 0:
             min_y, min_x = coords.min(axis=0)
             max_y, max_x = coords.max(axis=0)
 
             new_bbox = bbox.copy()
-            new_bbox['x0'] = x0 + min_x
-            new_bbox['y0'] = y0 + min_y
-            new_bbox['x1'] = x0 + max_x
-            new_bbox['y1'] = y0 + max_y
+            new_bbox['x0'] = int(x0 + min_x)
+            new_bbox['y0'] = int(y0 + min_y)
+            new_bbox['x1'] = int(x0 + max_x)
+            new_bbox['y1'] = int(y0 + max_y)
             transformed_bboxes.append(new_bbox)
         else:
             transformed_bboxes.append(bbox)
@@ -268,19 +271,25 @@ def apply_grid_distortion(
     return distorted_image, transformed_bboxes
 
 def apply_optical_distortion(
-    image: Image.Image, 
-    bboxes: List[Dict[str, Any]], 
+    image: Image.Image,
+    bboxes: List[Dict[str, Any]],
     distort_limit: float
 ) -> Tuple[Image.Image, List[Dict[str, Any]]]:
     """Applies optical distortion to an image and its bounding boxes.
 
+    This function applies barrel/pincushion distortion using OpenCV's camera
+    distortion model. Bounding boxes are recalculated by extracting character
+    regions from the distorted full image and finding non-transparent pixels.
+
     Args:
-        image: The source PIL Image.
-        bboxes: A list of bounding box dictionaries.
-        distort_limit: The limit of the distortion.
+        image: The source PIL Image (RGBA format).
+        bboxes: A list of bounding box dictionaries with keys 'x0', 'y0', 'x1', 'y1'.
+        distort_limit: The distortion coefficient (typically 0.0-0.5). Positive values
+            create barrel distortion, negative values create pincushion distortion.
 
     Returns:
         A tuple containing the distorted image and transformed bounding boxes.
+        Bounding box coordinates are recalculated as Python ints.
     """
     img_np = np.array(image)
     h, w = img_np.shape[:2]
@@ -303,23 +312,22 @@ def apply_optical_distortion(
     transformed_bboxes = []
     for bbox in bboxes:
         x0, y0, x1, y1 = bbox['x0'], bbox['y0'], bbox['x1'], bbox['y1']
-        
-        char_img_np = img_np[y0:y1, x0:x1]
 
-        distorted_char_np = cv2.undistort(char_img_np, camera_matrix, dist_coeffs)
+        # Extract the distorted character region from the already-distorted full image
+        distorted_char_np = distorted_img_np[y0:y1, x0:x1]
 
         alpha_channel = distorted_char_np[:, :, 3]
         coords = np.argwhere(alpha_channel > 0)
-        
+
         if coords.size > 0:
             min_y, min_x = coords.min(axis=0)
             max_y, max_x = coords.max(axis=0)
 
             new_bbox = bbox.copy()
-            new_bbox['x0'] = x0 + min_x
-            new_bbox['y0'] = y0 + min_y
-            new_bbox['x1'] = x0 + max_x
-            new_bbox['y1'] = y0 + max_y
+            new_bbox['x0'] = int(x0 + min_x)
+            new_bbox['y0'] = int(y0 + min_y)
+            new_bbox['x1'] = int(x0 + max_x)
+            new_bbox['y1'] = int(y0 + max_y)
             transformed_bboxes.append(new_bbox)
         else:
             transformed_bboxes.append(bbox)

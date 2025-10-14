@@ -4,6 +4,7 @@ import json
 from pathlib import Path
 from tqdm import tqdm
 from typing import Dict, List, Any
+import numpy as np
 
 from src.batch_config import BatchConfig
 from src.corpus_manager import CorpusManager
@@ -11,6 +12,21 @@ from src.font_health_manager import FontHealthManager
 from src.background_manager import BackgroundImageManager
 from src.generation_orchestrator import GenerationOrchestrator, GenerationTask
 from src.generator import OCRDataGenerator
+
+class NumpyEncoder(json.JSONEncoder):
+    """Custom JSON encoder that handles NumPy data types.
+
+    This encoder converts NumPy integers and floats to their Python equivalents
+    to enable JSON serialization of data structures containing NumPy types.
+    """
+    def default(self, obj):
+        if isinstance(obj, (np.integer, np.int64, np.int32)):
+            return int(obj)
+        elif isinstance(obj, (np.floating, np.float64, np.float32)):
+            return float(obj)
+        elif isinstance(obj, np.ndarray):
+            return obj.tolist()
+        return super().default(obj)
 
 def main():
     """Main entry point for the OCR data generation script.
@@ -79,7 +95,7 @@ def main():
         # Add the final bounding boxes to the plan for the label file
         plan["bboxes"] = bboxes
         with open(label_path, 'w', encoding='utf-8') as f:
-            json.dump(plan, f, indent=4)
+            json.dump(plan, f, indent=4, cls=NumpyEncoder)
 
     print("Generation complete.")
 

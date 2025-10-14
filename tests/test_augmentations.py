@@ -121,3 +121,35 @@ def test_optical_distortion_is_applied():
     distorted_array = np.array(distorted_image)
 
     assert not np.array_equal(original_array, distorted_array)
+
+def test_optical_distortion_with_bboxes():
+    """Tests that optical distortion works with bbox recalculation.
+
+    This test specifically exercises the bbox transformation code path,
+    which was previously buggy (cv2.undistort returning None on crops).
+    """
+    # Create image with a black rectangle (simulates text)
+    image = Image.new("RGBA", (200, 100), (0, 0, 0, 0))
+    draw = ImageDraw.Draw(image)
+    draw.rectangle((50, 30, 150, 70), fill="black")
+
+    # Create bbox list (this triggers bbox recalculation code path)
+    bboxes = [
+        {"char": "A", "x0": 50, "y0": 30, "x1": 150, "y1": 70}
+    ]
+
+    # This should NOT crash (was crashing with TypeError before fix)
+    distorted_image, distorted_bboxes = apply_optical_distortion(
+        image, bboxes, distort_limit=0.1
+    )
+
+    # Verify results
+    assert distorted_image is not None
+    assert len(distorted_bboxes) == 1
+    assert distorted_bboxes[0]["char"] == "A"
+
+    # Bbox should be transformed (coordinates may change due to distortion)
+    assert isinstance(distorted_bboxes[0]["x0"], int)
+    assert isinstance(distorted_bboxes[0]["y0"], int)
+    assert isinstance(distorted_bboxes[0]["x1"], int)
+    assert isinstance(distorted_bboxes[0]["y1"], int)

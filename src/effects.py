@@ -155,6 +155,10 @@ def apply_cutout(image: Image.Image, cutout_size: Tuple[int, int]) -> Image.Imag
     w, h = image.size
     cutout_w, cutout_h = cutout_size
 
+    # If cutout is too large, skip it (return image unchanged)
+    if cutout_w >= w or cutout_h >= h or cutout_w <= 0 or cutout_h <= 0:
+        return image
+
     # Choose a random top-left corner for the cutout
     x0 = random.randint(0, w - cutout_w)
     y0 = random.randint(0, h - cutout_h)
