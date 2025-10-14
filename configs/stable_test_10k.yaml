@@ -1,0 +1,56 @@
+total_images: 10000
+
+specifications:
+  # Spec 1: Basic LTR with moderate effects - conservative text lengths
+  - name: ltr_moderate
+    proportion: 0.4
+    text_direction: left_to_right
+    corpus_file: "gutenberg_1116.txt"
+    min_text_length: 20
+    max_text_length: 50
+    rotation_angle_min: -5.0
+    rotation_angle_max: 5.0
+    noise_amount_min: 0.0
+    noise_amount_max: 0.02
+    blur_radius_min: 0.0
+    blur_radius_max: 1.5
+    brightness_factor_min: 0.85
+    brightness_factor_max: 1.15
+    contrast_factor_min: 0.85
+    contrast_factor_max: 1.15
+
+  # Spec 2: Clean images
+  - name: ltr_clean
+    proportion: 0.3
+    text_direction: left_to_right
+    corpus_file: "gutenberg_1116.txt"
+    min_text_length: 25
+    max_text_length: 55
+    rotation_angle_min: -2.0
+    rotation_angle_max: 2.0
+    noise_amount_min: 0.0
+    noise_amount_max: 0.005
+    blur_radius_min: 0.0
+    blur_radius_max: 0.5
+    brightness_factor_min: 0.95
+    brightness_factor_max: 1.05
+    contrast_factor_min: 0.95
+    contrast_factor_max: 1.05
+
+  # Spec 3: Higher effects
+  - name: ltr_effects
+    proportion: 0.3
+    text_direction: left_to_right
+    corpus_file: "gutenberg_1116.txt"
+    min_text_length: 20
+    max_text_length: 45
+    rotation_angle_min: -10.0
+    rotation_angle_max: 10.0
+    noise_amount_min: 0.0
+    noise_amount_max: 0.03
+    blur_radius_min: 0.0
+    blur_radius_max: 2.0
+    brightness_factor_min: 0.8
+    brightness_factor_max: 1.2
+    contrast_factor_min: 0.8
+    contrast_factor_max: 1.2

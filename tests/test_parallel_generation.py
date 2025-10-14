@@ -93,8 +93,12 @@ def test_worker_function_is_deterministic(tmp_path):
     result1 = generate_image_from_task((task, 0, None))
     result2 = generate_image_from_task((task, 0, None))
 
-    idx1, image1, plan1 = result1
-    idx2, image2, plan2 = result2
+    idx1, image1, plan1, error1 = result1
+    idx2, image2, plan2, error2 = result2
+
+    # No errors should occur
+    assert error1 is None, f"First generation should not error: {error1}"
+    assert error2 is None, f"Second generation should not error: {error2}"
 
     # Indices should match
     assert idx1 == idx2 == 0
@@ -188,8 +192,12 @@ def test_worker_function_with_different_seeds_produces_different_images(tmp_path
     result1 = generate_image_from_task((task1, 0, None))
     result2 = generate_image_from_task((task2, 1, None))
 
-    idx1, image1, plan1 = result1
-    idx2, image2, plan2 = result2
+    idx1, image1, plan1, error1 = result1
+    idx2, image2, plan2, error2 = result2
+
+    # No errors should occur
+    assert error1 is None, f"First generation should not error: {error1}"
+    assert error2 is None, f"Second generation should not error: {error2}"
 
     # Different indices
     assert idx1 == 0
@@ -289,8 +297,12 @@ def test_parallel_vs_sequential_produces_same_results():
     assert len(sequential_results) == len(parallel_results)
 
     for seq_result, par_result in zip(sequential_results, parallel_results):
-        seq_idx, seq_image, seq_plan = seq_result
-        par_idx, par_image, par_plan = par_result
+        seq_idx, seq_image, seq_plan, seq_error = seq_result
+        par_idx, par_image, par_plan, par_error = par_result
+
+        # No errors should occur
+        assert seq_error is None, f"Sequential generation should not error: {seq_error}"
+        assert par_error is None, f"Parallel generation should not error: {par_error}"
 
         # Same index
         assert seq_idx == par_idx
@@ -373,7 +385,10 @@ def test_worker_function_handles_numpy_types():
         background_path=None
     )
 
-    idx, image, plan = generate_image_from_task((task, 0, None))
+    idx, image, plan, error = generate_image_from_task((task, 0, None))
+
+    # No errors should occur
+    assert error is None, f"Generation should not error: {error}"
 
     # Verify plan contains bboxes
     assert "bboxes" in plan
@@ -452,7 +467,8 @@ def test_worker_function_preserves_task_index():
 
     # Test with different indices
     for expected_idx in [0, 5, 42, 999]:
-        idx, image, plan = generate_image_from_task((task, expected_idx, None))
+        idx, image, plan, error = generate_image_from_task((task, expected_idx, None))
+        assert error is None, f"Generation should not error: {error}"
         assert idx == expected_idx, f"Worker should preserve task index {expected_idx}"
 
 
@@ -529,7 +545,10 @@ def test_worker_function_with_background_manager():
     )
 
     # Generate with background manager
-    idx, image, plan = generate_image_from_task((task, 0, background_manager))
+    idx, image, plan, error = generate_image_from_task((task, 0, background_manager))
+
+    # No errors should occur
+    assert error is None, f"Generation should not error: {error}"
 
     # Should have a background path in the plan
     assert "background_path" in plan

@@ -102,8 +102,12 @@ def test_streaming_determinism_across_chunks():
 
     # Verify all images are identical
     for idx, (r1, r2) in enumerate(zip(results_run1, results_run2)):
-        idx1, img1, plan1 = r1
-        idx2, img2, plan2 = r2
+        idx1, img1, plan1, error1 = r1
+        idx2, img2, plan2, error2 = r2
+
+        # No errors should occur
+        assert error1 is None, f"First generation should not error: {error1}"
+        assert error2 is None, f"Second generation should not error: {error2}"
 
         assert idx1 == idx2 == idx
         assert np.array_equal(np.array(img1), np.array(img2)), \
@@ -130,7 +134,10 @@ def test_streaming_chunk_boundary_indices():
             background_path=None
         )
 
-        result_idx, image, plan = generate_image_from_task((task, idx, None))
+        result_idx, image, plan, error = generate_image_from_task((task, idx, None))
+
+        # No errors should occur
+        assert error is None, f"Generation should not error: {error}"
 
         # Verify index is preserved
         assert result_idx == idx, f"Index should be preserved at boundary {idx}"
@@ -168,7 +175,8 @@ def test_streaming_partial_final_chunk():
     assert len(results) == 50
 
     # Verify indices are correct
-    for i, (idx, image, plan) in enumerate(results):
+    for i, (idx, image, plan, error) in enumerate(results):
+        assert error is None, f"Generation {i} should not error: {error}"
         assert idx == i, f"Index {idx} should match position {i}"
 
 
@@ -195,7 +203,8 @@ def test_streaming_maintains_order():
     results = [generate_image_from_task(task_args) for task_args in tasks]
 
     # Verify order is maintained
-    for i, (idx, image, plan) in enumerate(results):
+    for i, (idx, image, plan, error) in enumerate(results):
+        assert error is None, f"Generation {i} should not error: {error}"
         assert idx == i, f"Results should be in order: expected {i}, got {idx}"
         assert plan["text"] == f"Order{i}", f"Text should match index {i}"
 
@@ -230,7 +239,8 @@ def test_streaming_with_different_texts():
         results.append(result)
 
     # Verify all images were generated with correct text
-    for i, (idx, image, plan) in enumerate(results):
+    for i, (idx, image, plan, error) in enumerate(results):
+        assert error is None, f"Generation {i} should not error: {error}"
         assert idx == i
         assert plan["text"] == texts[i]
         assert "bboxes" in plan
@@ -253,7 +263,10 @@ def test_streaming_produces_valid_images():
             background_path=None
         )
 
-        result_idx, image, plan = generate_image_from_task((task, idx, None))
+        result_idx, image, plan, error = generate_image_from_task((task, idx, None))
+
+        # No errors should occur
+        assert error is None, f"Generation should not error: {error}"
 
         # Verify image properties
         assert isinstance(image, Image.Image)
@@ -302,7 +315,8 @@ def test_streaming_with_sequential_indices():
 
     # Verify all indices are correct
     all_results = chunk1_results + chunk2_results
-    for i, (idx, image, plan) in enumerate(all_results):
+    for i, (idx, image, plan, error) in enumerate(all_results):
+        assert error is None, f"Generation {i} should not error: {error}"
         assert idx == i, f"Index should be {i}, got {idx}"
 
 

@@ -437,8 +437,11 @@ class OCRDataGenerator:
             try:
                 bbox = font.getbbox(char)
                 char_width = bbox[2] - bbox[0]
-            except AttributeError:
-                char_width, _ = font.getsize(char)
+            except (AttributeError, OSError):
+                try:
+                    char_width, _ = font.getsize(char)
+                except (AttributeError, OSError):
+                    char_width = int(font_size * 0.6)  # Fallback estimate, must be int
             char_widths.append(char_width)
 
         # Calculate total arc length needed
@@ -636,8 +639,11 @@ class OCRDataGenerator:
             try:
                 bbox = font.getbbox(char)
                 char_width = bbox[2] - bbox[0]
-            except AttributeError:
-                char_width, _ = font.getsize(char)
+            except (AttributeError, OSError):
+                try:
+                    char_width, _ = font.getsize(char)
+                except (AttributeError, OSError):
+                    char_width = int(font_size * 0.6)  # Fallback estimate, must be int
             char_widths.append(char_width)
 
         # Calculate total text width
@@ -831,12 +837,20 @@ class OCRDataGenerator:
                 char_widths.append(char_width)
                 char_heights.append(char_height)
                 total_height += char_height * (1 - glyph_overlap_intensity)
-            except AttributeError:
-                w, h = font.getsize(char)
-                char_widths.append(w)
-                h = ascent + descent
-                char_heights.append(h)
-                total_height += h * (1 - glyph_overlap_intensity)
+            except (AttributeError, OSError):
+                try:
+                    w, h = font.getsize(char)
+                    char_widths.append(w)
+                    h = ascent + descent
+                    char_heights.append(h)
+                    total_height += h * (1 - glyph_overlap_intensity)
+                except (AttributeError, OSError):
+                    # Ultimate fallback
+                    char_width = int(font_size * 0.6)  # Must be int
+                    char_height = ascent + descent
+                    char_widths.append(char_width)
+                    char_heights.append(char_height)
+                    total_height += char_height * (1 - glyph_overlap_intensity)
 
         max_width = max(char_widths) if char_widths else 0
 
@@ -902,7 +916,11 @@ class OCRDataGenerator:
         calculating per-character bounding boxes.
         """
         font_size = 32
-        font = ImageFont.truetype(font_path, font_size)
+        try:
+            font = ImageFont.truetype(font_path, font_size)
+        except (OSError, IOError) as e:
+            # If font loading fails (corrupted file, invalid size, etc.), raise a more specific error
+            raise ValueError(f"Failed to load font '{font_path}' at size {font_size}: {e}") from e
         bboxes = []
 
         # First pass: calculate total dimensions
@@ -916,10 +934,18 @@ class OCRDataGenerator:
                 char_width = bbox[2] - bbox[0]
                 char_widths.append(char_width)
                 total_width += char_width * (1 - glyph_overlap_intensity)
-            except AttributeError:
-                w, h = font.getsize(char)
-                char_widths.append(w)
-                total_width += w * (1 - glyph_overlap_intensity)
+            except (AttributeError, OSError) as e:
+                # Handle FreeType errors like "execution context too long"
+                # Fall back to estimating width or using a default
+                try:
+                    w, h = font.getsize(char)
+                    char_widths.append(w)
+                    total_width += w * (1 - glyph_overlap_intensity)
+                except (AttributeError, OSError):
+                    # Ultimate fallback: estimate reasonable width
+                    estimated_width = int(font_size * 0.6)  # Rough estimate, must be int
+                    char_widths.append(estimated_width)
+                    total_width += estimated_width * (1 - glyph_overlap_intensity)
 
         margin = 10
         image_width = int(total_width + margin * 2)

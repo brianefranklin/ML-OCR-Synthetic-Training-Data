@@ -7,7 +7,7 @@ import multiprocessing
 from pathlib import Path
 from datetime import datetime
 from tqdm import tqdm
-from typing import Dict, List, Any, Tuple
+from typing import Dict, List, Any, Tuple, Optional
 import numpy as np
 from PIL import Image
 
@@ -38,7 +38,7 @@ class NumpyEncoder(json.JSONEncoder):
 
 def generate_image_from_task(
     args: Tuple[GenerationTask, int, Any]
-) -> Tuple[int, Image.Image, Dict[str, Any]]:
+) -> Tuple[int, Image.Image, Dict[str, Any], Optional[str]]:
     """Worker function for parallel image generation.
 
     This function is designed to be used with multiprocessing.Pool for
@@ -58,8 +58,9 @@ def generate_image_from_task(
     Returns:
         A tuple containing:
             - index: The task index (for maintaining order).
-            - image: The generated PIL Image.
-            - plan: Dictionary containing the generation plan with bboxes added.
+            - image: The generated PIL Image (or None if generation failed).
+            - plan: Dictionary containing the generation plan with bboxes added (or None if failed).
+            - error: Error message if generation failed, None otherwise.
 
     Note:
         This function must be defined at module level (not nested) for
@@ -70,7 +71,7 @@ def generate_image_from_task(
         >>> from src.batch_config import BatchSpecification
         >>> spec = BatchSpecification(...)
         >>> task = GenerationTask(spec, "hello", "/path/to/font.ttf", None)
-        >>> idx, image, plan = generate_image_from_task((task, 0, None))
+        >>> idx, image, plan, error = generate_image_from_task((task, 0, None))
     """
     import random
 
@@ -84,21 +85,27 @@ def generate_image_from_task(
     # Create a generator instance (each worker needs its own)
     generator = OCRDataGenerator()
 
-    # Generate a plan for this task
-    plan: Dict[str, Any] = generator.plan_generation(
-        spec=task.source_spec,
-        text=task.text,
-        font_path=task.font_path,
-        background_manager=background_manager
-    )
+    try:
+        # Generate a plan for this task
+        plan: Dict[str, Any] = generator.plan_generation(
+            spec=task.source_spec,
+            text=task.text,
+            font_path=task.font_path,
+            background_manager=background_manager
+        )
 
-    # Generate the image from the plan
-    image, bboxes = generator.generate_from_plan(plan)
+        # Generate the image from the plan
+        image, bboxes = generator.generate_from_plan(plan)
 
-    # Add the final bounding boxes to the plan
-    plan["bboxes"] = bboxes
+        # Add the final bounding boxes to the plan
+        plan["bboxes"] = bboxes
 
-    return index, image, plan
+        return index, image, plan, None
+
+    except (OSError, IOError, ValueError, TypeError) as e:
+        # Font loading or rendering errors - return None to skip this image
+        error_msg = f"Failed to generate image {index} with font '{task.font_path}': {type(e).__name__}: {e}"
+        return index, None, None, error_msg
 
 
 def save_image_and_label(
@@ -342,27 +349,49 @@ def main():
                 # Generate chunk in parallel
                 chunk_results = gen_pool.map(generate_image_from_task, chunk_args)
 
-                # Save chunk immediately
+                # Save chunk immediately, filtering out failed generations
                 chunk_saved_count = 0
+                chunk_failed_count = 0
                 if use_parallel_io:
                     # Parallel I/O: batch saves within chunk
                     io_batch_size = args.io_batch_size
                     save_tasks: List[Tuple[Image.Image, Dict[str, Any], Path, Path]] = []
 
-                    for idx, image, plan in chunk_results:
+                    for idx, image, plan, error in chunk_results:
+                        if error is not None:
+                            # Generation failed - log and skip
+                            logger.warning(error)
+                            chunk_failed_count += 1
+                            total_progress.update(1)
+                            continue
+
                         image_path = output_path / f"image_{idx:05d}.png"
                         label_path = output_path / f"image_{idx:05d}.json"
                         save_tasks.append((image, plan, image_path, label_path))
 
-                        # Save batch when full or at end of results
-                        if len(save_tasks) >= io_batch_size or idx == chunk_results[-1][0]:
+                        # Save batch when full
+                        if len(save_tasks) >= io_batch_size:
                             io_pool.map(save_image_and_label, save_tasks)
                             chunk_saved_count += len(save_tasks)
                             total_progress.update(len(save_tasks))
                             save_tasks = []
+
+                    # Save any remaining tasks at end of chunk
+                    if len(save_tasks) > 0:
+                        io_pool.map(save_image_and_label, save_tasks)
+                        chunk_saved_count += len(save_tasks)
+                        total_progress.update(len(save_tasks))
+                        save_tasks = []
                 else:
                     # Sequential I/O
-                    for idx, image, plan in chunk_results:
+                    for idx, image, plan, error in chunk_results:
+                        if error is not None:
+                            # Generation failed - log and skip
+                            logger.warning(error)
+                            chunk_failed_count += 1
+                            total_progress.update(1)
+                            continue
+
                         image_path = output_path / f"image_{idx:05d}.png"
                         label_path = output_path / f"image_{idx:05d}.json"
                         image.save(image_path)
@@ -374,7 +403,10 @@ def main():
                 # Update checkpoint after each chunk
                 images_completed += chunk_saved_count
                 checkpoint_manager.save_checkpoint(completed_images=images_completed)
-                logger.debug(f"Chunk complete: {chunk_saved_count} images, total {images_completed}/{total_images}")
+                if chunk_failed_count > 0:
+                    logger.info(f"Chunk complete: {chunk_saved_count} images saved, {chunk_failed_count} skipped due to errors, total {images_completed}/{total_images}")
+                else:
+                    logger.debug(f"Chunk complete: {chunk_saved_count} images, total {images_completed}/{total_images}")
 
         finally:
             # Clean up progress bar and pools
