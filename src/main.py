@@ -17,6 +17,7 @@ from src.font_health_manager import FontHealthManager
 from src.background_manager import BackgroundImageManager
 from src.generation_orchestrator import GenerationOrchestrator, GenerationTask
 from src.generator import OCRDataGenerator
+from src.batch_validation import BatchValidator, ValidationError
 
 class NumpyEncoder(json.JSONEncoder):
     """Custom JSON encoder that handles NumPy data types.
@@ -169,6 +170,8 @@ def main():
                         help="Number of images to accumulate before parallel I/O save (default: 10)")
     parser.add_argument("--generation-workers", type=int, default=0,
                         help="Number of worker processes for parallel image generation (0 or 1 = sequential, default: 0)")
+    parser.add_argument("--chunk-size", type=int, default=100,
+                        help="Number of images to generate per chunk in streaming mode (default: 100)")
     args = parser.parse_args()
 
     # Generate timestamp for this run
@@ -210,6 +213,31 @@ def main():
     batch_config: BatchConfig = BatchConfig.from_yaml(args.batch_config)
     logger.info(f"Loaded batch config: {batch_config.total_images} total images, {len(batch_config.specifications)} specifications")
 
+    # Validate configuration before proceeding
+    logger.info("Validating batch configuration...")
+    try:
+        # Load raw config for validation
+        with open(args.batch_config, 'r') as f:
+            raw_config = yaml.safe_load(f)
+
+        validator = BatchValidator(
+            config=raw_config,
+            corpus_dir=args.corpus_dir,
+            font_dir=args.font_dir,
+            background_dir=args.background_dir
+        )
+        validator.validate()
+        logger.info("Configuration validation passed")
+    except ValidationError as e:
+        logger.error(f"Configuration validation failed: {e}")
+        print(f"\n{'='*60}")
+        print("ERROR: Configuration validation failed")
+        print(f"{'='*60}")
+        print(f"\n{e}\n")
+        print("Please fix the configuration and try again.")
+        print(f"{'='*60}\n")
+        sys.exit(1)
+
     # Initialize managers
     font_health_manager = FontHealthManager()
     background_manager = BackgroundImageManager(dir_weights={args.background_dir: 1.0})
@@ -244,50 +272,74 @@ def main():
     use_parallel_io = args.workers > 1
 
     if use_parallel_generation:
-        logger.info(f"Using parallel image generation with {args.generation_workers} workers")
+        logger.info(f"Using streaming parallel generation with {args.generation_workers} workers, chunk size {args.chunk_size}")
 
-        # Prepare arguments for parallel generation
-        generation_args = [(task, i, background_manager) for i, task in enumerate(tasks)]
+        # Create pools
+        gen_pool = multiprocessing.Pool(processes=args.generation_workers)
+        io_pool = multiprocessing.Pool(processes=args.workers) if use_parallel_io else None
 
-        # Generate images in parallel
-        with multiprocessing.Pool(processes=args.generation_workers) as gen_pool:
-            # Use imap for progress tracking with tqdm
-            results = list(tqdm(
-                gen_pool.imap(generate_image_from_task, generation_args),
-                total=len(tasks),
-                desc="Generating Images"
-            ))
-
-        logger.info(f"Parallel generation complete. Proceeding to save {len(results)} images")
-
-        # Now save the results (either in parallel or sequentially)
         if use_parallel_io:
             logger.info(f"Using parallel I/O with {args.workers} workers, batch size {args.io_batch_size}")
-            save_pool = multiprocessing.Pool(processes=args.workers)
-            batch_size = args.io_batch_size
-            save_tasks: List[Tuple[Image.Image, Dict[str, Any], Path, Path]] = []
-
-            for idx, image, plan in tqdm(results, desc="Saving Images"):
-                image_path = output_path / f"image_{idx:05d}.png"
-                label_path = output_path / f"image_{idx:05d}.json"
-                save_tasks.append((image, plan, image_path, label_path))
-
-                # Save batch when full or at end
-                if len(save_tasks) >= batch_size or idx == len(results) - 1:
-                    save_pool.map(save_image_and_label, save_tasks)
-                    save_tasks = []
-
-            save_pool.close()
-            save_pool.join()
-            logger.debug("Closed I/O pool")
         else:
             logger.info("Using sequential I/O")
-            for idx, image, plan in tqdm(results, desc="Saving Images"):
-                image_path = output_path / f"image_{idx:05d}.png"
-                label_path = output_path / f"image_{idx:05d}.json"
-                image.save(image_path)
-                with open(label_path, 'w', encoding='utf-8') as f:
-                    json.dump(plan, f, indent=4, cls=NumpyEncoder)
+
+        # Overall progress bar
+        total_progress = tqdm(total=len(tasks), desc="Processing Images")
+
+        try:
+            # Process tasks in chunks
+            for chunk_start in range(0, len(tasks), args.chunk_size):
+                chunk_end = min(chunk_start + args.chunk_size, len(tasks))
+                chunk_tasks = tasks[chunk_start:chunk_end]
+
+                logger.debug(f"Processing chunk {chunk_start}-{chunk_end-1} ({len(chunk_tasks)} images)")
+
+                # Prepare arguments for this chunk
+                chunk_args = [
+                    (task, i, background_manager)
+                    for i, task in enumerate(chunk_tasks, start=chunk_start)
+                ]
+
+                # Generate chunk in parallel
+                chunk_results = gen_pool.map(generate_image_from_task, chunk_args)
+
+                # Save chunk immediately
+                if use_parallel_io:
+                    # Parallel I/O: batch saves within chunk
+                    io_batch_size = args.io_batch_size
+                    save_tasks: List[Tuple[Image.Image, Dict[str, Any], Path, Path]] = []
+
+                    for idx, image, plan in chunk_results:
+                        image_path = output_path / f"image_{idx:05d}.png"
+                        label_path = output_path / f"image_{idx:05d}.json"
+                        save_tasks.append((image, plan, image_path, label_path))
+
+                        # Save batch when full or at chunk end
+                        if len(save_tasks) >= io_batch_size or idx == chunk_end - 1:
+                            io_pool.map(save_image_and_label, save_tasks)
+                            total_progress.update(len(save_tasks))
+                            save_tasks = []
+                else:
+                    # Sequential I/O
+                    for idx, image, plan in chunk_results:
+                        image_path = output_path / f"image_{idx:05d}.png"
+                        label_path = output_path / f"image_{idx:05d}.json"
+                        image.save(image_path)
+                        with open(label_path, 'w', encoding='utf-8') as f:
+                            json.dump(plan, f, indent=4, cls=NumpyEncoder)
+                        total_progress.update(1)
+
+                logger.debug(f"Chunk {chunk_start}-{chunk_end-1} complete")
+
+        finally:
+            # Clean up progress bar and pools
+            total_progress.close()
+            gen_pool.close()
+            gen_pool.join()
+            if io_pool:
+                io_pool.close()
+                io_pool.join()
+            logger.debug("Closed all worker pools")
     else:
         # Sequential generation mode
         logger.info("Using sequential image generation")

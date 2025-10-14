@@ -36,7 +36,8 @@ python3 -m src.main \
   --background-dir ./data.nosync/backgrounds \
   --corpus-dir ./data.nosync/corpus \
   --generation-workers 4 \
-  --workers 0
+  --workers 0 \
+  --chunk-size 100
 ```
 
 ### Parallel I/O Only (Default - Backward Compatible)
@@ -63,6 +64,7 @@ python3 -m src.main \
   --corpus-dir ./data.nosync/corpus \
   --generation-workers 4 \
   --workers 4 \
+  --chunk-size 100 \
   --io-batch-size 50
 ```
 
@@ -97,14 +99,32 @@ Controls how many images are accumulated before parallel I/O save:
 
 **When to use**: Increase for larger batches in production (e.g., 50-100). Decrease for memory-constrained systems.
 
+### `--chunk-size`
+
+Controls the number of images to generate per chunk in streaming parallel mode:
+
+- **Range**: Any positive integer
+- **Default**: `--chunk-size 100`
+
+**When to use**: This parameter only affects parallel generation mode (`--generation-workers > 1`). It controls memory usage by processing images in chunks: generate chunk → save chunk → repeat. Larger chunks may be slightly faster but use more memory. Smaller chunks use less memory but have slightly more overhead.
+
+**Recommended values**:
+- **Default (100)**: Good balance for most use cases
+- **Large batches (1000+ images)**: Keep default or increase to 200-500
+- **Memory-constrained systems**: Reduce to 25-50
+- **Small batches (< 100 images)**: Use default or reduce to match batch size
+
 ### Examples
 
 ```bash
 # Recommended for development (4-core machine)
-python3 -m src.main --batch-config configs/batch.yaml --generation-workers 4 --workers 0 ...
+python3 -m src.main --batch-config configs/batch.yaml --generation-workers 4 --workers 0 --chunk-size 100 ...
 
 # Recommended for production (8-core server with fast SSD)
-python3 -m src.main --batch-config configs/batch.yaml --generation-workers 8 --workers 8 --io-batch-size 100 ...
+python3 -m src.main --batch-config configs/batch.yaml --generation-workers 8 --workers 8 --chunk-size 200 --io-batch-size 100 ...
+
+# Memory-constrained system
+python3 -m src.main --batch-config configs/batch.yaml --generation-workers 2 --workers 0 --chunk-size 25 ...
 
 # Use sequential mode for debugging
 python3 -m src.main --batch-config configs/batch.yaml --generation-workers 0 --workers 0 ...
@@ -119,11 +139,12 @@ python3 -m src.main --batch-config configs/batch.yaml --generation-workers 0 --w
 - The bottleneck is CPU time, not I/O
 - Running on systems with 2+ CPU cores
 - Production workloads requiring maximum throughput
+- Large batches (100+ images) - streaming mode handles memory efficiently
 
 **Avoid when**:
 - Debugging generation issues (use sequential for easier troubleshooting)
 - Running on single-core systems
-- Memory is severely constrained
+- Extremely memory-constrained systems (< 512MB available) - reduce `--chunk-size` instead
 
 ### Parallel I/O (`--workers`)
 
@@ -153,20 +174,24 @@ python3 -m src.main --batch-config configs/batch.yaml --generation-workers 0 --w
 
 ## How Parallelization Works
 
-### Parallel Generation Mode
+### Parallel Generation Mode (Streaming)
 
-When `--generation-workers > 1`:
+When `--generation-workers > 1`, the system uses a memory-efficient streaming approach:
 
 1. **Task Creation**: All generation tasks are created upfront (deterministic)
-2. **Parallel Generation**: Worker processes generate images in parallel using multiprocessing.Pool
-3. **Deterministic Seeding**: Each image is seeded by its index, ensuring reproducibility
-4. **Result Collection**: Results are collected in order to maintain deterministic output
-5. **Saving**: Images are saved either sequentially or in parallel (based on `--workers`)
+2. **Chunked Processing**: Tasks are processed in chunks (size controlled by `--chunk-size`)
+3. **For Each Chunk**:
+   - **Parallel Generation**: Worker processes generate chunk images in parallel using multiprocessing.Pool
+   - **Immediate Saving**: Chunk results are saved immediately (either sequentially or in parallel)
+   - **Memory Cleanup**: Chunk memory is freed before processing next chunk
+4. **Deterministic Seeding**: Each image is seeded by its index, ensuring reproducibility
+5. **Progress Tracking**: Overall progress tracked across all chunks
 
 This design ensures:
 - **Significant CPU speedup**: 2-4x faster on multi-core systems
-- **Deterministic output**: Same index always produces same image, regardless of execution order
-- **Memory overhead**: All generated images held in memory before saving (use care with large batches)
+- **Memory efficiency**: Only one chunk held in memory at a time (default: 100 images)
+- **Deterministic output**: Same index always produces same image, regardless of execution order or chunk boundaries
+- **Scalability**: Can handle batches of any size without memory issues
 
 ### Parallel I/O Mode
 
@@ -206,20 +231,23 @@ This design ensures:
 
 ### Memory Usage
 
-**Parallel Generation Mode**:
-- Holds ALL generated images in memory before saving begins
-- Memory usage = (number of images) × (average image size)
-- For large batches, this can be significant (e.g., 1000 images × 1MB = 1GB)
-- Mitigation: Use smaller batch sizes or save incrementally
+**Parallel Generation Mode (Streaming)**:
+- Holds only ONE CHUNK in memory at a time
+- Memory usage = (`--chunk-size`) × (average image size)
+- Default chunk size of 100 typically uses 50-200MB depending on image complexity
+- For large batches (e.g., 10,000 images), memory usage remains constant at one chunk
+- Mitigation for memory constraints: Reduce `--chunk-size` (e.g., to 25 or 50)
 
 **Parallel I/O Mode**:
-- Holds only one batch in memory at a time
+- Holds only one I/O batch in memory at a time
 - Memory usage = (`--io-batch-size`) × (average image size)
-- Much more memory-efficient for large batches
+- Much smaller than chunk size, typically 10-50 images
 
-**Combined Mode**:
-- Worst-case memory usage combines both
-- Monitor RAM usage and adjust batch sizes accordingly
+**Combined Mode (Streaming + Parallel I/O)**:
+- Memory usage ≈ (`--chunk-size`) × (average image size)
+- The I/O batch size is typically much smaller than chunk size
+- Very memory-efficient even for very large batches
+- Example: 10,000 images with default settings uses same memory as 100 images
 
 ### File System Considerations
 
@@ -291,13 +319,15 @@ Log file: ./logs/generation_20251014_094912.log
 
 ### "Out of memory errors with parallel generation"
 
-**Cause**: All images held in memory before saving when using `--generation-workers > 1`.
+**Cause**: Chunk size too large for available memory, or system running out of RAM.
 
 **Solution**:
-1. Reduce batch size in your config
-2. Use sequential generation with parallel I/O instead
-3. Reduce `--generation-workers` count
-4. Add more RAM to your system
+1. Reduce `--chunk-size` (e.g., from 100 to 25 or 50)
+2. Close other memory-intensive applications
+3. Check available RAM: streaming mode with default chunk size should only use 50-200MB
+4. Reduce `--generation-workers` count to leave more RAM available
+5. Monitor memory usage during generation to identify the bottleneck
+6. Note: With streaming mode, even 10,000+ image batches use constant memory
 
 ### "Permission denied" or "File not found" errors
 
@@ -313,24 +343,30 @@ Log file: ./logs/generation_20251014_094912.log
 
 For developers interested in the implementation:
 
-**Parallel Generation**:
+**Parallel Generation (Streaming)**:
 - **Worker Function**: `generate_image_from_task()` in `src/main.py:37`
 - **Determinism**: Index-based seeding with `random.seed(index)` and `np.random.seed(index)`
-- **Process Pool**: `multiprocessing.Pool` with `imap()` for progress tracking
-- **Tests**: `tests/test_parallel_generation.py` - validates determinism and correctness
+- **Chunked Processing**: Tasks split into chunks, processed sequentially (chunk-by-chunk), generated in parallel within each chunk
+- **Process Pool**: `multiprocessing.Pool` with `map()` for chunk generation, persistent across chunks
+- **Memory Management**: Each chunk is freed after saving, before next chunk is generated
+- **Progress Tracking**: Single progress bar tracks overall progress across all chunks
+- **Tests**:
+  - `tests/test_parallel_generation.py` - validates determinism and correctness of worker function
+  - `tests/test_streaming_parallel.py` - validates streaming behavior, chunk boundaries, and order preservation
 
 **Parallel I/O**:
 - **Worker Function**: `save_image_and_label()` in `src/main.py:102`
-- **Batching**: Configurable batch size via `--io-batch-size`
+- **Batching**: Configurable batch size via `--io-batch-size` (separate from chunk size)
 - **Serialization**: `NumpyEncoder` handles NumPy data types in JSON
 - **Process Pool**: `multiprocessing.Pool` with configurable worker count
 - **Tests**: `tests/test_parallel_io.py` - validates I/O operations
 
 **Key Design Decisions**:
 - Module-level worker functions (required for pickling in multiprocessing)
-- Deterministic generation via index-based seeding
-- Results collected in order to maintain reproducibility
-- Proper pool cleanup with `close()` and `join()`
+- Deterministic generation via index-based seeding (ensures chunk boundaries don't affect output)
+- Streaming architecture: process chunk → save chunk → free memory → next chunk
+- Proper pool cleanup with `close()` and `join()` in finally blocks
+- Overall progress tracking (not per-chunk) for better UX
 
 See the API reference and test files for more details on the implementation.
 
