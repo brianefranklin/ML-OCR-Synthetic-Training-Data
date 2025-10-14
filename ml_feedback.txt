@@ -1,7 +1,26 @@
-  This was the larger feature you mentioned wanting to implement:
-  - Distribution Visualization Tool
-  - Statistical Analysis Tool
-  - OCR Model Integration with Random Forest Classifier
-  - Automated parameter recommendation engine
+Before I crashed out and we lost the history, we were discussing a larger feature that I wanted to implement:
+- Distribution Visualization Tool
+- Statistical Analysis Tool
+- OCR Model Integration with Random Forest Classifier
+- Automated parameter recommendation engine
 
-While the code is feature complete from a programming standpoint, the application is not yet ready for production. This is because we do not have a good understanding of how the input paremters change the output images. From the programmer point of view, all of our inputs were requested by the user and we enforce valid ranges for them. For example, blurring the image is optional and if we blur it, we can do so minimally or to an extreme amount. However, there is a limit to each of these inputs regarding what is actually readable by Optical Character Recogition (OCR). If we destroy too much information in the augmentation process (or another feature like curves), the original text is non-recoverable even with the best OCR or human review. 
+While the code is feature complete from a programming standpoint, the application is not yet ready for production. This is because we do not have a good understanding of how the input paremters (aka generation parameters) change the output images. From the programmer point of view, all of our inputs were requested by the user and we enforce valid ranges for them. For example, blurring the image is optional and if we blur it, we can do so minimally or to an extreme amount. However, there is a limit to each of these inputs regarding what is actually readable by Optical Character Recogition (OCR). If we destroy too much information in the augmentation process (or another feature like curves), the original text is non-recoverable even with the best OCR or even a human review. 
+
+To solve this problem I want to implement:
+- Existing OCR Model trial run 
+- OCR Model Performance analsysis with Random Forest Classifier
+- Input / Output performance Distribution Visualization Tool
+- Statistical Analysis script
+- Automated parameter recommendation engine
+
+Using existing OCR models, we will have the model ingest the generated images and output relvant data such as OCR text and bounding boxes. Include any other information that is relevant to compare to the truth data and generation parameters. For now, we will use EasyOCR and implement it as a local python program. In the future, will will need to support other local models and models reachable only by restful api. 
+
+We will save this existing OCR output as JSON Lines (jsonl file). Each JSON Line object should include truth data under an applicable key, generation parameters under an applicable key, the relvant OCR model output, and a performance score (so we can classifiy it as a "good or bad" result in the next step). It is up to you on how to structure the JSON object but make it understandable by humans. 
+
+Using a Random Forest Classifier, it should be possible to understand which parameters are most correlated to good performance and poor performance. I suspect that some parameters will be highly correlated to performance. For example, more blue is likely to result in less accurate OCR. I also suspect that some parameters will not be correlated to performance in the same way. For example, the direction of shadow might not matter when the magniude of the shadow is below a certain value. 
+
+We will then deep dive into the parameter values themselves using statistical analysis. The goal is to understand how the generation parameters effect the OCR process. We need to identify what individual and combinations of parameters and their value ranges are best for training future models. There will be ranges of values and combinations of inputs that are easy for the OCR model to correctly OCR the text. We need to include these in the initial model training because they are good foundational information for the model to learn from. We also need to identify the ranges of values that are challenging for the OCR software. We need these because performing more training (later stage training and fine tuning) with that type of data will yield better OCR models that can perform well with degraded inputs. Finally, we also need to identify value ranges of and combinations of parameters that are too degraded for any OCR to occur. These ranges waste computing power and attempting to train with too many of them will hurt the over all model performance.  
+
+Using the statistical analysis, the program will understand how the inputs effect model performance. It will suggest how to struture the input parameters for initial model training and later stagees. Specifically, for each parameter, it will suggest what type of probability distribution (uniform, normal, exponential, etc.) should be used and what values (Statistical properties) should define that probability distribution (median, standard deviation, exponents, etc.). Visualize these for the human user.
+
+For future research and not part of the initial implementation: The stage where existing OCR models are used should be implemented as a tiered approach: we will identify a hierarchy of models based on their expected performance. The highest tier is the best performaing model. The highest tier is also the most expensive to use. The lowest tier is the worst performing model but is the cheapest to use. We  make an assumption that "better models" (higher tiers of the hierarchy) will always perform as well or better than "worse models". Each image starts at the cheapest model. If the performance is good, we assume that all the tiers higher also have good performance. If the performance is bad, we test that image with the next-best model (working up the hierarchy). If the performance is still bad, we test again at the next higher tier (and so on until we reach the highest tier). The lowest tier is EasyOCR and that should be implemented as a local software. The highest tier is gemini 2.5 flash and is reachable by API. 
