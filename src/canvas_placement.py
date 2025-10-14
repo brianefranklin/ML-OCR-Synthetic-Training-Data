@@ -89,7 +89,10 @@ def place_on_canvas(
     """
     if background_path:
         # If a background is provided, load and crop it to the canvas size.
-        bg_image = Image.open(background_path).convert("RGBA")
+        bg_image = Image.open(background_path)
+        # Convert to RGBA only if necessary (avoids redundant conversions)
+        if bg_image.mode != "RGBA":
+            bg_image = bg_image.convert("RGBA")
         # A simple crop from the top-left is used for now.
         canvas = bg_image.crop((0, 0, canvas_w, canvas_h))
     else:
