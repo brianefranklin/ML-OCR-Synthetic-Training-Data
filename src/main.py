@@ -1,6 +1,7 @@
 import argparse
 import yaml
 import json
+import uuid
 import sys
 import logging
 import multiprocessing
@@ -294,8 +295,21 @@ def main():
 
     print(f"Generating {batch_config.total_images} images...")
 
+    # Pre-generate a list of unique filenames for the entire batch
+    # Use a combination of timestamp, PID, and counter to ensure uniqueness
+    # even if multiple processes are running simultaneously
+    import os
+    import time
+    process_id = os.getpid()
+    timestamp_ns = time.time_ns()
+    unique_filenames = [f"{timestamp_ns}_{process_id}_{i:05d}" for i in range(batch_config.total_images)]
+
     # Create the full list of generation tasks
-    tasks: List[GenerationTask] = orchestrator.create_task_list(min_text_len=10, max_text_len=50)
+    tasks: List[GenerationTask] = orchestrator.create_task_list(
+        min_text_len=10,
+        max_text_len=50,
+        unique_filenames=unique_filenames
+    )
     logger.info(f"Created {len(tasks)} generation tasks")
 
     # Determine if we should use parallel generation
@@ -365,8 +379,9 @@ def main():
                             total_progress.update(1)
                             continue
 
-                        image_path = output_path / f"image_{idx:05d}.png"
-                        label_path = output_path / f"image_{idx:05d}.json"
+                        task = tasks[idx]
+                        image_path = output_path / f"{task.output_filename}.png"
+                        label_path = output_path / f"{task.output_filename}.json"
                         save_tasks.append((image, plan, image_path, label_path))
 
                         # Save batch when full
@@ -392,8 +407,9 @@ def main():
                             total_progress.update(1)
                             continue
 
-                        image_path = output_path / f"image_{idx:05d}.png"
-                        label_path = output_path / f"image_{idx:05d}.json"
+                        task = tasks[idx]
+                        image_path = output_path / f"{task.output_filename}.png"
+                        label_path = output_path / f"{task.output_filename}.json"
                         image.save(image_path)
                         with open(label_path, 'w', encoding='utf-8') as f:
                             json.dump(plan, f, indent=4, cls=NumpyEncoder)
@@ -459,8 +475,8 @@ def main():
             plan["bboxes"] = bboxes
 
             # Prepare file paths
-            image_path = output_path / f"image_{i:05d}.png"
-            label_path = output_path / f"image_{i:05d}.json"
+            image_path = output_path / f"{task.output_filename}.png"
+            label_path = output_path / f"{task.output_filename}.json"
 
             if use_parallel_io:
                 # Add to batch for parallel saving

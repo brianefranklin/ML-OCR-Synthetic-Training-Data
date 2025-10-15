@@ -44,17 +44,25 @@ def test_create_generation_tasks_with_font_filter(batch_config: BatchConfig, cor
     all_fonts = ["/fonts/font_a_Bold.ttf", "/fonts/font_b_Regular.ttf"]
 
     orchestrator = GenerationOrchestrator(
-        batch_config=batch_config, 
+        batch_config=batch_config,
         corpus_map=corpus_map,
         all_fonts=all_fonts,
         background_manager=background_manager
     )
-    
-    tasks = orchestrator.create_task_list(min_text_len=5, max_text_len=10)
-    
+
+    # Generate unique filenames (using simple counter for tests)
+    unique_filenames = [f"test_{i}" for i in range(batch_config.total_images)]
+
+    tasks = orchestrator.create_task_list(min_text_len=5, max_text_len=10, unique_filenames=unique_filenames)
+
     # Check that the correct font was used for each spec
     for task in tasks:
         if task.source_spec.name == "spec_a":
             assert "Bold" in task.font_path
         elif task.source_spec.name == "spec_b":
             assert "Regular" in task.font_path
+
+        # Check that output_filename is set
+        assert hasattr(task, 'output_filename')
+        assert isinstance(task.output_filename, str)
+        assert len(task.output_filename) > 0

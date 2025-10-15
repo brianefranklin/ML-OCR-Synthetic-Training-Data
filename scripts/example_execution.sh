@@ -1,0 +1,11 @@
+python3 -m src.main \
+--batch-config configs/comprehensive_test_10k.yaml \
+--output-dir ./output.nosync \
+--font-dir data.nosync/fonts \
+--background-dir data.nosync/backgrounds \
+--corpus-dir data.nosync/corpus_text \
+--generation-workers 6 \
+--workers 4 \
+--chunk-size 200 \
+--io-batch-size 50 \
+--log-level INFO

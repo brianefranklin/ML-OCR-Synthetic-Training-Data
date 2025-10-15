@@ -90,7 +90,8 @@ def test_streaming_determinism_across_chunks():
             source_spec=spec,
             text=f"Text{idx}",
             font_path=str(font_files[0]),
-            background_path=None
+            background_path=None,
+            output_filename=f"test_{idx}"
         )
 
         # Generate same task twice
@@ -131,7 +132,8 @@ def test_streaming_chunk_boundary_indices():
             source_spec=spec,
             text=f"Boundary{idx}",
             font_path=str(font_files[0]),
-            background_path=None
+            background_path=None,
+            output_filename=f"test_{idx}"
         )
 
         result_idx, image, plan, error = generate_image_from_task((task, idx, None))
@@ -165,7 +167,8 @@ def test_streaming_partial_final_chunk():
             source_spec=spec,
             text=f"Partial{idx}",
             font_path=str(font_files[0]),
-            background_path=None
+            background_path=None,
+            output_filename=f"test_{idx}"
         )
 
         result = generate_image_from_task((task, idx, None))
@@ -195,7 +198,8 @@ def test_streaming_maintains_order():
             source_spec=spec,
             text=f"Order{idx}",
             font_path=str(font_files[0]),
-            background_path=None
+            background_path=None,
+            output_filename=f"test_{idx}"
         )
         tasks.append((task, idx, None))
 
@@ -232,7 +236,8 @@ def test_streaming_with_different_texts():
             source_spec=spec,
             text=text,
             font_path=str(font_files[0]),
-            background_path=None
+            background_path=None,
+            output_filename=f"test_{idx}"
         )
 
         result = generate_image_from_task((task, idx, None))
@@ -260,7 +265,8 @@ def test_streaming_produces_valid_images():
             source_spec=spec,
             text=f"Valid{idx}",
             font_path=str(font_files[0]),
-            background_path=None
+            background_path=None,
+            output_filename=f"test_{idx}"
         )
 
         result_idx, image, plan, error = generate_image_from_task((task, idx, None))
@@ -297,7 +303,8 @@ def test_streaming_with_sequential_indices():
             source_spec=spec,
             text=f"Chunk1_{idx}",
             font_path=str(font_files[0]),
-            background_path=None
+            background_path=None,
+            output_filename=f"test_{idx}"
         )
         result = generate_image_from_task((task, idx, None))
         chunk1_results.append(result)
@@ -308,7 +315,8 @@ def test_streaming_with_sequential_indices():
             source_spec=spec,
             text=f"Chunk2_{idx}",
             font_path=str(font_files[0]),
-            background_path=None
+            background_path=None,
+            output_filename=f"test_{idx}"
         )
         result = generate_image_from_task((task, idx, None))
         chunk2_results.append(result)

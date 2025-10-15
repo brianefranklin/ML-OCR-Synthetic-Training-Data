@@ -16,7 +16,7 @@ from src.background_manager import BackgroundImageManager
 @dataclass
 class GenerationTask:
     """Represents a single, complete set of parameters for generating one image.
-    
+
     This is a simple data structure to hold the results of the orchestration
     process before they are passed to the final planning and generation stage.
     """
@@ -24,6 +24,7 @@ class GenerationTask:
     text: str
     font_path: str
     background_path: Optional[str]
+    output_filename: str
 
 class GenerationOrchestrator:
     """Orchestrates the creation of generation tasks.
@@ -59,24 +60,25 @@ class GenerationOrchestrator:
                     raise FileNotFoundError(f"Corpus file '{corpus_file_name}' not found in corpus_map.")
                 self._corpus_managers[corpus_file_name] = CorpusManager.from_file(full_path)
 
-    def create_task_list(self, min_text_len: int, max_text_len: int) -> List[GenerationTask]:
+    def create_task_list(self, min_text_len: int, max_text_len: int, unique_filenames: List[str]) -> List[GenerationTask]:
         """Creates a complete list of GenerationTask objects for the entire batch.
 
         Args:
             min_text_len: The minimum length of text segments to extract.
             max_text_len: The maximum length of text segments to extract.
+            unique_filenames: A list of unique filenames (one per image) to use for output.
 
         Returns:
             A list of GenerationTask objects.
-        
+
         Raises:
             RuntimeError: If no healthy fonts or backgrounds are available.
         """
         full_task_list: List[GenerationTask] = []
-        
+
         # Get the interleaved list of which batch spec to use for each image.
         spec_list = self.batch_manager.task_list()
-        
+
         # Get the initial set of healthy resources.
         available_fonts = self.font_health_manager.get_available_fonts(self.all_fonts)
         if not available_fonts:
@@ -88,7 +90,7 @@ class GenerationOrchestrator:
             print("Warning: No available backgrounds found.")
 
         # For each spec in the interleaved list, create a concrete task.
-        for spec in spec_list:
+        for i, spec in enumerate(spec_list):
             # Filter fonts if a filter is specified in the batch
             if spec.font_filter:
                 available_fonts_for_spec = [f for f in available_fonts if fnmatch.fnmatch(f, spec.font_filter)]
@@ -101,15 +103,16 @@ class GenerationOrchestrator:
 
             corpus_manager = self._corpus_managers[spec.corpus_file]
             text = corpus_manager.extract_text_segment(min_text_len, max_text_len)
-            
+
             font_path = self.font_health_manager.select_font(available_fonts_for_spec)
             background_path = self.background_manager.select_background()
-            
+
             task = GenerationTask(
-                source_spec=spec, 
-                text=text, 
+                source_spec=spec,
+                text=text,
                 font_path=font_path,
-                background_path=background_path
+                background_path=background_path,
+                output_filename=unique_filenames[i]
             )
             full_task_list.append(task)
             

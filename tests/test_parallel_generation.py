@@ -86,7 +86,8 @@ def test_worker_function_is_deterministic(tmp_path):
         source_spec=spec,
         text="Hello World",
         font_path=str(font_files[0]),
-        background_path=None
+        background_path=None,
+        output_filename="test"
     )
 
     # Generate the same image twice
@@ -178,14 +179,16 @@ def test_worker_function_with_different_seeds_produces_different_images(tmp_path
         source_spec=spec,
         text="Hello",
         font_path=str(font_files[0]),
-        background_path=None
+        background_path=None,
+        output_filename="test1"
     )
 
     task2 = GenerationTask(
         source_spec=spec,
         text="World",
         font_path=str(font_files[0]),
-        background_path=None
+        background_path=None,
+        output_filename="test2"
     )
 
     # Generate different images
@@ -279,7 +282,8 @@ def test_parallel_vs_sequential_produces_same_results():
             source_spec=spec,
             text=text,
             font_path=str(font_files[0]),
-            background_path=None
+            background_path=None,
+            output_filename=f"test_{i}"
         )
         tasks.append((task, i, None))
 
@@ -382,7 +386,8 @@ def test_worker_function_handles_numpy_types():
         source_spec=spec,
         text="Test",
         font_path=str(font_files[0]),
-        background_path=None
+        background_path=None,
+        output_filename="test"
     )
 
     idx, image, plan, error = generate_image_from_task((task, 0, None))
@@ -462,7 +467,8 @@ def test_worker_function_preserves_task_index():
         source_spec=spec,
         text="Test",
         font_path=str(font_files[0]),
-        background_path=None
+        background_path=None,
+        output_filename="test"
     )
 
     # Test with different indices
@@ -541,7 +547,8 @@ def test_worker_function_with_background_manager():
         source_spec=spec,
         text="Test",
         font_path=str(font_files[0]),
-        background_path=None
+        background_path=None,
+        output_filename="test"
     )
 
     # Generate with background manager
