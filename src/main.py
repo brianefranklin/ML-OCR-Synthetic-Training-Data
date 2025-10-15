@@ -78,15 +78,15 @@ def generate_image_from_task(
 
     task, index, background_manager = args
 
-    # Set random seed based on task index for deterministic generation
-    # This ensures the same index always produces the same output
-    random.seed(index)
-    np.random.seed(index)
-
-    # Create a generator instance (each worker needs its own)
-    generator = OCRDataGenerator()
-
     try:
+        # Set random seed based on task index for deterministic generation
+        # This ensures the same index always produces the same output
+        random.seed(index)
+        np.random.seed(index)
+
+        # Create a generator instance (each worker needs its own)
+        generator = OCRDataGenerator()
+
         # Generate a plan for this task
         plan: Dict[str, Any] = generator.plan_generation(
             spec=task.source_spec,
@@ -103,8 +103,9 @@ def generate_image_from_task(
 
         return index, image, plan, None
 
-    except (OSError, IOError, ValueError, TypeError) as e:
-        # Font loading or rendering errors - return None to skip this image
+    except Exception as e:
+        # Catch ALL exceptions to prevent worker crash
+        # This includes OSError, IOError, ValueError, TypeError, and any unexpected errors
         error_msg = f"Failed to generate image {index} with font '{task.font_path}': {type(e).__name__}: {e}"
         return index, None, None, error_msg
 
@@ -112,12 +113,12 @@ def generate_image_from_task(
 def save_image_and_label(
     args: Tuple[Image.Image, Dict[str, Any], Path, Path]
 ) -> None:
-    """Worker function for parallel image and label saving.
+    """Worker function for parallel image and label saving with retry logic.
 
     This function is designed to be used with multiprocessing.Pool for
     parallel saving of images and their corresponding JSON label files.
-    It enables significant performance improvements by parallelizing the
-    I/O-bound operations of PNG encoding and disk writes.
+    It includes retry logic with exponential backoff to handle transient
+    filesystem issues (e.g., virtiofs permission errors).
 
     Args:
         args: A tuple containing:
@@ -131,13 +132,12 @@ def save_image_and_label(
     Returns:
         None. Files are written to disk as side effects.
 
-    Raises:
-        IOError: If image or label file cannot be written.
-        TypeError: If plan contains non-serializable objects.
-
     Note:
         This function must be defined at module level (not nested) for
         multiprocessing compatibility due to pickle requirements.
+
+        All exceptions are caught and logged to prevent worker crashes.
+        Failed saves are logged as warnings but don't crash the worker.
 
     Examples:
         >>> from PIL import Image
@@ -146,14 +146,51 @@ def save_image_and_label(
         >>> plan = {"text": "hello", "bboxes": []}
         >>> save_image_and_label((image, plan, Path("out.png"), Path("out.json")))
     """
+    import time
+    import random
+    import logging
+
+    logger = logging.getLogger(__name__)
     image, plan, image_path, label_path = args
 
-    # Save image as PNG
-    image.save(image_path)
+    max_retries = 3
+    base_delay = 0.1  # 100ms base delay
 
-    # Save label as JSON with NumpyEncoder for numpy type handling
-    with open(label_path, 'w', encoding='utf-8') as f:
-        json.dump(plan, f, indent=4, cls=NumpyEncoder)
+    # Try to save with retries
+    for attempt in range(max_retries):
+        try:
+            # Save image as PNG
+            image.save(image_path)
+
+            # Save label as JSON with NumpyEncoder for numpy type handling
+            with open(label_path, 'w', encoding='utf-8') as f:
+                json.dump(plan, f, indent=4, cls=NumpyEncoder)
+
+            # Success - return immediately
+            return
+
+        except PermissionError as e:
+            if attempt < max_retries - 1:
+                # Calculate delay with exponential backoff and jitter
+                delay = base_delay * (2 ** attempt) + random.uniform(0, 0.05)
+                logger.warning(
+                    f"PermissionError saving {image_path.name}, "
+                    f"retry {attempt + 1}/{max_retries} after {delay:.3f}s: {e}"
+                )
+                time.sleep(delay)
+            else:
+                # Final attempt failed
+                logger.error(
+                    f"Failed to save {image_path.name} after {max_retries} attempts: {e}"
+                )
+                return  # Don't crash worker, just skip this file
+
+        except Exception as e:
+            # Catch all other exceptions to prevent worker crash
+            logger.error(
+                f"Unexpected error saving {image_path.name}: {type(e).__name__}: {e}"
+            )
+            return  # Don't crash worker, just skip this file
 
 
 def main():
@@ -295,14 +332,9 @@ def main():
 
     print(f"Generating {batch_config.total_images} images...")
 
-    # Pre-generate a list of unique filenames for the entire batch
-    # Use a combination of timestamp, PID, and counter to ensure uniqueness
-    # even if multiple processes are running simultaneously
-    import os
-    import time
-    process_id = os.getpid()
-    timestamp_ns = time.time_ns()
-    unique_filenames = [f"{timestamp_ns}_{process_id}_{i:05d}" for i in range(batch_config.total_images)]
+    # Pre-generate a list of unique filenames for the entire batch using UUID4
+    # UUID4 has negligible collision probability (<10^-15 for 10k images)
+    unique_filenames = [str(uuid.uuid4()) for _ in range(batch_config.total_images)]
 
     # Create the full list of generation tasks
     tasks: List[GenerationTask] = orchestrator.create_task_list(
@@ -360,8 +392,14 @@ def main():
                     for idx, task in zip(chunk_indices, chunk_tasks)
                 ]
 
-                # Generate chunk in parallel
-                chunk_results = gen_pool.map(generate_image_from_task, chunk_args)
+                # Generate chunk in parallel with error handling
+                try:
+                    chunk_results = gen_pool.map(generate_image_from_task, chunk_args)
+                except Exception as e:
+                    logger.error(f"Generation pool.map() failed for chunk {chunk_offset}-{chunk_end_offset-1}: {type(e).__name__}: {e}")
+                    logger.warning(f"Skipping {len(chunk_tasks)} images in failed chunk, continuing with next chunk")
+                    total_progress.update(len(chunk_tasks))
+                    continue
 
                 # Save chunk immediately, filtering out failed generations
                 chunk_saved_count = 0
@@ -386,17 +424,29 @@ def main():
 
                         # Save batch when full
                         if len(save_tasks) >= io_batch_size:
-                            io_pool.map(save_image_and_label, save_tasks)
-                            chunk_saved_count += len(save_tasks)
-                            total_progress.update(len(save_tasks))
-                            save_tasks = []
+                            try:
+                                io_pool.map(save_image_and_label, save_tasks)
+                                chunk_saved_count += len(save_tasks)
+                                total_progress.update(len(save_tasks))
+                            except Exception as e:
+                                logger.error(f"I/O pool.map() failed for batch: {type(e).__name__}: {e}")
+                                logger.warning(f"Skipping {len(save_tasks)} images in failed I/O batch")
+                                total_progress.update(len(save_tasks))
+                            finally:
+                                save_tasks = []
 
                     # Save any remaining tasks at end of chunk
                     if len(save_tasks) > 0:
-                        io_pool.map(save_image_and_label, save_tasks)
-                        chunk_saved_count += len(save_tasks)
-                        total_progress.update(len(save_tasks))
-                        save_tasks = []
+                        try:
+                            io_pool.map(save_image_and_label, save_tasks)
+                            chunk_saved_count += len(save_tasks)
+                            total_progress.update(len(save_tasks))
+                        except Exception as e:
+                            logger.error(f"I/O pool.map() failed for final batch: {type(e).__name__}: {e}")
+                            logger.warning(f"Skipping {len(save_tasks)} images in failed I/O batch")
+                            total_progress.update(len(save_tasks))
+                        finally:
+                            save_tasks = []
                 else:
                     # Sequential I/O
                     for idx, image, plan, error in chunk_results:
@@ -485,9 +535,14 @@ def main():
                 # Save batch when full or at end
                 is_last = (i == remaining_tasks[-1][0])
                 if len(save_tasks) >= batch_size or is_last:
-                    io_pool.map(save_image_and_label, save_tasks)
-                    images_completed += len(save_tasks)
-                    save_tasks = []
+                    try:
+                        io_pool.map(save_image_and_label, save_tasks)
+                        images_completed += len(save_tasks)
+                    except Exception as e:
+                        logger.error(f"I/O pool.map() failed in sequential mode: {type(e).__name__}: {e}")
+                        logger.warning(f"Skipping {len(save_tasks)} images in failed I/O batch")
+                    finally:
+                        save_tasks = []
                     # Save checkpoint after each batch
                     checkpoint_manager.save_checkpoint(completed_images=images_completed)
             else:
