@@ -139,6 +139,15 @@ def save_image_and_label(
         All exceptions are caught and logged to prevent worker crashes.
         Failed saves are logged as warnings but don't crash the worker.
 
+        The retry logic is specifically designed to handle virtiofs filesystem
+        limitations. Virtiofs (used by Docker/devcontainers to mount host
+        directories) can experience transient PermissionErrors under high-concurrency
+        workloads when multiple parallel I/O workers write files simultaneously.
+        The FUSE layer's file handle management and locking mechanisms struggle
+        with rapid parallel operations from multiprocessing pools. The exponential
+        backoff with random jitter gives the filesystem time to release locks
+        and complete pending operations before retrying.
+
     Examples:
         >>> from PIL import Image
         >>> from pathlib import Path
