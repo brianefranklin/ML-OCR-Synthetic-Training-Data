@@ -1,0 +1,378 @@
+# Stage 3: Full complexity with colors, backgrounds, and all augmentations
+# This is the hardest stage with:
+# - Real background images
+# - Full color variation for text
+# - All rotation and curve variations
+# - Maximum augmentations/effects for realistic conditions
+# - All fonts including decorative
+# - Full text length range (5-100 characters)
+
+total_images: 10000
+
+specifications:
+  # Spec 1: Colored text on background images - 30%
+  - name: "stage3_colored_backgrounds"
+    proportion: 0.30
+    text_direction: "left_to_right"
+    corpus_file: "ltr/gutenberg_11.txt"
+    font_filter: null  # Allow all fonts
+
+    min_text_length: 5
+    max_text_length: 100
+
+    # Full color range for text
+    text_color_min: [0, 0, 0]
+    text_color_max: [255, 255, 255]
+
+    # Background images enabled
+
+
+
+    font_size_min: 20
+    font_size_max: 96
+
+    # Full rotation range
+    rotation_angle_min: -25.0
+    rotation_angle_max: 25.0
+
+    # Mix of curve types
+    curve_type: "arc"
+    arc_radius_min: 150.0
+    arc_radius_max: 1000.0
+    arc_concave: true
+
+    # Allow glyph overlap
+    glyph_overlap_intensity_min: 0.0
+    glyph_overlap_intensity_max: 0.3
+
+    # Ink bleed enabled
+    ink_bleed_radius_min: 0.0
+    ink_bleed_radius_max: 2.5
+
+    # Perspective warp
+    perspective_warp_magnitude_min: 0.0
+    perspective_warp_magnitude_max: 0.15
+
+    # Full noise range
+    noise_amount_min: 0.0
+    noise_amount_max: 0.15
+
+    # Full blur range
+    blur_radius_min: 0.0
+    blur_radius_max: 1.5
+
+    # Full brightness/contrast variation
+    brightness_factor_min: 0.75
+    brightness_factor_max: 1.25
+    contrast_factor_min: 0.75
+    contrast_factor_max: 1.25
+
+    # Elastic distortion
+    elastic_distortion_alpha_min: 0.0
+    elastic_distortion_alpha_max: 30.0
+    elastic_distortion_sigma_min: 3.0
+    elastic_distortion_sigma_max: 7.0
+
+    # Grid distortion
+    grid_distortion_steps_min: 0
+    grid_distortion_steps_max: 7
+    grid_distortion_limit_min: 0.0
+    grid_distortion_limit_max: 0.3
+
+    # Optical distortion
+    optical_distortion_limit_min: 0.0
+    optical_distortion_limit_max: 0.3
+
+    # Morphological operations
+    erosion_dilation_kernel_min: 0
+    erosion_dilation_kernel_max: 3
+
+    # Cutout augmentation
+    cutout_width_min: 0
+    cutout_width_max: 15
+    cutout_height_min: 0
+    cutout_height_max: 15
+
+  # Spec 2: High contrast colored text on backgrounds - 25%
+  - name: "stage3_high_contrast"
+    proportion: 0.25
+    text_direction: "left_to_right"
+    corpus_file: "ltr/gutenberg_1116.txt"
+    font_filter: "*Bold.ttf"  # Bold for better visibility
+
+    min_text_length: 5
+    max_text_length: 100
+
+    # High contrast colors
+    text_color_min: [0, 0, 0]
+    text_color_max: [100, 100, 100]  # Darker text
+
+
+
+
+    font_size_min: 24
+    font_size_max: 96
+
+    rotation_angle_min: -20.0
+    rotation_angle_max: 20.0
+
+    curve_type: "sine"
+    sine_amplitude_min: 3.0
+    sine_amplitude_max: 30.0
+    sine_frequency_min: 0.005
+    sine_frequency_max: 0.08
+    sine_phase_min: 0.0
+    sine_phase_max: 6.28
+
+    glyph_overlap_intensity_min: 0.0
+    glyph_overlap_intensity_max: 0.25
+
+    ink_bleed_radius_min: 0.0
+    ink_bleed_radius_max: 2.0
+
+    perspective_warp_magnitude_min: 0.0
+    perspective_warp_magnitude_max: 0.12
+
+    noise_amount_min: 0.0
+    noise_amount_max: 0.12
+
+    blur_radius_min: 0.0
+    blur_radius_max: 1.2
+
+    brightness_factor_min: 0.80
+    brightness_factor_max: 1.20
+    contrast_factor_min: 0.80
+    contrast_factor_max: 1.20
+
+    elastic_distortion_alpha_min: 0.0
+    elastic_distortion_alpha_max: 25.0
+    elastic_distortion_sigma_min: 3.0
+    elastic_distortion_sigma_max: 6.0
+
+    grid_distortion_steps_min: 0
+    grid_distortion_steps_max: 6
+    grid_distortion_limit_min: 0.0
+    grid_distortion_limit_max: 0.25
+
+    optical_distortion_limit_min: 0.0
+    optical_distortion_limit_max: 0.25
+
+    erosion_dilation_kernel_min: 0
+    erosion_dilation_kernel_max: 2
+
+    cutout_width_min: 0
+    cutout_width_max: 12
+    cutout_height_min: 0
+    cutout_height_max: 12
+
+  # Spec 3: Light colored text on dark backgrounds - 20%
+  - name: "stage3_light_on_dark"
+    proportion: 0.20
+    text_direction: "left_to_right"
+    corpus_file: "ltr/gutenberg_15.txt"
+    font_filter: null
+
+    min_text_length: 10
+    max_text_length: 80
+
+    # Light text colors
+    text_color_min: [150, 150, 150]
+    text_color_max: [255, 255, 255]
+
+
+
+
+    font_size_min: 20
+    font_size_max: 80
+
+    rotation_angle_min: -30.0
+    rotation_angle_max: 30.0
+
+    curve_type: "arc"
+    arc_radius_min: 200.0
+    arc_radius_max: 800.0
+    arc_concave: true
+
+    glyph_overlap_intensity_min: 0.0
+    glyph_overlap_intensity_max: 0.35
+
+    ink_bleed_radius_min: 0.0
+    ink_bleed_radius_max: 3.0
+
+    perspective_warp_magnitude_min: 0.0
+    perspective_warp_magnitude_max: 0.18
+
+    noise_amount_min: 0.0
+    noise_amount_max: 0.18
+
+    blur_radius_min: 0.0
+    blur_radius_max: 1.8
+
+    brightness_factor_min: 0.70
+    brightness_factor_max: 1.30
+    contrast_factor_min: 0.70
+    contrast_factor_max: 1.30
+
+    elastic_distortion_alpha_min: 0.0
+    elastic_distortion_alpha_max: 35.0
+    elastic_distortion_sigma_min: 2.0
+    elastic_distortion_sigma_max: 8.0
+
+    grid_distortion_steps_min: 0
+    grid_distortion_steps_max: 8
+    grid_distortion_limit_min: 0.0
+    grid_distortion_limit_max: 0.35
+
+    optical_distortion_limit_min: 0.0
+    optical_distortion_limit_max: 0.35
+
+    erosion_dilation_kernel_min: 0
+    erosion_dilation_kernel_max: 4
+
+    cutout_width_min: 0
+    cutout_width_max: 18
+    cutout_height_min: 0
+    cutout_height_max: 18
+
+  # Spec 4: Extreme augmentations - challenging cases - 15%
+  - name: "stage3_extreme"
+    proportion: 0.15
+    text_direction: "left_to_right"
+    corpus_file: "ltr/gutenberg_41445.txt"
+    font_filter: null
+
+    min_text_length: 10
+    max_text_length: 60
+
+    # Full color spectrum
+    text_color_min: [0, 0, 0]
+    text_color_max: [255, 255, 255]
+
+
+
+
+    font_size_min: 18
+    font_size_max: 120
+
+    # Extreme rotation
+    rotation_angle_min: -45.0
+    rotation_angle_max: 45.0
+
+    # Extreme sine waves
+    curve_type: "sine"
+    sine_amplitude_min: 10.0
+    sine_amplitude_max: 50.0
+    sine_frequency_min: 0.01
+    sine_frequency_max: 0.1
+    sine_phase_min: 0.0
+    sine_phase_max: 6.28
+
+    glyph_overlap_intensity_min: 0.0
+    glyph_overlap_intensity_max: 0.5
+
+    ink_bleed_radius_min: 0.0
+    ink_bleed_radius_max: 4.0
+
+    perspective_warp_magnitude_min: 0.0
+    perspective_warp_magnitude_max: 0.25
+
+    noise_amount_min: 0.0
+    noise_amount_max: 0.25
+
+    blur_radius_min: 0.0
+    blur_radius_max: 2.5
+
+    brightness_factor_min: 0.60
+    brightness_factor_max: 1.40
+    contrast_factor_min: 0.60
+    contrast_factor_max: 1.40
+
+    elastic_distortion_alpha_min: 0.0
+    elastic_distortion_alpha_max: 50.0
+    elastic_distortion_sigma_min: 2.0
+    elastic_distortion_sigma_max: 10.0
+
+    grid_distortion_steps_min: 0
+    grid_distortion_steps_max: 10
+    grid_distortion_limit_min: 0.0
+    grid_distortion_limit_max: 0.5
+
+    optical_distortion_limit_min: 0.0
+    optical_distortion_limit_max: 0.5
+
+    erosion_dilation_kernel_min: 0
+    erosion_dilation_kernel_max: 5
+
+    cutout_width_min: 0
+    cutout_width_max: 25
+    cutout_height_min: 0
+    cutout_height_max: 25
+
+  # Spec 5: Medium difficulty mix - balanced approach - 10%
+  - name: "stage3_balanced"
+    proportion: 0.10
+    text_direction: "left_to_right"
+    corpus_file: "ltr/gutenberg_42671.txt"
+    font_filter: "*Regular.ttf"
+
+    min_text_length: 15
+    max_text_length: 50
+
+    # Moderate color range
+    text_color_min: [50, 50, 50]
+    text_color_max: [205, 205, 205]
+
+
+
+
+    font_size_min: 24
+    font_size_max: 72
+
+    rotation_angle_min: -15.0
+    rotation_angle_max: 15.0
+
+    curve_type: "arc"
+    arc_radius_min: 250.0
+    arc_radius_max: 700.0
+    arc_concave: true
+
+    glyph_overlap_intensity_min: 0.0
+    glyph_overlap_intensity_max: 0.2
+
+    ink_bleed_radius_min: 0.0
+    ink_bleed_radius_max: 1.8
+
+    perspective_warp_magnitude_min: 0.0
+    perspective_warp_magnitude_max: 0.10
+
+    noise_amount_min: 0.0
+    noise_amount_max: 0.10
+
+    blur_radius_min: 0.0
+    blur_radius_max: 1.0
+
+    brightness_factor_min: 0.85
+    brightness_factor_max: 1.15
+    contrast_factor_min: 0.85
+    contrast_factor_max: 1.15
+
+    elastic_distortion_alpha_min: 0.0
+    elastic_distortion_alpha_max: 20.0
+    elastic_distortion_sigma_min: 3.0
+    elastic_distortion_sigma_max: 6.0
+
+    grid_distortion_steps_min: 0
+    grid_distortion_steps_max: 5
+    grid_distortion_limit_min: 0.0
+    grid_distortion_limit_max: 0.20
+
+    optical_distortion_limit_min: 0.0
+    optical_distortion_limit_max: 0.20
+
+    erosion_dilation_kernel_min: 0
+    erosion_dilation_kernel_max: 2
+
+    cutout_width_min: 0
+    cutout_width_max: 10
+    cutout_height_min: 0
+    cutout_height_max: 10

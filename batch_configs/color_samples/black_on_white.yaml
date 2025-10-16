@@ -1,7 +1,0 @@
-total_images: 10
-batches:
-  - name: black_on_white
-    proportion: 1.0
-    text_color_mode: uniform
-    custom_colors: [[0, 0, 0]]
-    background_color: [255, 255, 255]

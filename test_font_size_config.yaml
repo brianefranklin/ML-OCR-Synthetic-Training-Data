@@ -1,0 +1,32 @@
+total_images: 6
+
+specifications:
+  # Test 1: Small font (18-24)
+  - name: "small_font"
+    proportion: 0.33
+    text_direction: "left_to_right"
+    corpus_file: "gutenberg_11.txt"
+    font_size_min: 18
+    font_size_max: 24
+    min_text_length: 10
+    max_text_length: 20
+
+  # Test 2: Medium font (48-64)
+  - name: "medium_font"
+    proportion: 0.34
+    text_direction: "left_to_right"
+    corpus_file: "gutenberg_11.txt"
+    font_size_min: 48
+    font_size_max: 64
+    min_text_length: 10
+    max_text_length: 20
+
+  # Test 3: Large font (80-120)
+  - name: "large_font"
+    proportion: 0.33
+    text_direction: "left_to_right"
+    corpus_file: "gutenberg_11.txt"
+    font_size_min: 80
+    font_size_max: 120
+    min_text_length: 10
+    max_text_length: 20

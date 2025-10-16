@@ -1,0 +1,298 @@
+# Stage 2: Add rotation, curves, and moderate augmentations
+# This is medium difficulty with:
+# - White backgrounds only (still no background images)
+# - Black text only (still no color variation)
+# - Rotation allowed (angled text)
+# - Curves allowed (arc and sine)
+# - Moderate augmentations/effects
+# - All readable fonts (includes Bold/Light weights)
+# - Medium text lengths (10-40 characters)
+
+total_images: 10000
+
+specifications:
+  # Spec 1: Rotated text with sans-serif - 25%
+  - name: "stage2_rotated_sans"
+    proportion: 0.25
+    text_direction: "left_to_right"
+    corpus_file: "ltr/gutenberg_11.txt"
+    font_filter: "*Sans*.ttf"
+
+    min_text_length: 10
+    max_text_length: 40
+
+    text_color_min: [0, 0, 0]
+    text_color_max: [0, 0, 0]
+
+
+
+    font_size_min: 24
+    font_size_max: 72
+
+    # Allow rotation up to 15 degrees
+    rotation_angle_min: -15.0
+    rotation_angle_max: 15.0
+
+    # No curves for this spec
+    curve_type: "none"
+
+    # Minimal glyph overlap
+    glyph_overlap_intensity_min: 0.0
+    glyph_overlap_intensity_max: 0.1
+
+    # Minimal ink bleed
+    ink_bleed_radius_min: 0.0
+    ink_bleed_radius_max: 1.0
+
+    # Light perspective warp
+    perspective_warp_magnitude_min: 0.0
+    perspective_warp_magnitude_max: 0.05
+
+    # Moderate noise
+    noise_amount_min: 0.0
+    noise_amount_max: 0.08
+
+    # Moderate blur
+    blur_radius_min: 0.0
+    blur_radius_max: 0.8
+
+    # Slight brightness/contrast variation
+    brightness_factor_min: 0.95
+    brightness_factor_max: 1.05
+    contrast_factor_min: 0.95
+    contrast_factor_max: 1.05
+
+    # Light elastic distortion
+    elastic_distortion_alpha_min: 0.0
+    elastic_distortion_alpha_max: 10.0
+    elastic_distortion_sigma_min: 3.0
+    elastic_distortion_sigma_max: 5.0
+
+    # Minimal grid distortion
+    grid_distortion_steps_min: 0
+    grid_distortion_steps_max: 3
+    grid_distortion_limit_min: 0.0
+    grid_distortion_limit_max: 0.1
+
+    # Minimal optical distortion
+    optical_distortion_limit_min: 0.0
+    optical_distortion_limit_max: 0.1
+
+    # No morphological operations yet
+    erosion_dilation_kernel_min: 0
+    erosion_dilation_kernel_max: 0
+
+    # No cutout yet
+    cutout_width_min: 0
+    cutout_width_max: 0
+    cutout_height_min: 0
+    cutout_height_max: 0
+
+  # Spec 2: Arc curves with serif fonts - 25%
+  - name: "stage2_arc_serif"
+    proportion: 0.25
+    text_direction: "left_to_right"
+    corpus_file: "ltr/gutenberg_1116.txt"
+    font_filter: "*Serif*.ttf"
+
+    min_text_length: 10
+    max_text_length: 40
+
+    text_color_min: [0, 0, 0]
+    text_color_max: [0, 0, 0]
+
+
+
+    font_size_min: 24
+    font_size_max: 72
+
+    # Minimal rotation (curves provide the angle)
+    rotation_angle_min: -5.0
+    rotation_angle_max: 5.0
+
+    # Arc curves
+    curve_type: "arc"
+    arc_radius_min: 200.0
+    arc_radius_max: 800.0
+    arc_concave: true
+
+    glyph_overlap_intensity_min: 0.0
+    glyph_overlap_intensity_max: 0.1
+
+    ink_bleed_radius_min: 0.0
+    ink_bleed_radius_max: 1.0
+
+    perspective_warp_magnitude_min: 0.0
+    perspective_warp_magnitude_max: 0.05
+
+    noise_amount_min: 0.0
+    noise_amount_max: 0.08
+
+    blur_radius_min: 0.0
+    blur_radius_max: 0.8
+
+    brightness_factor_min: 0.95
+    brightness_factor_max: 1.05
+    contrast_factor_min: 0.95
+    contrast_factor_max: 1.05
+
+    elastic_distortion_alpha_min: 0.0
+    elastic_distortion_alpha_max: 10.0
+    elastic_distortion_sigma_min: 3.0
+    elastic_distortion_sigma_max: 5.0
+
+    grid_distortion_steps_min: 0
+    grid_distortion_steps_max: 3
+    grid_distortion_limit_min: 0.0
+    grid_distortion_limit_max: 0.1
+
+    optical_distortion_limit_min: 0.0
+    optical_distortion_limit_max: 0.1
+
+    erosion_dilation_kernel_min: 0
+    erosion_dilation_kernel_max: 0
+
+    cutout_width_min: 0
+    cutout_width_max: 0
+    cutout_height_min: 0
+    cutout_height_max: 0
+
+  # Spec 3: Sine waves with Bold fonts - 25%
+  - name: "stage2_sine_bold"
+    proportion: 0.25
+    text_direction: "left_to_right"
+    corpus_file: "ltr/gutenberg_15.txt"
+    font_filter: "*Bold.ttf"
+
+    min_text_length: 10
+    max_text_length: 40
+
+    text_color_min: [0, 0, 0]
+    text_color_max: [0, 0, 0]
+
+
+
+    font_size_min: 24
+    font_size_max: 72
+
+    rotation_angle_min: -5.0
+    rotation_angle_max: 5.0
+
+    # Sine wave curves
+    curve_type: "sine"
+    sine_amplitude_min: 5.0
+    sine_amplitude_max: 20.0
+    sine_frequency_min: 0.01
+    sine_frequency_max: 0.05
+    sine_phase_min: 0.0
+    sine_phase_max: 6.28
+
+    glyph_overlap_intensity_min: 0.0
+    glyph_overlap_intensity_max: 0.1
+
+    ink_bleed_radius_min: 0.0
+    ink_bleed_radius_max: 1.0
+
+    perspective_warp_magnitude_min: 0.0
+    perspective_warp_magnitude_max: 0.05
+
+    noise_amount_min: 0.0
+    noise_amount_max: 0.08
+
+    blur_radius_min: 0.0
+    blur_radius_max: 0.8
+
+    brightness_factor_min: 0.95
+    brightness_factor_max: 1.05
+    contrast_factor_min: 0.95
+    contrast_factor_max: 1.05
+
+    elastic_distortion_alpha_min: 0.0
+    elastic_distortion_alpha_max: 10.0
+    elastic_distortion_sigma_min: 3.0
+    elastic_distortion_sigma_max: 5.0
+
+    grid_distortion_steps_min: 0
+    grid_distortion_steps_max: 3
+    grid_distortion_limit_min: 0.0
+    grid_distortion_limit_max: 0.1
+
+    optical_distortion_limit_min: 0.0
+    optical_distortion_limit_max: 0.1
+
+    erosion_dilation_kernel_min: 0
+    erosion_dilation_kernel_max: 0
+
+    cutout_width_min: 0
+    cutout_width_max: 0
+    cutout_height_min: 0
+    cutout_height_max: 0
+
+  # Spec 4: Mixed - rotation + curves with Regular fonts - 25%
+  - name: "stage2_mixed_regular"
+    proportion: 0.25
+    text_direction: "left_to_right"
+    corpus_file: "ltr/gutenberg_41445.txt"
+    font_filter: "*Regular.ttf"
+
+    min_text_length: 10
+    max_text_length: 40
+
+    text_color_min: [0, 0, 0]
+    text_color_max: [0, 0, 0]
+
+
+
+    font_size_min: 24
+    font_size_max: 72
+
+    # Moderate rotation combined with curves
+    rotation_angle_min: -10.0
+    rotation_angle_max: 10.0
+
+    # Random curves (will pick arc or sine)
+    curve_type: "arc"
+    arc_radius_min: 300.0
+    arc_radius_max: 600.0
+    arc_concave: true
+
+    glyph_overlap_intensity_min: 0.0
+    glyph_overlap_intensity_max: 0.15
+
+    ink_bleed_radius_min: 0.0
+    ink_bleed_radius_max: 1.5
+
+    perspective_warp_magnitude_min: 0.0
+    perspective_warp_magnitude_max: 0.08
+
+    noise_amount_min: 0.0
+    noise_amount_max: 0.10
+
+    blur_radius_min: 0.0
+    blur_radius_max: 1.0
+
+    brightness_factor_min: 0.90
+    brightness_factor_max: 1.10
+    contrast_factor_min: 0.90
+    contrast_factor_max: 1.10
+
+    elastic_distortion_alpha_min: 0.0
+    elastic_distortion_alpha_max: 15.0
+    elastic_distortion_sigma_min: 3.0
+    elastic_distortion_sigma_max: 5.0
+
+    grid_distortion_steps_min: 0
+    grid_distortion_steps_max: 5
+    grid_distortion_limit_min: 0.0
+    grid_distortion_limit_max: 0.15
+
+    optical_distortion_limit_min: 0.0
+    optical_distortion_limit_max: 0.15
+
+    erosion_dilation_kernel_min: 0
+    erosion_dilation_kernel_max: 1
+
+    cutout_width_min: 0
+    cutout_width_max: 0
+    cutout_height_min: 0
+    cutout_height_max: 0

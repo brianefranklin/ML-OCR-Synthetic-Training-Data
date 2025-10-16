@@ -1,347 +1,146 @@
 """
-Tests for BackgroundImageManager functionality.
-
-Tests:
-- Background discovery from directories
-- Background validation (size checks)
-- Background cropping
-- Score persistence and updates
-- Weighted selection
+Tests for the BackgroundImageManager's score-based system.
 """
 
 import pytest
-import os
-import sys
-import tempfile
-import json
-from PIL import Image
+from collections import Counter
+from pathlib import Path
+from src.background_manager import BackgroundImageManager
 
-# Add src to path for imports
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'src'))
-
-from background_manager import BackgroundImageManager
-
-
-@pytest.fixture
-def temp_dir():
-    """Create temporary directory for test backgrounds."""
-    with tempfile.TemporaryDirectory() as tmpdir:
-        yield tmpdir
-
+# These constants must match the values in the ResourceManager implementation
+# to ensure the tests are validating against the correct thresholds and score changes.
+STARTING_SCORE = 100
+SUCCESS_SCORE_INCREASE = 1
+FAILURE_SCORE_DECREASE = 10
+HEALTH_THRESHOLD = 50
 
 @pytest.fixture
-def sample_backgrounds(temp_dir):
-    """Create sample background images of various sizes."""
-    backgrounds = {}
-
-    # Small background (100x100)
-    small_path = os.path.join(temp_dir, "small.png")
-    small_img = Image.new('RGB', (100, 100), color='red')
-    small_img.save(small_path)
-    backgrounds['small'] = small_path
-
-    # Medium background (500x500)
-    medium_path = os.path.join(temp_dir, "medium.png")
-    medium_img = Image.new('RGB', (500, 500), color='green')
-    medium_img.save(medium_path)
-    backgrounds['medium'] = medium_path
-
-    # Large background (2000x2000)
-    large_path = os.path.join(temp_dir, "large.png")
-    large_img = Image.new('RGB', (2000, 2000), color='blue')
-    large_img.save(large_path)
-    backgrounds['large'] = large_path
-
-    return backgrounds
-
-
-def test_background_discovery(temp_dir, sample_backgrounds):
-    """Test that BackgroundImageManager discovers images correctly."""
-    manager = BackgroundImageManager(
-        background_dirs=[temp_dir],
-        pattern="*.png"
-    )
-
-    # Should discover all 3 backgrounds
-    assert len(manager.backgrounds) == 3
-    assert sample_backgrounds['small'] in manager.backgrounds
-    assert sample_backgrounds['medium'] in manager.backgrounds
-    assert sample_backgrounds['large'] in manager.backgrounds
-
-    # All should have default score of 1.0
-    assert manager.backgrounds[sample_backgrounds['small']] == 1.0
-    assert manager.backgrounds[sample_backgrounds['medium']] == 1.0
-    assert manager.backgrounds[sample_backgrounds['large']] == 1.0
-
-
-def test_background_validation_too_small_for_text(sample_backgrounds):
-    """Test validation rejects backgrounds smaller than text bbox."""
-    manager = BackgroundImageManager(
-        background_dirs=[os.path.dirname(sample_backgrounds['small'])],
-        pattern="*.png"
-    )
-
-    # Canvas 1000x1000, text bbox (0, 0, 200, 200) - small (100x100) should fail
-    canvas_size = (1000, 1000)
-    text_bbox = (0, 0, 200, 200)
-
-    is_valid, reason, penalty = manager.validate_background(
-        sample_backgrounds['small'],
-        canvas_size,
-        text_bbox
-    )
-
-    assert not is_valid
-    assert "smaller than text" in reason.lower()
-    assert penalty == 1.0  # Severe penalty
-
-
-def test_background_validation_too_small_for_canvas(sample_backgrounds):
-    """Test validation rejects backgrounds smaller than canvas."""
-    manager = BackgroundImageManager(
-        background_dirs=[os.path.dirname(sample_backgrounds['small'])],
-        pattern="*.png"
-    )
-
-    # Canvas 1000x1000, text bbox (0, 0, 50, 50) - small (100x100) should fail (too small for canvas)
-    canvas_size = (1000, 1000)
-    text_bbox = (0, 0, 50, 50)
-
-    is_valid, reason, penalty = manager.validate_background(
-        sample_backgrounds['small'],
-        canvas_size,
-        text_bbox
-    )
-
-    assert not is_valid
-    assert "smaller than canvas" in reason.lower()
-    assert penalty == 0.5  # Moderate penalty
-
-
-def test_background_validation_larger_than_canvas(sample_backgrounds):
-    """Test validation accepts backgrounds larger than canvas."""
-    manager = BackgroundImageManager(
-        background_dirs=[os.path.dirname(sample_backgrounds['large'])],
-        pattern="*.png"
-    )
-
-    # Canvas 500x500, text bbox (0, 0, 50, 50) - large (2000x2000) should pass
-    canvas_size = (500, 500)
-    text_bbox = (0, 0, 50, 50)
-
-    is_valid, reason, penalty = manager.validate_background(
-        sample_backgrounds['large'],
-        canvas_size,
-        text_bbox
-    )
-
-    assert is_valid
-    assert "valid" in reason.lower()
-    assert penalty == 0.0
-
-
-def test_background_crop_to_canvas_size(sample_backgrounds):
-    """Test that backgrounds are cropped to canvas size."""
-    manager = BackgroundImageManager(
-        background_dirs=[os.path.dirname(sample_backgrounds['large'])],
-        pattern="*.png"
-    )
-
-    canvas_size = (500, 500)
-
-    cropped_img = manager.load_and_crop_background(
-        sample_backgrounds['large'],
-        canvas_size
-    )
-
-    assert cropped_img is not None
-    assert cropped_img.size == canvas_size
-
-
-def test_background_score_persistence(temp_dir, sample_backgrounds):
-    """Test that background scores are persisted to disk."""
-    score_file = os.path.join(temp_dir, "test_scores.json")
-
-    manager = BackgroundImageManager(
-        background_dirs=[os.path.dirname(sample_backgrounds['small'])],
-        pattern="*.png",
-        score_file=score_file,
-        enable_persistence=True  # Enable persistence for this test
-    )
-
-    # Update score (penalty reduces score from 1.0)
-    manager.update_score(sample_backgrounds['small'], 0.1)
-    manager.finalize()
-
-    # Check that score file was created
-    assert os.path.exists(score_file)
-
-    # Load and verify scores
-    with open(score_file, 'r') as f:
-        scores = json.load(f)
-
-    assert sample_backgrounds['small'] in scores
-    assert scores[sample_backgrounds['small']] < 1.0  # Should be 0.9 (1.0 - 0.1)
-    assert abs(scores[sample_backgrounds['small']] - 0.9) < 0.01
-
-
-def test_background_score_loading(temp_dir, sample_backgrounds):
-    """Test that scores are loaded from disk on initialization."""
-    score_file = os.path.join(temp_dir, "test_scores.json")
-
-    # Create initial manager and set scores
-    manager1 = BackgroundImageManager(
-        background_dirs=[os.path.dirname(sample_backgrounds['small'])],
-        pattern="*.png",
-        score_file=score_file,
-        enable_persistence=True  # Enable persistence
-    )
-    manager1.update_score(sample_backgrounds['small'], 0.5)
-    manager1.finalize()
-
-    # Create new manager - should load existing scores
-    manager2 = BackgroundImageManager(
-        background_dirs=[os.path.dirname(sample_backgrounds['small'])],
-        pattern="*.png",
-        score_file=score_file,
-        enable_persistence=True  # Enable persistence
-    )
-
-    # Should have loaded the reduced score
-    assert manager2.backgrounds[sample_backgrounds['small']] < 1.0
-    assert abs(manager2.backgrounds[sample_backgrounds['small']] - 0.5) < 0.01
-
-
-def test_background_selection_weighted(sample_backgrounds):
-    """Test that backgrounds are selected with weighting."""
-    manager = BackgroundImageManager(
-        background_dirs=[os.path.dirname(sample_backgrounds['small'])],
-        pattern="*.png"
-    )
-
-    # Penalize small background heavily
-    manager.update_score(sample_backgrounds['small'], 0.99)  # Score becomes 0.01
-
-    # Select backgrounds multiple times - should favor medium and large
-    selections = []
-    for _ in range(30):
-        selected = manager.select_background()
-        selections.append(selected)
-
-    # Small should be selected less often
-    small_count = selections.count(sample_backgrounds['small'])
-    total_count = len(selections)
-
-    # With score 0.01 vs 1.0, small should be selected ~1% of the time
-    # Allow for randomness: should be less than 20% of selections
-    assert small_count / total_count < 0.2
-
-
-def test_background_selection_no_backgrounds():
-    """Test selection when no backgrounds are available."""
-    manager = BackgroundImageManager(
-        background_dirs=[],
-        pattern="*.png"
-    )
-
-    selected = manager.select_background()
-    assert selected is None
-
-
-def test_background_statistics(sample_backgrounds):
-    """Test statistics calculation."""
-    manager = BackgroundImageManager(
-        background_dirs=[os.path.dirname(sample_backgrounds['small'])],
-        pattern="*.png"
-    )
-
-    # All backgrounds should have score 1.0 initially
-    stats = manager.get_statistics()
-    assert stats['total_backgrounds'] == 3
-    assert stats['avg_score'] == 1.0
-    assert stats['min_score'] == 1.0
-    assert stats['max_score'] == 1.0
-
-    # Penalize one background
-    manager.update_score(sample_backgrounds['small'], 0.5)
-
-    stats = manager.get_statistics()
-    assert stats['total_backgrounds'] == 3
-    assert stats['avg_score'] < 1.0  # Average should decrease
-    assert stats['min_score'] < 1.0  # Min should be 0.5
-    assert stats['max_score'] == 1.0  # Max still 1.0
-
-
-def test_brace_expansion_pattern(temp_dir):
-    """Test glob pattern with brace expansion."""
-    # Create images with different extensions
-    jpg_path = os.path.join(temp_dir, "test.jpg")
-    png_path = os.path.join(temp_dir, "test.png")
-    Image.new('RGB', (100, 100)).save(jpg_path)
-    Image.new('RGB', (100, 100)).save(png_path)
-
-    manager = BackgroundImageManager(
-        background_dirs=[temp_dir],
-        pattern="*.{png,jpg}"
-    )
-
-    # Should discover both
-    assert len(manager.backgrounds) == 2
-    assert any(jpg_path in path for path in manager.backgrounds.keys())
-    assert any(png_path in path for path in manager.backgrounds.keys())
-
-
-def test_directory_weights(temp_dir, sample_backgrounds):
-    """Test directory-based weighting."""
-    # Create subdirectories
-    dir1 = os.path.join(temp_dir, "high_priority")
-    dir2 = os.path.join(temp_dir, "low_priority")
-    os.makedirs(dir1)
-    os.makedirs(dir2)
-
-    # Add images to each directory
-    img1_path = os.path.join(dir1, "image1.png")
-    img2_path = os.path.join(dir2, "image2.png")
-    Image.new('RGB', (500, 500)).save(img1_path)
-    Image.new('RGB', (500, 500)).save(img2_path)
-
-    # Manager with directory weights
-    manager = BackgroundImageManager(
-        background_dirs=[dir1, dir2],
-        pattern="*.png",
-        weights={dir1: 10.0, dir2: 1.0}
-    )
-
-    # Check weights
-    assert manager.get_directory_weight(img1_path) == 10.0
-    assert manager.get_directory_weight(img2_path) == 1.0
-
-    # Selection should favor high-weight directory
-    selections = []
-    for _ in range(30):
-        selected = manager.select_background()
-        selections.append(selected)
-
-    img1_count = selections.count(img1_path)
-    total_count = len(selections)
-
-    # High weight image should be selected more often (expect >60%)
-    assert img1_count / total_count > 0.6
-
-
-def test_minimum_score_floor(sample_backgrounds):
-    """Test that scores don't go below minimum threshold."""
-    manager = BackgroundImageManager(
-        background_dirs=[os.path.dirname(sample_backgrounds['small'])],
-        pattern="*.png"
-    )
-
-    # Apply massive penalty
-    manager.update_score(sample_backgrounds['small'], 100.0)
-
-    # Score should be clamped to 0.01 (minimum)
-    assert manager.backgrounds[sample_backgrounds['small']] == 0.01
-
-
-if __name__ == "__main__":
-    pytest.main([__file__, "-v"])
+def manager(tmp_path):
+    """
+    This fixture sets up a temporary directory structure with a few dummy image files.
+    It then initializes a BackgroundImageManager pointing to this directory.
+    This provides a consistent, isolated environment for each test function.
+    """
+    # Create a temporary directory for the backgrounds.
+    bg_dir = tmp_path / "backgrounds"
+    bg_dir.mkdir()
+    
+    # Create dummy files to be discovered by the manager.
+    (bg_dir / "healthy.jpg").touch()
+    (bg_dir / "unhealthy.jpg").touch()
+    (bg_dir / "less_healthy.jpg").touch()
+    
+    # Initialize the manager, telling it to look for images in the created directory.
+    # The weight of 1.0 is arbitrary for this test.
+    return BackgroundImageManager(dir_weights={str(bg_dir): 1.0})
+
+def test_background_starts_with_default_score(manager: BackgroundImageManager):
+    """Intent: Verify that any new resource tracked by the manager starts with the default score."""
+    # Get the path of the first discovered background image.
+    bg_path = manager.background_paths[0]
+    # Internally get or create the health record for this path.
+    record = manager._get_or_create_record(bg_path)
+    # Assert that its score is the default starting score.
+    assert record.health_score == STARTING_SCORE
+
+def test_score_decreases_on_failure(manager: BackgroundImageManager):
+    """Intent: Verify that reporting a failure for a resource correctly decreases its score."""
+    # Get the path of the first discovered background image.
+    bg_path = manager.background_paths[0]
+    # Report a failure for this background.
+    manager.record_failure(bg_path)
+    # Retrieve the updated health record.
+    record = manager._get_or_create_record(bg_path)
+    # Assert that the score has been reduced by the correct amount.
+    assert record.health_score == STARTING_SCORE - FAILURE_SCORE_DECREASE
+
+def test_score_increases_on_success(manager: BackgroundImageManager):
+    """Intent: Verify that reporting a success correctly increases a resource's score."""
+    # Get the path of the first discovered background image.
+    bg_path = manager.background_paths[0]
+    # First, decrease the score by reporting a failure.
+    manager.record_failure(bg_path)
+    # Then, report a success.
+    manager.record_success(bg_path)
+    # Retrieve the updated record.
+    record = manager._get_or_create_record(bg_path)
+    # Assert that the score reflects both the decrease and the subsequent increase.
+    assert record.health_score == STARTING_SCORE - FAILURE_SCORE_DECREASE + SUCCESS_SCORE_INCREASE
+
+def test_unhealthy_backgrounds_are_filtered(manager: BackgroundImageManager):
+    """
+    Intent: Verify that the manager correctly filters out resources whose scores have fallen
+    below the health threshold.
+    """
+    # Find the specific paths for the healthy and unhealthy backgrounds.
+    # This is a more robust way to find the files we need for the test.
+    unhealthy_bg = None
+    healthy_bg = None
+    for path in manager.background_paths:
+        if Path(path).name == 'unhealthy.jpg':
+            unhealthy_bg = path
+        elif Path(path).name == 'healthy.jpg':
+            healthy_bg = path
+    
+    # Ensure we actually found the files we need for the test.
+    assert unhealthy_bg is not None, "Test setup failed: Could not find unhealthy.jpg"
+    assert healthy_bg is not None, "Test setup failed: Could not find healthy.jpg"
+
+    # Report failures for the 'unhealthy' background enough times to drop its score below the threshold.
+    # 6 failures * -10 points/failure = -60 points. 100 - 60 = 40, which is < 50.
+    for _ in range(6):
+        manager.record_failure(unhealthy_bg)
+    
+    # Get the set of backgrounds that the manager considers available.
+    available_bgs = manager.get_available_backgrounds()
+    
+    # Assert that the healthy background is still available.
+    assert healthy_bg in available_bgs
+    # Assert that the unhealthy background has been correctly filtered out.
+    assert unhealthy_bg not in available_bgs
+
+def test_weighted_background_selection(manager: BackgroundImageManager):
+    """
+    Intent: Verify that the manager's random selection is weighted by the health scores,
+    making healthier resources more likely to be chosen.
+    """
+    # Find the specific paths for the files involved in this test.
+    less_healthy_bg = None
+    healthy_bg = None
+    unhealthy_bg = None # This one is just part of the denominator in the probability calculation.
+    for path in manager.background_paths:
+        if Path(path).name == 'less_healthy.jpg':
+            less_healthy_bg = path
+        elif Path(path).name == 'healthy.jpg':
+            healthy_bg = path
+        elif Path(path).name == 'unhealthy.jpg':
+            unhealthy_bg = path
+
+    # Ensure all necessary files were found.
+    assert less_healthy_bg is not None
+    assert healthy_bg is not None
+    assert unhealthy_bg is not None
+
+    # Report failures for the 'less_healthy' background to lower its score.
+    # 5 failures * -10 points/failure = -50 points. Score becomes 50.
+    for _ in range(5):
+        manager.record_failure(less_healthy_bg)
+    
+    # Get the scores for the calculation.
+    healthy_score = manager._get_or_create_record(healthy_bg).health_score
+    less_healthy_score = manager._get_or_create_record(less_healthy_bg).health_score
+    unhealthy_score = manager._get_or_create_record(unhealthy_bg).health_score
+
+    # Perform a large number of selections to get a statistical sample.
+    num_selections = 1000
+    selections = [manager.select_background() for _ in range(num_selections)]
+    counts = Counter(selections)
+
+    # The core assertion: the healthier background should have been selected more often.
+    assert counts[healthy_bg] > counts[less_healthy_bg]
+
+    # A more detailed statistical check: does the proportion of selections match the
+    # expected proportion based on the health scores? We allow for some statistical noise.
+    total_score = healthy_score + less_healthy_score + unhealthy_score
+    expected_proportion = healthy_score / total_score
+    assert abs(counts[healthy_bg] / num_selections - expected_proportion) < 0.25

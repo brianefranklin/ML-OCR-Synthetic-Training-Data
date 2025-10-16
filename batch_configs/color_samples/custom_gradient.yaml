@@ -1,6 +1,0 @@
-total_images: 10
-batches:
-  - name: custom_gradient
-    proportion: 1.0
-    text_color_mode: gradient
-    custom_colors: [[255, 0, 0], [0, 0, 255]]

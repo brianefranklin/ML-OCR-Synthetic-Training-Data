@@ -1,0 +1,19 @@
+total_images: 50
+
+specifications:
+  - name: benchmark_spec
+    proportion: 1.0
+    text_direction: left_to_right
+    corpus_file: "gutenberg_1116.txt"
+    min_text_length: 20
+    max_text_length: 60
+    rotation_angle_min: -5.0
+    rotation_angle_max: 5.0
+    noise_amount_min: 0.0
+    noise_amount_max: 0.01
+    blur_radius_min: 0.0
+    blur_radius_max: 1.0
+    brightness_factor_min: 0.9
+    brightness_factor_max: 1.1
+    contrast_factor_min: 0.9
+    contrast_factor_max: 1.1

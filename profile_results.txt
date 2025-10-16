@@ -1,0 +1,45 @@
+OCR Data Generation Profile
+============================================================
+Config: test_configs/comprehensive_test.yaml
+Images generated: 10
+Sort by: cumulative
+============================================================
+
+         1142574 function calls (1121949 primitive calls) in 4.067 seconds
+
+   Ordered by: cumulative time
+   List reduced from 3113 to 30 due to restriction <30>
+
+   ncalls  tottime  percall  cumtime  percall filename:lineno(function)
+        1    0.000    0.000    4.069    4.069 /home/vscode/workspace/scripts/profile_generation.py:30(run_generation)
+       10    0.052    0.005    3.160    0.316 /home/vscode/workspace/src/generator.py:245(generate_from_plan)
+       10    0.007    0.001    2.458    0.246 /home/vscode/workspace/src/canvas_placement.py:67(place_on_canvas)
+      432    0.002    0.000    2.445    0.006 /usr/local/lib/python3.10/dist-packages/PIL/Image.py:931(convert)
+       10    0.003    0.000    2.247    0.225 /usr/local/lib/python3.10/dist-packages/PIL/ImageFile.py:273(load)
+      799    2.205    0.003    2.205    0.003 {method 'decode' of 'ImagingDecoder' objects}
+       10    0.000    0.000    0.722    0.072 /home/vscode/workspace/src/generator.py:45(plan_generation)
+    667/9    0.002    0.000    0.621    0.069 <frozen importlib._bootstrap>:1022(_find_and_load)
+    637/9    0.002    0.000    0.620    0.069 <frozen importlib._bootstrap>:987(_find_and_load_unlocked)
+   621/10    0.002    0.000    0.619    0.062 <frozen importlib._bootstrap>:664(_load_unlocked)
+   512/10    0.001    0.000    0.619    0.062 <frozen importlib._bootstrap_external>:877(exec_module)
+   940/10    0.001    0.000    0.619    0.062 <frozen importlib._bootstrap>:233(_call_with_frames_removed)
+   792/10    0.022    0.000    0.616    0.062 {built-in method builtins.exec}
+      200    0.000    0.000    0.613    0.003 /home/vscode/workspace/src/distributions.py:21(sample_parameter)
+   628/64    0.002    0.000    0.611    0.010 <frozen importlib._bootstrap>:1053(_handle_fromlist)
+       10    0.000    0.000    0.604    0.060 /home/vscode/workspace/src/distributions.py:209(sample_truncated_normal)
+ 6878/931    0.002    0.000    0.591    0.001 {built-in method builtins.hasattr}
+     33/1    0.000    0.000    0.590    0.590 /home/vscode/.local/lib/python3.10/site-packages/scipy/__init__.py:132(__getattr__)
+     33/1    0.000    0.000    0.590    0.590 /usr/lib/python3.10/importlib/__init__.py:108(import_module)
+     33/1    0.000    0.000    0.590    0.590 <frozen importlib._bootstrap>:1038(_gcd_import)
+        1    0.000    0.000    0.590    0.590 /home/vscode/.local/lib/python3.10/site-packages/scipy/stats/__init__.py:1(<module>)
+        1    0.000    0.000    0.508    0.508 /home/vscode/.local/lib/python3.10/site-packages/scipy/stats/_stats_py.py:1(<module>)
+  265/142    0.001    0.000    0.395    0.003 {built-in method builtins.__import__}
+       20    0.002    0.000    0.280    0.014 /home/vscode/workspace/src/generator.py:342(_render_text)
+        5    0.027    0.005    0.218    0.044 /home/vscode/workspace/src/augmentations.py:138(apply_elastic_distortion)
+      432    0.193    0.000    0.193    0.000 {method 'convert' of 'ImagingCore' objects}
+        1    0.000    0.000    0.174    0.174 /home/vscode/.local/lib/python3.10/site-packages/scipy/stats/distributions.py:1(<module>)
+        1    0.000    0.000    0.173    0.173 /home/vscode/.local/lib/python3.10/site-packages/scipy/sparse/__init__.py:1(<module>)
+      195    0.163    0.001    0.163    0.001 {remap}
+      201    0.003    0.000    0.159    0.001 /usr/local/lib/python3.10/dist-packages/PIL/Image.py:2358(rotate)
+
+

@@ -1,417 +1,335 @@
-import random
-import logging
+from PIL import Image
 import numpy as np
 import cv2
-from PIL import Image, ImageDraw, ImageFont, ImageFilter, ImageEnhance
+from typing import List, Dict, Any, Tuple, Optional
+import random
 
-# --- Helper Functions ---
+def apply_rotation(
+    image: Image.Image, 
+    bboxes: List[Dict[str, Any]], 
+    angle: float
+) -> Tuple[Image.Image, List[Dict[str, Any]]]:
+    """Rotates an image and its bounding boxes.
 
-def pil_to_cv2(pil_image):
-    """Converts a Pillow image to an OpenCV image."""
-    return np.array(pil_image)
+    Args:
+        image: The source PIL Image.
+        bboxes: A list of bounding box dictionaries.
+        angle: The rotation angle in degrees.
 
-def cv2_to_pil(cv2_image):
-    """Converts an OpenCV image to a Pillow image."""
-    return Image.fromarray(cv2_image)
+    Returns:
+        A tuple containing the rotated image and the transformed bounding boxes.
+    """
+    # Rotate the image, expanding the canvas to fit the new dimensions.
+    rotated_image = image.rotate(angle, expand=True, resample=Image.BICUBIC)
 
-# --- Simple Augmentations (from previous version) ---
-
-def add_noise(image):
-    """Adds random 'salt and pepper' noise to a Pillow image."""
-    logging.debug("Applying add_noise augmentation")
-    # Preserve RGBA mode if present
-    original_mode = image.mode
-    img_np = pil_to_cv2(image.convert('L')) # Convert to grayscale
-    h, w = img_np.shape
-    noise = np.random.randint(0, 256, (h, w), dtype=np.uint8)
-
-    salt = noise > 245
-    pepper = noise < 10
-
-    img_np[salt] = 255
-    img_np[pepper] = 0
-
-    result = cv2_to_pil(img_np).convert(original_mode)
-    return result
-
-
-def rotate_image(image, bboxes):
-    """Rotates a Pillow image by a random small angle, adjusts bboxes, and crops the image."""
-    if not bboxes:
-        return image, []
-    logging.debug("Applying rotate_image augmentation")
-    angle = random.uniform(-3, 3)
+    # Get the transformation matrix for the rotation.
     w, h = image.size
-    center_x, center_y = w / 2, h / 2
+    center = (w / 2, h / 2)
+    M = cv2.getRotationMatrix2D(center, angle, 1.0)
 
-    # Rotate image with expand=True to prevent cutoff
-    # Use transparent fillcolor for RGBA, white for RGB
-    fillcolor = (255, 255, 255, 0) if image.mode == 'RGBA' else 'white'
-    rotated_image = image.rotate(angle, expand=True, fillcolor=fillcolor)
+    # Adjust the matrix to account for the new canvas size after expansion.
     new_w, new_h = rotated_image.size
-
-    # Adjust the rotation matrix to account for the new dimensions and center
-    M = cv2.getRotationMatrix2D((center_x, center_y), angle, 1.0)
     M[0, 2] += (new_w - w) / 2
     M[1, 2] += (new_h - h) / 2
 
-    # Rotate bounding boxes
-    new_bboxes = []
+    # Transform each bounding box.
+    transformed_bboxes = []
     for bbox in bboxes:
-        points = np.float32([[bbox[0], bbox[1]], [bbox[2], bbox[1]], [bbox[0], bbox[3]], [bbox[2], bbox[3]]])
-        ones = np.ones(shape=(len(points), 1))
-        points_ones = np.hstack([points, ones])
+        # Get the four corners of the bounding box.
+        corners = np.array([
+            [bbox['x0'], bbox['y0']],
+            [bbox['x1'], bbox['y0']],
+            [bbox['x1'], bbox['y1']],
+            [bbox['x0'], bbox['y1']]
+        ], dtype=np.float32)
 
-        transformed_points = M.dot(points_ones.T).T
+        # Add a homogeneous coordinate (for matrix multiplication).
+        corners_homogeneous = np.hstack([corners, np.ones((4, 1))])
 
-        x_min = min(transformed_points[:, 0])
-        y_min = min(transformed_points[:, 1])
-        x_max = max(transformed_points[:, 0])
-        y_max = max(transformed_points[:, 1])
-        new_bboxes.append([x_min, y_min, x_max, y_max])
+        # Apply the affine transformation.
+        transformed_corners = (M @ corners_homogeneous.T).T
 
-    # Add padding to the image to ensure the bounding box is within the image
-    overall_bbox = [min(b[0] for b in new_bboxes), min(b[1] for b in new_bboxes), max(b[2] for b in new_bboxes), max(b[3] for b in new_bboxes)]
+        # Find the new enclosing axis-aligned bounding box.
+        min_x = np.min(transformed_corners[:, 0])
+        max_x = np.max(transformed_corners[:, 0])
+        min_y = np.min(transformed_corners[:, 1])
+        max_y = np.max(transformed_corners[:, 1])
 
-    # Safeguard: Check if bboxes extend unreasonably far from image boundaries
-    MAX_DIMENSION = 20000  # Maximum reasonable dimension (20K pixels per side)
-    MAX_PIXELS = 178_000_000  # PIL's decompression bomb limit
-    # Allow bbox to extend at most 3x the image dimension from boundaries
-    max_offset_x = new_w * 3
-    max_offset_y = new_h * 3
+        new_bbox = bbox.copy()
+        new_bbox['x0'] = int(min_x)
+        new_bbox['y0'] = int(min_y)
+        new_bbox['x1'] = int(max_x)
+        new_bbox['y1'] = int(max_y)
+        transformed_bboxes.append(new_bbox)
 
-    # Check if any bbox extends too far from rotated image boundaries
-    if (overall_bbox[2] > new_w + max_offset_x or overall_bbox[3] > new_h + max_offset_y or
-        overall_bbox[0] < -max_offset_x or overall_bbox[1] < -max_offset_y):
-        logging.warning(f"rotate_image: Bboxes extend too far from image boundaries (bbox: {overall_bbox}, image: {new_w}x{new_h}). Skipping rotation.")
-        return image, bboxes
+    return rotated_image, transformed_bboxes
 
-    # Check overall bbox dimensions
-    bbox_width = overall_bbox[2] - overall_bbox[0]
-    bbox_height = overall_bbox[3] - overall_bbox[1]
-    if bbox_width > MAX_DIMENSION or bbox_height > MAX_DIMENSION or (bbox_width * bbox_height) > MAX_PIXELS:
-        logging.warning(f"rotate_image: Overall bbox size ({bbox_width:.0f}x{bbox_height:.0f}) exceeds safe limits. Skipping rotation.")
-        return image, bboxes
+def apply_perspective_warp(
+    image: Image.Image, 
+    bboxes: List[Dict[str, Any]], 
+    magnitude: float,
+    dst_points: Optional[np.ndarray] = None
+) -> Tuple[Image.Image, List[Dict[str, Any]]]:
+    """Applies a perspective warp to an image and its bounding boxes.
 
-    padding_x = max(0, -overall_bbox[0])
-    padding_y = max(0, -overall_bbox[1])
+    Args:
+        image: The source PIL Image.
+        bboxes: A list of bounding box dictionaries.
+        magnitude: The intensity of the warp (0.0 to 1.0), used if dst_points is None.
+        dst_points: Optional. A numpy array of 4 destination points for a deterministic warp.
 
-    # Safeguard: Detect unreasonable padding that would create massive images
-    MAX_PADDING = 10000  # Maximum reasonable padding in pixels
-    if padding_x > MAX_PADDING or padding_y > MAX_PADDING:
-        logging.warning(f"rotate_image: Excessive padding detected (x={padding_x:.0f}, y={padding_y:.0f}). Skipping rotation to prevent decompression bomb. Bbox: {overall_bbox}")
-        return image, bboxes  # Return original image without rotation
-
-    # Additional safeguard: Validate that resulting image size is reasonable
-    proposed_width = new_w + int(padding_x)
-    proposed_height = new_h + int(padding_y)
-
-    if proposed_width > MAX_DIMENSION or proposed_height > MAX_DIMENSION or (proposed_width * proposed_height) > MAX_PIXELS:
-        logging.warning(f"rotate_image: Proposed image size ({proposed_width}x{proposed_height} = {proposed_width*proposed_height} pixels) exceeds safe limits. Skipping rotation.")
-        return image, bboxes  # Return original image without rotation
-
-    # Create padded image matching original mode
-    pad_color = (255, 255, 255, 0) if image.mode == 'RGBA' else 'white'
-    padded_image = Image.new(image.mode, (proposed_width, proposed_height), color=pad_color)
-    padded_image.paste(rotated_image, (int(padding_x), int(padding_y)))
-
-    # Adjust bounding boxes for the padded image
-    padded_bboxes = []
-    for bbox in new_bboxes:
-        padded_bboxes.append([bbox[0] + padding_x, bbox[1] + padding_y, bbox[2] + padding_x, bbox[3] + padding_y])
-
-    # Crop the padded image
-    overall_padded_bbox = [min(b[0] for b in padded_bboxes), min(b[1] for b in padded_bboxes), max(b[2] for b in padded_bboxes), max(b[3] for b in padded_bboxes)]
-
-    # Validate crop box before cropping
-    crop_width = overall_padded_bbox[2] - overall_padded_bbox[0]
-    crop_height = overall_padded_bbox[3] - overall_padded_bbox[1]
-    if crop_width > MAX_DIMENSION or crop_height > MAX_DIMENSION or (crop_width * crop_height) > MAX_PIXELS:
-        logging.warning(f"rotate_image: Crop size ({crop_width:.0f}x{crop_height:.0f}) exceeds safe limits. Skipping rotation.")
-        return image, bboxes
-
-    cropped_image = padded_image.crop(overall_padded_bbox)
-
-    # Adjust bounding boxes to be relative to the cropped image
-    final_bboxes = []
-    for bbox in padded_bboxes:
-        final_bboxes.append([bbox[0] - overall_padded_bbox[0], bbox[1] - overall_padded_bbox[1], bbox[2] - overall_padded_bbox[0], bbox[3] - overall_padded_bbox[1]])
-
-    return cropped_image, final_bboxes
-
-def blur_image(image):
-    """Applies a Gaussian blur to a Pillow image."""
-    logging.debug("Applying blur_image augmentation")
-
-    # Check if image is valid
-    if image.size[0] == 0 or image.size[1] == 0:
-        logging.warning("blur_image received empty image, skipping")
-        return image
-
-    return image.filter(ImageFilter.GaussianBlur(radius=random.uniform(0.1, 1.2)))
-
-# --- Advanced Augmentations ---
-
-def perspective_transform(image, bboxes):
-    """Applies a random perspective warp to a Pillow image and its bounding boxes."""
-    logging.debug("Applying perspective_transform augmentation")
-    img_cv = pil_to_cv2(image)
-    h, w, _ = img_cv.shape
+    Returns:
+        A tuple containing the warped image and transformed bounding boxes.
+    """
+    w, h = image.size
     
-    src_points = np.float32([[0, 0], [w, 0], [0, h], [w, h]])
-    
-    margin_x = w * 0.1
-    margin_y = h * 0.2
-    
-    dst_points = np.float32([
-        [random.uniform(0, margin_x), random.uniform(0, margin_y)],
-        [w - random.uniform(0, margin_x), random.uniform(0, margin_y)],
-        [random.uniform(0, margin_x), h - random.uniform(0, margin_y)],
-        [w - random.uniform(0, margin_x), h - random.uniform(0, margin_y)]
-    ])
-    
-    matrix = cv2.getPerspectiveTransform(src_points, dst_points)
-    warped_img = cv2.warpPerspective(img_cv, matrix, (w, h), borderMode=cv2.BORDER_CONSTANT, borderValue=(255, 255, 255))
-    
-    # Transform bounding boxes
-    new_bboxes = []
+    # The source points are always the four corners of the original image.
+    src_pts = np.float32([[0, 0], [w, 0], [w, h], [0, h]])
+
+    # If no destination points are provided, generate random ones.
+    if dst_points is None:
+        max_offset = int(min(w, h) * magnitude / 2)
+        # If offset is too small, return image unchanged (no perspective warp)
+        if max_offset < 2:
+            return image, bboxes
+        dst_points = np.float32([
+            [random.randint(0, max_offset), random.randint(0, max_offset)],
+            [w - random.randint(1, max_offset), random.randint(0, max_offset)],
+            [w - random.randint(1, max_offset), h - random.randint(1, max_offset)],
+            [random.randint(0, max_offset), h - random.randint(1, max_offset)]
+        ])
+
+    # Calculate the perspective transformation matrix.
+    M = cv2.getPerspectiveTransform(src_pts, dst_points)
+
+    # Warp the image using the calculated matrix.
+    warped_image_np = cv2.warpPerspective(np.array(image), M, (w, h))
+    warped_image = Image.fromarray(warped_image_np)
+
+    # Transform each bounding box.
+    transformed_bboxes = []
     for bbox in bboxes:
-        points = np.float32([[bbox[0], bbox[1]], [bbox[2], bbox[1]], [bbox[0], bbox[3]], [bbox[2], bbox[3]]]).reshape(-1, 1, 2)
-        transformed_points = cv2.perspectiveTransform(points, matrix)
-        x_min = min(transformed_points[:, 0, 0])
-        y_min = min(transformed_points[:, 0, 1])
-        x_max = max(transformed_points[:, 0, 0])
-        y_max = max(transformed_points[:, 0, 1])
-        new_bboxes.append([x_min, y_min, x_max, y_max])
+        # Get the four corners of the bounding box.
+        corners = np.float32([
+            [[bbox['x0'], bbox['y0']]],
+            [[bbox['x1'], bbox['y0']]],
+            [[bbox['x1'], bbox['y1']]],
+            [[bbox['x0'], bbox['y1']]]
+        ])
 
-    return cv2_to_pil(warped_img), new_bboxes
+        # Apply the perspective transformation to the corners.
+        transformed_corners = cv2.perspectiveTransform(corners, M)
+        
+        # Find the new enclosing axis-aligned bounding box.
+        min_x = np.min(transformed_corners[:, :, 0])
+        max_x = np.max(transformed_corners[:, :, 0])
+        min_y = np.min(transformed_corners[:, :, 1])
+        max_y = np.max(transformed_corners[:, :, 1])
 
-def elastic_distortion(image, bboxes):
-    """Applies elastic distortion to a Pillow image and its bounding boxes."""
-    logging.debug("Applying elastic_distortion augmentation")
-    img_cv = pil_to_cv2(image)
-    alpha = random.uniform(15, 25) # Distortion intensity
-    sigma = random.uniform(4, 5)   # Distortion scale
-    
-    shape = img_cv.shape
-    dx = cv2.GaussianBlur((np.random.rand(*shape[:2]) * 2 - 1), (5, 5), sigma) * alpha
-    dy = cv2.GaussianBlur((np.random.rand(*shape[:2]) * 2 - 1), (5, 5), sigma) * alpha
-    
-    x, y = np.meshgrid(np.arange(shape[1]), np.arange(shape[0]))
+        new_bbox = bbox.copy()
+        new_bbox['x0'] = int(min_x)
+        new_bbox['y0'] = int(min_y)
+        new_bbox['x1'] = int(max_x)
+        new_bbox['y1'] = int(max_y)
+        transformed_bboxes.append(new_bbox)
+
+    return warped_image, transformed_bboxes
+
+def apply_elastic_distortion(
+    image: Image.Image, 
+    bboxes: List[Dict[str, Any]], 
+    alpha: float, 
+    sigma: float
+) -> Tuple[Image.Image, List[Dict[str, Any]]]:
+    """Applies elastic distortion to an image and its bounding boxes.
+
+    Args:
+        image: The source PIL Image.
+        bboxes: A list of bounding box dictionaries.
+        alpha: The scaling factor for the distortion intensity.
+        sigma: The standard deviation of the Gaussian kernel, controlling smoothness.
+
+    Returns:
+        A tuple containing the distorted image and transformed bounding boxes.
+    """
+    img_np = np.array(image)
+    h, w = img_np.shape[:2]
+
+    # Generate random displacement fields for x and y directions.
+    dx = np.random.rand(h, w) * 2 - 1
+    dy = np.random.rand(h, w) * 2 - 1
+
+    # Smooth the fields with a Gaussian filter and scale by alpha.
+    kernel_size = int(6 * sigma) | 1
+    dx = cv2.GaussianBlur(dx, (kernel_size, kernel_size), sigma) * alpha
+    dy = cv2.GaussianBlur(dy, (kernel_size, kernel_size), sigma) * alpha
+
+    # Create the remapping maps.
+    x, y = np.meshgrid(np.arange(w), np.arange(h))
     map_x = (x + dx).astype(np.float32)
     map_y = (y + dy).astype(np.float32)
-    
-    distorted_img = cv2.remap(img_cv, map_x, map_y, interpolation=cv2.INTER_LINEAR, borderMode=cv2.BORDER_CONSTANT, borderValue=(255, 255, 255))
 
-    # Distort bounding boxes
-    new_bboxes = []
+    # Apply the distortion to the full image.
+    distorted_img_np = cv2.remap(img_np, map_x, map_y, interpolation=cv2.INTER_LINEAR, borderMode=cv2.BORDER_CONSTANT, borderValue=(0,0,0,0))
+    distorted_image = Image.fromarray(distorted_img_np)
+
+    # For non-linear distortions, bboxes must be recalculated from pixels.
+    transformed_bboxes = []
     for bbox in bboxes:
-        points = np.float32([[bbox[0], bbox[1]], [bbox[2], bbox[1]], [bbox[0], bbox[3]], [bbox[2], bbox[3]]])
-        distorted_points = []
-        for px, py in points:
-            # Clamp coordinates to be within image bounds for map lookup
-            clamp_x = int(max(0, min(px, shape[1] - 1)))
-            clamp_y = int(max(0, min(py, shape[0] - 1)))
-            
-            new_x = px + dx[clamp_y, clamp_x]
-            new_y = py + dy[clamp_y, clamp_x]
-            distorted_points.append([new_x, new_y])
+        x0, y0, x1, y1 = bbox['x0'], bbox['y0'], bbox['x1'], bbox['y1']
         
-        distorted_points = np.array(distorted_points)
-        x_min = min(distorted_points[:, 0])
-        y_min = min(distorted_points[:, 1])
-        x_max = max(distorted_points[:, 0])
-        y_max = max(distorted_points[:, 1])
-        new_bboxes.append([x_min, y_min, x_max, y_max])
+        # Crop the character from the original image.
+        char_img_np = img_np[y0:y1, x0:x1]
 
-    return cv2_to_pil(distorted_img), new_bboxes
+        # Apply the same distortion to the character snippet.
+        distorted_char_np = cv2.remap(img_np, map_x, map_y, interpolation=cv2.INTER_LINEAR, borderMode=cv2.BORDER_CONSTANT, borderValue=(0,0,0,0))[y0:y1, x0:x1]
 
-def adjust_brightness_contrast(image):
-    """Randomly adjusts brightness and contrast of a Pillow image."""
-    logging.debug("Applying adjust_brightness_contrast augmentation")
-    enhancer = ImageEnhance.Brightness(image)
-    image = enhancer.enhance(random.uniform(0.7, 1.3))
-    
-    enhancer = ImageEnhance.Contrast(image)
-    image = enhancer.enhance(random.uniform(0.7, 1.3))
-    
-    return image
+        # Find the new bounding box by searching for non-transparent pixels.
+        alpha_channel = distorted_char_np[:, :, 3]
+        coords = np.argwhere(alpha_channel > 0)
 
-def erode_dilate(image):
-    """Applies erosion or dilation to a Pillow image."""
-    logging.debug("Applying erode_dilate augmentation")
+        if coords.size > 0:
+            min_y, min_x = coords.min(axis=0)
+            max_y, max_x = coords.max(axis=0)
 
-    # Check if image is valid
-    if image.size[0] == 0 or image.size[1] == 0:
-        logging.warning("erode_dilate received empty image, skipping")
-        return image
+            new_bbox = bbox.copy()
+            new_bbox['x0'] = int(x0 + min_x)
+            new_bbox['y0'] = int(y0 + min_y)
+            new_bbox['x1'] = int(x0 + max_x)
+            new_bbox['y1'] = int(y0 + max_y)
+            transformed_bboxes.append(new_bbox)
+        else:
+            # If the character disappears off the canvas, keep the original.
+            transformed_bboxes.append(bbox)
 
-    # Preserve original mode
-    original_mode = image.mode
-    img_cv = pil_to_cv2(image.convert('L'))
+    return distorted_image, transformed_bboxes
 
-    # Double-check OpenCV image is valid
-    if img_cv.size == 0:
-        logging.warning("erode_dilate: OpenCV image is empty, skipping")
-        return image
+def apply_grid_distortion(
+    image: Image.Image, 
+    bboxes: List[Dict[str, Any]], 
+    num_steps: int, 
+    distort_limit: int
+) -> Tuple[Image.Image, List[Dict[str, Any]]]:
+    """Applies grid distortion to an image and its bounding boxes.
 
-    kernel = np.ones((2, 2), np.uint8)
+    Args:
+        image: The source PIL Image.
+        bboxes: A list of bounding box dictionaries.
+        num_steps: The number of grid steps.
+        distort_limit: The limit of the distortion in pixels.
 
-    if random.random() > 0.5:
-        # Erode
-        result_cv = cv2.erode(img_cv, kernel, iterations=1)
-    else:
-        # Dilate
-        result_cv = cv2.dilate(img_cv, kernel, iterations=1)
-
-    return cv2_to_pil(result_cv).convert(original_mode)
-
-# DEPRECATED: Background images are now applied at canvas placement stage, not during augmentation
-# This function has been removed. See background_manager.py and canvas_placement.py for the new implementation.
-
-
-def add_shadow(image):
-    """Adds a soft shadow effect to the text."""
-    logging.debug("Applying add_shadow augmentation")
-
-    # Check if image is valid
-    if image.size[0] == 0 or image.size[1] == 0:
-        logging.warning("add_shadow received empty image, skipping")
-        return image
-
-    # Convert to RGB for shadow processing, preserve alpha if RGBA
-    if image.mode == 'RGBA':
-        alpha_channel = image.split()[3]
-        rgb_image = Image.merge('RGB', image.split()[:3])
-    else:
-        rgb_image = image
-        alpha_channel = None
-
-    img_cv = pil_to_cv2(rgb_image)
-    h, w, _ = img_cv.shape
-
-    # Create a shadow by shifting the text
-    shadow_offset_x = random.randint(-3, 3)
-    shadow_offset_y = random.randint(2, 4)
-    
-    M = np.float32([[1, 0, shadow_offset_x], [0, 1, shadow_offset_y]])
-    shadow = cv2.warpAffine(img_cv, M, (w, h), borderMode=cv2.BORDER_CONSTANT, borderValue=(255, 255, 255))
-    
-    # Make shadow gray and blur it
-    shadow = cv2.cvtColor(shadow, cv2.COLOR_BGR2GRAY)
-    shadow = cv2.GaussianBlur(shadow, (5, 5), 0)
-    shadow = cv2.cvtColor(shadow, cv2.COLOR_GRAY2BGR)
-
-    # Combine original image with shadow
-    img_with_shadow = np.minimum(img_cv, shadow)
-
-    result = cv2_to_pil(img_with_shadow)
-
-    # Restore alpha channel if original was RGBA
-    if alpha_channel is not None:
-        result = Image.merge('RGBA', (*result.split(), alpha_channel))
-
-    return result
-
-
-def cutout(image):
-    """Randomly erases a rectangular region in a Pillow image."""
-    logging.debug("Applying cutout augmentation")
-    draw = ImageDraw.Draw(image)
-    width, height = image.size
-    
-    x1 = random.randint(0, width)
-    y1 = random.randint(0, height)
-    x2 = x1 + random.randint(10, 40)
-    y2 = y1 + random.randint(10, 40)
-    
-    draw.rectangle([x1, y1, x2, y2], fill='white')
-    return image
-
-# --- Main Augmentation Pipeline ---
-
-def apply_augmentations(image, char_bboxes, background_images=None, augmentations_to_apply=None):
+    Returns:
+        A tuple containing the distorted image and transformed bounding boxes.
     """
-    Applies a pipeline of augmentations to an image and its character bounding boxes.
-    If augmentations_to_apply is provided, it applies the specified augmentations.
-    Otherwise, it applies a random pipeline.
+    img_np = np.array(image)
+    h, w = img_np.shape[:2]
 
-    NOTE: background_images parameter is deprecated and ignored. Backgrounds are now
-    applied at the canvas placement stage via background_manager.py
+    # Create a grid of points.
+    x_steps = np.linspace(0, w, num_steps)
+    y_steps = np.linspace(0, h, num_steps)
+
+    # Create a random displacement field.
+    dx = np.random.uniform(-distort_limit, distort_limit, size=(num_steps, num_steps))
+    dy = np.random.uniform(-distort_limit, distort_limit, size=(num_steps, num_steps))
+
+    # Create the meshgrid.
+    xx, yy = np.meshgrid(x_steps, y_steps)
+
+    # Create the map by adding the displacement to the grid.
+    map_x = (xx + dx).astype(np.float32)
+    map_y = (yy + dy).astype(np.float32)
+
+    # Apply the distortion to the full image.
+    distorted_img_np = cv2.remap(img_np, map_x, map_y, interpolation=cv2.INTER_LINEAR, borderMode=cv2.BORDER_CONSTANT, borderValue=(0,0,0,0))
+    distorted_image = Image.fromarray(distorted_img_np)
+
+    # Recalculate bounding boxes from pixels.
+    transformed_bboxes = []
+    for bbox in bboxes:
+        x0, y0, x1, y1 = bbox['x0'], bbox['y0'], bbox['x1'], bbox['y1']
+        
+        char_img_np = img_np[y0:y1, x0:x1]
+
+        distorted_char_np = cv2.remap(img_np, map_x, map_y, interpolation=cv2.INTER_LINEAR, borderMode=cv2.BORDER_CONSTANT, borderValue=(0,0,0,0))[y0:y1, x0:x1]
+
+        alpha_channel = distorted_char_np[:, :, 3]
+        coords = np.argwhere(alpha_channel > 0)
+
+        if coords.size > 0:
+            min_y, min_x = coords.min(axis=0)
+            max_y, max_x = coords.max(axis=0)
+
+            new_bbox = bbox.copy()
+            new_bbox['x0'] = int(x0 + min_x)
+            new_bbox['y0'] = int(y0 + min_y)
+            new_bbox['x1'] = int(x0 + max_x)
+            new_bbox['y1'] = int(y0 + max_y)
+            transformed_bboxes.append(new_bbox)
+        else:
+            transformed_bboxes.append(bbox)
+
+    return distorted_image, transformed_bboxes
+
+def apply_optical_distortion(
+    image: Image.Image,
+    bboxes: List[Dict[str, Any]],
+    distort_limit: float
+) -> Tuple[Image.Image, List[Dict[str, Any]]]:
+    """Applies optical distortion to an image and its bounding boxes.
+
+    This function applies barrel/pincushion distortion using OpenCV's camera
+    distortion model. Bounding boxes are recalculated by extracting character
+    regions from the distorted full image and finding non-transparent pixels.
+
+    Args:
+        image: The source PIL Image (RGBA format).
+        bboxes: A list of bounding box dictionaries with keys 'x0', 'y0', 'x1', 'y1'.
+        distort_limit: The distortion coefficient (typically 0.0-0.5). Positive values
+            create barrel distortion, negative values create pincushion distortion.
+
+    Returns:
+        A tuple containing the distorted image and transformed bounding boxes.
+        Bounding box coordinates are recalculated as Python ints.
     """
-    # Start with a clean image and original bboxes
-    augmented_image = image
-    augmented_bboxes = char_bboxes
-    augmentations_applied = {}
+    img_np = np.array(image)
+    h, w = img_np.shape[:2]
 
-    if augmentations_to_apply is None:
-        # Core text-affecting augmentations
-        if random.random() < 0.3:
-            augmented_image, augmented_bboxes = perspective_transform(augmented_image, augmented_bboxes)
-            augmentations_applied['perspective_transform'] = True
-        if random.random() < 0.2:
-            augmented_image, augmented_bboxes = elastic_distortion(augmented_image, augmented_bboxes)
-            augmentations_applied['elastic_distortion'] = True
-        if random.random() < 0.4:
-            augmented_image, augmented_bboxes = rotate_image(augmented_image, augmented_bboxes)
-            augmentations_applied['rotate'] = True
-        if random.random() < 0.3:
-            augmented_image = erode_dilate(augmented_image)
-            augmentations_applied['erode_dilate'] = True
-        if random.random() < 0.3:
-            augmented_image = add_shadow(augmented_image)
-            augmentations_applied['shadow'] = True
+    # Define camera matrix.
+    camera_matrix = np.array([
+        [w, 0, w/2],
+        [0, h, h/2],
+        [0, 0, 1]
+    ], dtype=np.float32)
 
-        # Lighting adjustments
-        augmented_image = adjust_brightness_contrast(augmented_image)
-        augmentations_applied['brightness_contrast'] = True
+    # Define distortion coefficients (k1, k2, p1, p2).
+    dist_coeffs = np.array([distort_limit, distort_limit, 0, 0], dtype=np.float32)
 
-        # Post-processing noise and blur
-        if random.random() < 0.5:
-            augmented_image = blur_image(augmented_image)
-            augmentations_applied['blur'] = True
-        if random.random() < 0.2:
-            augmented_image = add_noise(augmented_image)
-            augmentations_applied['noise'] = True
-        if random.random() < 0.15:
-            augmented_image = cutout(augmented_image)
-            augmentations_applied['cutout'] = True
-    else:
-        # Apply augmentations based on the provided dictionary
-        for aug_name in sorted(augmentations_to_apply.keys()):
-            if not augmentations_to_apply[aug_name]:
-                continue
+    # Apply the distortion to the full image.
+    distorted_img_np = cv2.undistort(img_np, camera_matrix, dist_coeffs)
+    distorted_image = Image.fromarray(distorted_img_np)
 
-            if aug_name == 'perspective_transform':
-                augmented_image, augmented_bboxes = perspective_transform(augmented_image, augmented_bboxes)
-                augmentations_applied['perspective_transform'] = True
-            elif aug_name == 'elastic_distortion':
-                augmented_image, augmented_bboxes = elastic_distortion(augmented_image, augmented_bboxes)
-                augmentations_applied['elastic_distortion'] = True
-            elif aug_name == 'rotate':
-                augmented_image, augmented_bboxes = rotate_image(augmented_image, augmented_bboxes)
-                augmentations_applied['rotate'] = True
-            elif aug_name == 'erode_dilate':
-                augmented_image = erode_dilate(augmented_image)
-                augmentations_applied['erode_dilate'] = True
-            elif aug_name == 'shadow':
-                augmented_image = add_shadow(augmented_image)
-                augmentations_applied['shadow'] = True
-            elif aug_name == 'background':
-                # Deprecated: backgrounds are now applied at canvas placement stage
-                logging.warning("'background' augmentation is deprecated. Backgrounds are now applied at canvas placement stage.")
-                pass
-            elif aug_name == 'brightness_contrast':
-                augmented_image = adjust_brightness_contrast(augmented_image)
-                augmentations_applied['brightness_contrast'] = True
-            elif aug_name == 'blur':
-                augmented_image = blur_image(augmented_image)
-                augmentations_applied['blur'] = True
-            elif aug_name == 'noise':
-                augmented_image = add_noise(augmented_image)
-                augmentations_applied['noise'] = True
-            elif aug_name == 'cutout':
-                augmented_image = cutout(augmented_image)
-                augmentations_applied['cutout'] = True
+    # Recalculate bounding boxes from pixels.
+    transformed_bboxes = []
+    for bbox in bboxes:
+        x0, y0, x1, y1 = bbox['x0'], bbox['y0'], bbox['x1'], bbox['y1']
 
-    return augmented_image, augmented_bboxes, augmentations_applied
+        # Extract the distorted character region from the already-distorted full image
+        distorted_char_np = distorted_img_np[y0:y1, x0:x1]
+
+        alpha_channel = distorted_char_np[:, :, 3]
+        coords = np.argwhere(alpha_channel > 0)
+
+        if coords.size > 0:
+            min_y, min_x = coords.min(axis=0)
+            max_y, max_x = coords.max(axis=0)
+
+            new_bbox = bbox.copy()
+            new_bbox['x0'] = int(x0 + min_x)
+            new_bbox['y0'] = int(y0 + min_y)
+            new_bbox['x1'] = int(x0 + max_x)
+            new_bbox['y1'] = int(y0 + max_y)
+            transformed_bboxes.append(new_bbox)
+        else:
+            transformed_bboxes.append(bbox)
+
+    return distorted_image, transformed_bboxes

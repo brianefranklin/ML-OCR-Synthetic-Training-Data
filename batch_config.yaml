@@ -1,0 +1,6 @@
+total_images: 10
+specifications:
+  - name: "test_batch"
+    proportion: 1.0
+    text_direction: "left_to_right"
+    corpus_file: "gutenberg_42671.txt"

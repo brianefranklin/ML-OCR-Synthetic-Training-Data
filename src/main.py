@@ -1,471 +1,582 @@
-"""
-OCR Synthetic Data Generator - Main Entry Point
-
-Generates synthetic text images with character-level bounding boxes for OCR training.
-Supports multiple text directions: left-to-right, right-to-left, top-to-bottom, bottom-to-top.
-"""
-
 import argparse
-import os
+import yaml
 import json
-import random
+import uuid
 import sys
-import time
 import logging
+import multiprocessing
+from pathlib import Path
+from datetime import datetime
+from tqdm import tqdm
+from typing import Dict, List, Any, Tuple, Optional
 import numpy as np
-from PIL import ImageFont
+from PIL import Image
 
-# Import our modularized components
-from generator import OCRDataGenerator, CharacterBox
-from font_health_manager import FontHealthManager
-from font_utils import can_font_render_text, extract_sample_characters, set_font_health_manager as set_font_utils_health_manager
-from generation_orchestrator import generate_with_batches, set_font_health_manager as set_orchestrator_health_manager
+from src.batch_config import BatchConfig
+from src.corpus_manager import CorpusManager
+from src.font_health_manager import FontHealthManager
+from src.background_manager import BackgroundImageManager
+from src.generation_orchestrator import GenerationOrchestrator, GenerationTask
+from src.generator import OCRDataGenerator
+from src.batch_validation import BatchValidator, ValidationError
+from src.checkpoint_manager import CheckpointManager
 
+class NumpyEncoder(json.JSONEncoder):
+    """Custom JSON encoder that handles NumPy data types.
 
-def setup_logging(log_level: str, log_file: str) -> None:
-    """Configure logging with both file and console output."""
-    # Create parent directory for log file if it doesn't exist
-    log_dir = os.path.dirname(log_file)
-    if log_dir and not os.path.exists(log_dir):
-        os.makedirs(log_dir, exist_ok=True)
-
-    logging.basicConfig(
-        level=getattr(logging, log_level.upper()),
-        format='%(asctime)s - %(levelname)s - %(message)s',
-        filename=log_file,
-        filemode='w',
-        force=True
-    )
-
-    # Add console handler
-    console = logging.StreamHandler()
-    console.setLevel(getattr(logging, log_level.upper()))
-    formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
-    console.setFormatter(formatter)
-    logging.getLogger('').addHandler(console)
-
-
-def clear_output_directory(output_dir: str, force: bool = False) -> bool:
+    This encoder converts NumPy integers and floats to their Python equivalents
+    to enable JSON serialization of data structures containing NumPy types.
     """
-    Clear the output directory after user confirmation.
+    def default(self, obj):
+        if isinstance(obj, (np.integer, np.int64, np.int32)):
+            return int(obj)
+        elif isinstance(obj, (np.floating, np.float64, np.float32)):
+            return float(obj)
+        elif isinstance(obj, np.ndarray):
+            return obj.tolist()
+        return super().default(obj)
+
+
+def generate_image_from_task(
+    args: Tuple[GenerationTask, int, Any]
+) -> Tuple[int, Image.Image, Dict[str, Any], Optional[str]]:
+    """Worker function for parallel image generation.
+
+    This function is designed to be used with multiprocessing.Pool for
+    parallel generation of images from tasks. It generates a plan, renders
+    the image, and applies all effects and augmentations.
+
+    For deterministic generation, this function sets the random seed based on
+    the task index, ensuring that the same task index always produces the
+    same output regardless of execution order or parallel vs sequential processing.
 
     Args:
-        output_dir: Directory to clear
-        force: If True, skip confirmation prompt
+        args: A tuple containing:
+            - task: GenerationTask containing spec, text, font_path, background_path.
+            - index: Integer index of this task in the overall batch.
+            - background_manager: Optional BackgroundImageManager for selecting backgrounds.
 
     Returns:
-        True if cleared or doesn't exist, False if user cancelled
+        A tuple containing:
+            - index: The task index (for maintaining order).
+            - image: The generated PIL Image (or None if generation failed).
+            - plan: Dictionary containing the generation plan with bboxes added (or None if failed).
+            - error: Error message if generation failed, None otherwise.
+
+    Note:
+        This function must be defined at module level (not nested) for
+        multiprocessing compatibility due to pickle requirements.
+
+    Examples:
+        >>> from src.generation_orchestrator import GenerationTask
+        >>> from src.batch_config import BatchSpecification
+        >>> spec = BatchSpecification(...)
+        >>> task = GenerationTask(spec, "hello", "/path/to/font.ttf", None)
+        >>> idx, image, plan, error = generate_image_from_task((task, 0, None))
     """
-    if not os.path.exists(output_dir):
-        logging.info(f"Output directory {output_dir} does not exist. Nothing to clear.")
-        return True
+    import random
 
-    if not force:
-        response = input(f"Are you sure you want to clear the output directory at {output_dir}? [y/N] ")
-        if response.lower() != 'y':
-            logging.info("Aborting.")
-            return False
+    task, index, background_manager = args
 
-    logging.info(f"Clearing output directory: {output_dir}")
-    for filename in os.listdir(output_dir):
-        file_path = os.path.join(output_dir, filename)
+    try:
+        # Set random seed based on task index for deterministic generation
+        # This ensures the same index always produces the same output
+        random.seed(index)
+        np.random.seed(index)
+
+        # Create a generator instance (each worker needs its own)
+        generator = OCRDataGenerator()
+
+        # Generate a plan for this task
+        plan: Dict[str, Any] = generator.plan_generation(
+            spec=task.source_spec,
+            text=task.text,
+            font_path=task.font_path,
+            background_manager=background_manager
+        )
+
+        # Generate the image from the plan
+        image, bboxes = generator.generate_from_plan(plan)
+
+        # Add the final bounding boxes to the plan
+        plan["bboxes"] = bboxes
+
+        return index, image, plan, None
+
+    except Exception as e:
+        # Catch ALL exceptions to prevent worker crash
+        # This includes OSError, IOError, ValueError, TypeError, and any unexpected errors
+        error_msg = f"Failed to generate image {index} with font '{task.font_path}': {type(e).__name__}: {e}"
+        return index, None, None, error_msg
+
+
+def save_image_and_label(
+    args: Tuple[Image.Image, Dict[str, Any], Path, Path]
+) -> None:
+    """Worker function for parallel image and label saving with retry logic.
+
+    This function is designed to be used with multiprocessing.Pool for
+    parallel saving of images and their corresponding JSON label files.
+    It includes retry logic with exponential backoff to handle transient
+    filesystem issues (e.g., virtiofs permission errors).
+
+    Args:
+        args: A tuple containing:
+            - image: PIL Image to save (RGBA, RGB, or L mode).
+            - plan: Dictionary containing generation plan and bboxes. May contain
+                   NumPy data types which will be automatically converted to
+                   native Python types during JSON serialization.
+            - image_path: Path where image should be saved (typically .png).
+            - label_path: Path where JSON label should be saved (typically .json).
+
+    Returns:
+        None. Files are written to disk as side effects.
+
+    Note:
+        This function must be defined at module level (not nested) for
+        multiprocessing compatibility due to pickle requirements.
+
+        All exceptions are caught and logged to prevent worker crashes.
+        Failed saves are logged as warnings but don't crash the worker.
+
+        The retry logic is specifically designed to handle virtiofs filesystem
+        limitations. Virtiofs (used by Docker/devcontainers to mount host
+        directories) can experience transient PermissionErrors under high-concurrency
+        workloads when multiple parallel I/O workers write files simultaneously.
+        The FUSE layer's file handle management and locking mechanisms struggle
+        with rapid parallel operations from multiprocessing pools. The exponential
+        backoff with random jitter gives the filesystem time to release locks
+        and complete pending operations before retrying.
+
+    Examples:
+        >>> from PIL import Image
+        >>> from pathlib import Path
+        >>> image = Image.new("RGBA", (100, 50), (255, 0, 0, 255))
+        >>> plan = {"text": "hello", "bboxes": []}
+        >>> save_image_and_label((image, plan, Path("out.png"), Path("out.json")))
+    """
+    import time
+    import random
+    import logging
+
+    logger = logging.getLogger(__name__)
+    image, plan, image_path, label_path = args
+
+    max_retries = 3
+    base_delay = 0.1  # 100ms base delay
+
+    # Try to save with retries
+    for attempt in range(max_retries):
         try:
-            if os.path.isfile(file_path) or os.path.islink(file_path):
-                os.unlink(file_path)
-        except Exception as e:
-            logging.error(f'Failed to delete {file_path}. Reason: {e}')
+            # Save image as PNG
+            image.save(image_path)
 
-    return True
+            # Save label as JSON with NumpyEncoder for numpy type handling
+            with open(label_path, 'w', encoding='utf-8') as f:
+                json.dump(plan, f, indent=4, cls=NumpyEncoder)
+
+            # Success - return immediately
+            return
+
+        except PermissionError as e:
+            if attempt < max_retries - 1:
+                # Calculate delay with exponential backoff and jitter
+                delay = base_delay * (2 ** attempt) + random.uniform(0, 0.05)
+                logger.warning(
+                    f"PermissionError saving {image_path.name}, "
+                    f"retry {attempt + 1}/{max_retries} after {delay:.3f}s: {e}"
+                )
+                time.sleep(delay)
+            else:
+                # Final attempt failed
+                logger.error(
+                    f"Failed to save {image_path.name} after {max_retries} attempts: {e}"
+                )
+                return  # Don't crash worker, just skip this file
+
+        except Exception as e:
+            # Catch all other exceptions to prevent worker crash
+            logger.error(
+                f"Unexpected error saving {image_path.name}: {type(e).__name__}: {e}"
+            )
+            return  # Don't crash worker, just skip this file
 
 
 def main():
-    """Main entry point for OCR data generation."""
+    """Main entry point for the OCR data generation script.
 
-    # --- Configuration Loading ---
-    config = {}
-    if os.path.exists('config.json'):
-        with open('config.json', 'r') as f:
-            config = json.load(f)
-
-    # --- Argument Parsing ---
-    parser = argparse.ArgumentParser(description='Synthetic Data Foundry for OCR')
-    parser.add_argument('--text-file', type=str, default=config.get('text_file'),
-                       help='Path to a single text corpus file (backwards compatible).')
-    parser.add_argument('--text-dir', type=str, default=config.get('text_dir'),
-                       help='Path to directory containing corpus text files (for large-scale generation).')
-    parser.add_argument('--text-pattern', type=str, default=config.get('text_pattern', '*.txt'),
-                       help='Glob pattern for corpus files when using --text-dir (default: *.txt).')
-    parser.add_argument('--fonts-dir', type=str, default=config.get('fonts_dir'),
-                       help='Path to the directory containing font files.')
-    parser.add_argument('--output-dir', type=str, default=config.get('output_dir'),
-                       help='Path to the directory to save the generated images and labels.')
-    parser.add_argument('--backgrounds-dir', type=str, default=config.get('backgrounds_dir'),
-                       help='DEPRECATED: Background images are now configured per-batch in YAML config files. See batch configuration documentation.')
-    parser.add_argument('--num-images', type=int, default=config.get('num_images', 1000),
-                       help='Number of images to generate.')
-    parser.add_argument('--max-execution-time', type=float, default=config.get('max_execution_time'),
-                       help='Optional: Maximum execution time in seconds.')
-    parser.add_argument('--min-text-length', type=int, default=config.get('min_text_length', 1),
-                       help='Minimum length of text to generate.')
-    parser.add_argument('--max-text-length', type=int, default=config.get('max_text_length', 100),
-                       help='Maximum length of text to generate.')
-    parser.add_argument('--text-direction', type=str, default=config.get('text_direction', 'left_to_right'),
-                       choices=['left_to_right', 'top_to_bottom', 'right_to_left', 'bottom_to_top'],
-                       help='Direction of the text.')
-    parser.add_argument('--log-level', type=str, default=config.get('log_level', 'INFO'),
-                       choices=['DEBUG', 'INFO', 'WARNING', 'ERROR'],
-                       help='Set the logging level.')
-    parser.add_argument('--log-dir', type=str, default=config.get('log_dir', 'logs'),
-                       help='Directory for log files (timestamped log files will be created here).')
-    parser.add_argument('--clear-output', action='store_true',
-                       help='If set, clears the output directory before generating new images.')
-    parser.add_argument('--force', action='store_true',
-                       help='If set, bypasses the confirmation prompt when clearing the output directory.')
-    parser.add_argument('--font-name', type=str, default=None,
-                       help='Name of the font file to use.')
-    parser.add_argument('--batch-config', type=str, default=None,
-                       help='Path to YAML batch configuration file for proportional generation.')
-    parser.add_argument('--overlap-intensity', type=float, default=0.0,
-                       help='Glyph overlap intensity (0.0-1.0). Higher values increase character overlap.')
-    parser.add_argument('--ink-bleed-intensity', type=float, default=0.0,
-                       help='Ink bleed effect intensity (0.0-1.0). Simulates document scanning artifacts.')
-    parser.add_argument('--effect-type', type=str, default='none',
-                       choices=['none', 'raised', 'embossed', 'engraved'],
-                       help='3D text effect type. Options: none (default), raised (drop shadow), embossed (raised with highlights), engraved (carved/debossed).')
-    parser.add_argument('--effect-depth', type=float, default=0.5,
-                       help='3D effect depth intensity (0.0-1.0). Higher values create more pronounced effects.')
-    parser.add_argument('--light-azimuth', type=float, default=135.0,
-                       help='Light direction angle in degrees (0-360). 0=top, 90=right, 180=bottom, 270=left.')
-    parser.add_argument('--light-elevation', type=float, default=45.0,
-                       help='Light elevation angle in degrees (0-90). Lower values create longer shadows.')
-    parser.add_argument('--text-color-mode', type=str, default='uniform',
-                       choices=['uniform', 'per_glyph', 'gradient', 'random'],
-                       help='Text color mode.')
-    parser.add_argument('--color-palette', type=str, default='realistic_dark',
-                       choices=['realistic_dark', 'realistic_light', 'vibrant', 'pastels'],
-                       help='Color palette to use.')
-    parser.add_argument('--custom-colors', type=str, help='Comma-separated list of custom RGB colors (e.g., \'255,0,0;0,255,0\').')
-    parser.add_argument('--background-color', type=str, default=config.get('background_color', 'auto'), help='Background color (e.g., \'255,255,255\' or \'auto\').')
-    parser.add_argument('--seed', type=int, default=config.get('seed'), help='Random seed for deterministic generation.')
-
+    This function parses command-line arguments, initializes all necessary
+    managers and components, and runs the main image generation loop.
+    """
+    parser = argparse.ArgumentParser(description="Generate synthetic OCR data.")
+    parser.add_argument("--batch-config", type=str, required=True, help="Path to the batch configuration YAML file.")
+    parser.add_argument("--output-dir", type=str, required=True, help="Directory to save the generated images and labels.")
+    parser.add_argument("--font-dir", type=str, required=True, help="Directory containing font files.")
+    parser.add_argument("--background-dir", type=str, required=True, help="Directory containing background image files.")
+    parser.add_argument("--corpus-dir", type=str, required=True, help="Directory containing corpus text files.")
+    parser.add_argument("--log-level", type=str, default="INFO",
+                        choices=["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"],
+                        help="Logging level (default: INFO)")
+    parser.add_argument("--log-dir", type=str, default="./logs",
+                        help="Directory for log files (default: ./logs)")
+    parser.add_argument("--workers", type=int, default=4,
+                        help="Number of worker processes for parallel I/O (0 or 1 = sequential, default: 4)")
+    parser.add_argument("--io-batch-size", type=int, default=10,
+                        help="Number of images to accumulate before parallel I/O save (default: 10)")
+    parser.add_argument("--generation-workers", type=int, default=0,
+                        help="Number of worker processes for parallel image generation (0 or 1 = sequential, default: 0)")
+    parser.add_argument("--chunk-size", type=int, default=100,
+                        help="Number of images to generate per chunk in streaming mode (default: 100)")
+    parser.add_argument("--resume", action="store_true",
+                        help="Resume from previous incomplete generation (skips existing files)")
     args = parser.parse_args()
 
-    # --- Generate Timestamp for This Run ---
-    run_timestamp = time.strftime('%Y-%m-%d_%H-%M-%S')
+    # Generate timestamp for this run
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    run_id = f"generation_{timestamp}"
 
-    # --- Seed Random Number Generators ---
-    if args.seed is not None:
-        random.seed(args.seed)
-        np.random.seed(args.seed)
+    # Create log directory
+    log_dir = Path(args.log_dir)
+    log_dir.mkdir(parents=True, exist_ok=True)
+    log_file = log_dir / f"{run_id}.log"
 
-    # --- Configure Logging ---
-    # Create timestamped log file in log directory
-    if not os.path.exists(args.log_dir):
-        os.makedirs(args.log_dir, exist_ok=True)
+    # Configure logging
+    logging.basicConfig(
+        level=getattr(logging, args.log_level),
+        format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+        handlers=[
+            logging.FileHandler(log_file),
+            logging.StreamHandler()
+        ]
+    )
 
-    log_file_path = os.path.join(args.log_dir, f'generation_{run_timestamp}.log')
-    setup_logging(args.log_level, log_file_path)
-    logging.info("Script started.")
-    print(f"Run Started: {run_timestamp}")
+    logger = logging.getLogger(__name__)
 
-
-    # --- Clear Output Directory (if requested) ---
-    if args.clear_output:
-        if not clear_output_directory(args.output_dir, args.force):
-            return
-        if args.num_images == 0:
-            logging.info("Output directory cleared. Exiting as num_images is 0.")
-            return
-
-    # --- Validate Essential Arguments ---
-    # Handle corpus specification priority: explicit CLI args override config
-    if args.text_dir:
-        # If text_dir is explicitly specified, ignore text_file
-        args.text_file = None
-    elif not args.text_file and not args.text_dir:
-        logging.error("Error: Either --text-file or --text-dir must be specified.")
-        sys.exit(1)
-    if not args.fonts_dir or not os.path.isdir(args.fonts_dir):
-        logging.error("Error: Fonts directory not specified or is not a valid directory.")
-        sys.exit(1)
-    if not args.output_dir:
-        logging.error("Error: Output directory not specified in config.json or command line.")
-        sys.exit(1)
+    # Print and log startup message with timestamp
+    print(f"\n{'='*60}")
+    print(f"Starting OCR generation run: {run_id}")
+    print(f"Log file: {log_file}")
+    print(f"{'='*60}\n")
+    logger.info(f"Starting OCR generation run: {run_id}")
+    logger.info(f"Command: {' '.join(sys.argv)}")
+    logger.info(f"Configuration: {args.batch_config}")
 
     # Create output directory if it doesn't exist
-    if not os.path.exists(args.output_dir):
-        os.makedirs(args.output_dir)
+    output_path = Path(args.output_dir)
+    output_path.mkdir(parents=True, exist_ok=True)
+    logger.info(f"Output directory: {output_path}")
 
-    # Initialize Font Health Manager
-    # For batch mode: use session-only scoring (no persistence across jobs)
-    # For standard mode: persist scores to disk for learning across runs
-    enable_font_persistence = not args.batch_config
-    font_health_path = os.path.join(args.log_dir, f'font_health_{run_timestamp}.json')
-    font_health_manager = FontHealthManager(
-        health_file=font_health_path,
-        min_health_threshold=30.0,
-        success_increment=1.0,
-        failure_decrement=10.0,
-        cooldown_base_seconds=300.0,  # 5 minutes
-        auto_save_interval=50,
-        enable_persistence=enable_font_persistence
-    )
-    if enable_font_persistence:
-        logging.info(f"Font health tracking enabled with persistence (saving to {font_health_path})")
-    else:
-        logging.info("Font health tracking enabled (session-only, no persistence across batch jobs)")
+    # Load batch configuration
+    batch_config: BatchConfig = BatchConfig.from_yaml(args.batch_config)
+    logger.info(f"Loaded batch config: {batch_config.total_images} total images, {len(batch_config.specifications)} specifications")
 
-    # Set the global font health manager in other modules
-    set_font_utils_health_manager(font_health_manager)
-    set_orchestrator_health_manager(font_health_manager)
+    # Validate configuration before proceeding
+    logger.info("Validating batch configuration...")
+    try:
+        # Load raw config for validation
+        with open(args.batch_config, 'r') as f:
+            raw_config = yaml.safe_load(f)
 
-    # --- Load Assets ---
-    logging.info("Loading assets...")
-
-    # Load fonts
-    # Optimization: if --font-name is specified, only validate that one font
-    if args.font_name:
-        font_path = os.path.join(args.fonts_dir, args.font_name)
-        if not os.path.exists(font_path):
-            logging.error(f"Specified font {args.font_name} not found in {args.fonts_dir}")
-            sys.exit(1)
-        font_candidates = [font_path]
-    else:
-        font_candidates = [os.path.join(args.fonts_dir, f)
-                          for f in sorted(os.listdir(args.fonts_dir))
-                          if f.endswith(('.ttf', '.otf'))]
-
-    # Validate fonts by attempting to load them
-    font_files = []
-    for font_path in font_candidates:
-        font_name = os.path.basename(font_path)
-
-        try:
-            # Try to load the font to validate it
-            ImageFont.truetype(font_path, size=20)
-            font_files.append(font_path)
-        except Exception as e:
-            logging.warning(f"Skipping invalid font {font_name}: {e}")
-
-    if not font_files:
-        logging.error("Error: No valid fonts found.")
+        validator = BatchValidator(
+            config=raw_config,
+            corpus_dir=args.corpus_dir,
+            font_dir=args.font_dir,
+            background_dir=args.background_dir
+        )
+        validator.validate()
+        logger.info("Configuration validation passed")
+    except ValidationError as e:
+        logger.error(f"Configuration validation failed: {e}")
+        print(f"\n{'='*60}")
+        print("ERROR: Configuration validation failed")
+        print(f"{'='*60}")
+        print(f"\n{e}\n")
+        print("Please fix the configuration and try again.")
+        print(f"{'='*60}\n")
         sys.exit(1)
 
-    logging.info(f"Loaded {len(font_files)} fonts")
+    # Initialize checkpoint manager
+    checkpoint_manager = CheckpointManager(
+        output_dir=str(output_path),
+        config=raw_config
+    )
 
-    # Load background images (optional, deprecated)
-    background_images = []
-    if args.backgrounds_dir and os.path.isdir(args.backgrounds_dir):
-        logging.warning("--backgrounds-dir is deprecated. Background images should be configured per-batch in YAML config files.")
-        logging.warning("The --backgrounds-dir parameter is no longer used and will be ignored.")
-        background_images = [os.path.join(args.backgrounds_dir, f)
-                           for f in os.listdir(args.backgrounds_dir)
-                           if f.lower().endswith(('.png', '.jpg', '.jpeg'))]
-        logging.info(f"Found {len(background_images)} background images (but they will not be used)")
-
-    # --- Check for Batch Configuration ---
-    if args.batch_config:
-        # Batch mode
-        from batch_config import BatchConfig
-        batch_config = BatchConfig.from_yaml(args.batch_config)
-        logging.info(f"Loaded batch configuration from {args.batch_config}")
-        logging.info(f"Total images to generate across all batches: {batch_config.total_images}")
-
-        # Call batch generation with OCRDataGenerator class passed in
-        generate_with_batches(batch_config, font_files, background_images, args, OCRDataGenerator)
-
-    else:
-        # --- Standard Generation Mode ---
-        # Load corpus
-        from corpus_manager import CorpusManager
-
-        if args.text_dir:
-            # Directory mode
-            corpus_manager = CorpusManager.from_directory(args.text_dir, pattern=args.text_pattern, seed=args.seed)
-        elif args.text_file:
-            # Single file mode
-            corpus_manager = CorpusManager([args.text_file], seed=args.seed)
+    # Handle resume mode
+    completed_indices = set()
+    if args.resume:
+        logger.info("Resume mode enabled - checking for existing checkpoint...")
+        checkpoint_data = checkpoint_manager.load_checkpoint()
+        if checkpoint_data:
+            logger.info(f"Found checkpoint: {checkpoint_data['completed_images']} images previously completed")
+            completed_indices = checkpoint_manager.get_completed_indices()
+            logger.info(f"Scanned output directory: {len(completed_indices)} existing images found")
+            if len(completed_indices) > 0:
+                print(f"Resuming generation - skipping {len(completed_indices)} existing images")
         else:
-            logging.error("No text source specified")
-            sys.exit(1)
+            logger.info("No previous checkpoint found - starting fresh generation")
+            print("No previous checkpoint found - starting fresh generation")
 
-        # Sample character set for validation
-        sample_corpus = corpus_manager.extract_text_segment(1, 10000)
-        if not sample_corpus:
-            # Fallback: try shorter segment
-            sample_corpus = corpus_manager.extract_text_segment(1, 100)
-        if not sample_corpus:
-            logging.error("Corpus must contain at least 1 character of text.")
-            sys.exit(1)
-        character_set = frozenset(extract_sample_characters(sample_corpus))
-        logging.info(f"Corpus loaded with {len(character_set)} unique characters")
+    # Initialize managers
+    font_health_manager = FontHealthManager()
+    background_manager = BackgroundImageManager(dir_weights={args.background_dir: 1.0})
+    logger.debug("Initialized font health manager and background manager")
 
-        # Filter fonts by whether they can render the corpus
-        valid_font_files = []
-        for font_path in font_files:
-            if can_font_render_text(font_path, sample_corpus, character_set):
-                valid_font_files.append(font_path)
-        font_files = valid_font_files
+    # Create a map of corpus file names to their full paths
+    corpus_map: Dict[str, str] = {str(f.relative_to(args.corpus_dir)): str(f) for f in Path(args.corpus_dir).rglob('*.txt')}
+    logger.info(f"Found {len(corpus_map)} corpus files in {args.corpus_dir}")
 
-        if not font_files:
-            logging.error("Error: No fonts can render the specified text corpus.")
-            sys.exit(1)
+    # Get a list of all available fonts
+    all_fonts: List[str] = [str(p) for p in Path(args.font_dir).rglob('*.ttf')]
+    logger.info(f"Found {len(all_fonts)} fonts in {args.font_dir}")
 
-        logging.info(f"{len(font_files)} fonts can render the corpus text")
+    # Initialize the main components
+    orchestrator = GenerationOrchestrator(
+        batch_config=batch_config,
+        corpus_map=corpus_map,
+        all_fonts=all_fonts,
+        background_manager=background_manager
+    )
+    generator = OCRDataGenerator()
+    logger.debug("Initialized orchestrator and generator")
 
-        # Initialize generator
-        generator = OCRDataGenerator(font_files, background_images)
+    print(f"Generating {batch_config.total_images} images...")
 
-        # Track execution time
-        start_time = time.time()
+    # Pre-generate a list of unique filenames for the entire batch using UUID4
+    # UUID4 has negligible collision probability (<10^-15 for 10k images)
+    unique_filenames = [str(uuid.uuid4()) for _ in range(batch_config.total_images)]
 
-        # Prepare output
-        existing_images = [f for f in os.listdir(args.output_dir)
-                         if f.startswith('image_') and f.endswith('.png')]
-        image_counter = len(existing_images)
+    # Create the full list of generation tasks
+    tasks: List[GenerationTask] = orchestrator.create_task_list(
+        min_text_len=10,
+        max_text_len=50,
+        unique_filenames=unique_filenames
+    )
+    logger.info(f"Created {len(tasks)} generation tasks")
 
-        logging.info(f"Generating up to {args.num_images} images (starting from image_{image_counter:05d})...")
+    # Determine if we should use parallel generation
+    use_parallel_generation = args.generation_workers > 1
+    use_parallel_io = args.workers > 1
 
-        for i in range(args.num_images):
-            # --- Time Limit Check ---
-            if args.max_execution_time and (time.time() - start_time) > args.max_execution_time:
-                logging.info(f"\nTime limit of {args.max_execution_time} seconds reached. Stopping generation.")
-                break
+    if use_parallel_generation:
+        logger.info(f"Using streaming parallel generation with {args.generation_workers} workers, chunk size {args.chunk_size}")
 
-            # Extract text segment from corpus manager
-            text_line = corpus_manager.extract_text_segment(
-                args.min_text_length, args.max_text_length
+        # Filter out completed tasks in resume mode
+        if args.resume and len(completed_indices) > 0:
+            remaining_tasks = [(i, task) for i, task in enumerate(tasks) if i not in completed_indices]
+            logger.info(f"Resume mode: {len(remaining_tasks)} tasks remaining, {len(completed_indices)} already completed")
+        else:
+            remaining_tasks = list(enumerate(tasks))
+
+        # Create pools
+        gen_pool = multiprocessing.Pool(processes=args.generation_workers)
+        io_pool = multiprocessing.Pool(processes=args.workers) if use_parallel_io else None
+
+        if use_parallel_io:
+            logger.info(f"Using parallel I/O with {args.workers} workers, batch size {args.io_batch_size}")
+        else:
+            logger.info("Using sequential I/O")
+
+        # Overall progress bar (total includes already completed)
+        total_images = len(tasks)
+        total_progress = tqdm(initial=len(completed_indices), total=total_images, desc="Processing Images")
+
+        # Track completed count for checkpointing
+        images_completed = len(completed_indices)
+
+        try:
+            # Process remaining tasks in chunks
+            for chunk_offset in range(0, len(remaining_tasks), args.chunk_size):
+                chunk_end_offset = min(chunk_offset + args.chunk_size, len(remaining_tasks))
+                chunk_items = remaining_tasks[chunk_offset:chunk_end_offset]
+
+                # Extract indices and tasks
+                chunk_indices = [idx for idx, _ in chunk_items]
+                chunk_tasks = [task for _, task in chunk_items]
+
+                logger.debug(f"Processing chunk {chunk_offset}-{chunk_end_offset-1} ({len(chunk_tasks)} images)")
+
+                # Prepare arguments for this chunk
+                chunk_args = [
+                    (task, idx, background_manager)
+                    for idx, task in zip(chunk_indices, chunk_tasks)
+                ]
+
+                # Generate chunk in parallel with error handling
+                try:
+                    chunk_results = gen_pool.map(generate_image_from_task, chunk_args)
+                except Exception as e:
+                    logger.error(f"Generation pool.map() failed for chunk {chunk_offset}-{chunk_end_offset-1}: {type(e).__name__}: {e}")
+                    logger.warning(f"Skipping {len(chunk_tasks)} images in failed chunk, continuing with next chunk")
+                    total_progress.update(len(chunk_tasks))
+                    continue
+
+                # Save chunk immediately, filtering out failed generations
+                chunk_saved_count = 0
+                chunk_failed_count = 0
+                if use_parallel_io:
+                    # Parallel I/O: batch saves within chunk
+                    io_batch_size = args.io_batch_size
+                    save_tasks: List[Tuple[Image.Image, Dict[str, Any], Path, Path]] = []
+
+                    for idx, image, plan, error in chunk_results:
+                        if error is not None:
+                            # Generation failed - log and skip
+                            logger.warning(error)
+                            chunk_failed_count += 1
+                            total_progress.update(1)
+                            continue
+
+                        task = tasks[idx]
+                        image_path = output_path / f"{task.output_filename}.png"
+                        label_path = output_path / f"{task.output_filename}.json"
+                        save_tasks.append((image, plan, image_path, label_path))
+
+                        # Save batch when full
+                        if len(save_tasks) >= io_batch_size:
+                            try:
+                                io_pool.map(save_image_and_label, save_tasks)
+                                chunk_saved_count += len(save_tasks)
+                                total_progress.update(len(save_tasks))
+                            except Exception as e:
+                                logger.error(f"I/O pool.map() failed for batch: {type(e).__name__}: {e}")
+                                logger.warning(f"Skipping {len(save_tasks)} images in failed I/O batch")
+                                total_progress.update(len(save_tasks))
+                            finally:
+                                save_tasks = []
+
+                    # Save any remaining tasks at end of chunk
+                    if len(save_tasks) > 0:
+                        try:
+                            io_pool.map(save_image_and_label, save_tasks)
+                            chunk_saved_count += len(save_tasks)
+                            total_progress.update(len(save_tasks))
+                        except Exception as e:
+                            logger.error(f"I/O pool.map() failed for final batch: {type(e).__name__}: {e}")
+                            logger.warning(f"Skipping {len(save_tasks)} images in failed I/O batch")
+                            total_progress.update(len(save_tasks))
+                        finally:
+                            save_tasks = []
+                else:
+                    # Sequential I/O
+                    for idx, image, plan, error in chunk_results:
+                        if error is not None:
+                            # Generation failed - log and skip
+                            logger.warning(error)
+                            chunk_failed_count += 1
+                            total_progress.update(1)
+                            continue
+
+                        task = tasks[idx]
+                        image_path = output_path / f"{task.output_filename}.png"
+                        label_path = output_path / f"{task.output_filename}.json"
+                        image.save(image_path)
+                        with open(label_path, 'w', encoding='utf-8') as f:
+                            json.dump(plan, f, indent=4, cls=NumpyEncoder)
+                        chunk_saved_count += 1
+                        total_progress.update(1)
+
+                # Update checkpoint after each chunk
+                images_completed += chunk_saved_count
+                checkpoint_manager.save_checkpoint(completed_images=images_completed)
+                if chunk_failed_count > 0:
+                    logger.info(f"Chunk complete: {chunk_saved_count} images saved, {chunk_failed_count} skipped due to errors, total {images_completed}/{total_images}")
+                else:
+                    logger.debug(f"Chunk complete: {chunk_saved_count} images, total {images_completed}/{total_images}")
+
+        finally:
+            # Clean up progress bar and pools
+            total_progress.close()
+            gen_pool.close()
+            gen_pool.join()
+            if io_pool:
+                io_pool.close()
+                io_pool.join()
+            logger.debug("Closed all worker pools")
+    else:
+        # Sequential generation mode
+        logger.info("Using sequential image generation")
+
+        # Filter out completed tasks in resume mode
+        if args.resume and len(completed_indices) > 0:
+            remaining_tasks = [(i, task) for i, task in enumerate(tasks) if i not in completed_indices]
+            logger.info(f"Resume mode: {len(remaining_tasks)} tasks remaining, {len(completed_indices)} already completed")
+        else:
+            remaining_tasks = list(enumerate(tasks))
+
+        if use_parallel_io:
+            logger.info(f"Using parallel I/O with {args.workers} workers, batch size {args.io_batch_size}")
+            io_pool = multiprocessing.Pool(processes=args.workers)
+            batch_size = args.io_batch_size
+            save_tasks: List[Tuple[Image.Image, Dict[str, Any], Path, Path]] = []
+        else:
+            logger.info("Using sequential I/O")
+
+        # Track completed count for checkpointing
+        images_completed = len(completed_indices)
+
+        # Sequential generation loop with progress bar
+        progress = tqdm(remaining_tasks, desc="Generating Images", initial=len(completed_indices), total=len(tasks))
+        for i, task in progress:
+            logger.debug(f"Generating image {i+1}/{len(tasks)} (spec: {task.source_spec.name})")
+
+            # Generate a plan for this task
+            plan: Dict[str, Any] = generator.plan_generation(
+                spec=task.source_spec,
+                text=task.text,
+                font_path=task.font_path,
+                background_manager=background_manager
             )
 
-            if not text_line:
-                logging.warning(f"Could not generate text of minimum length {args.min_text_length}. Skipping image.")
-                continue
+            # Generate the image from the plan
+            image, bboxes = generator.generate_from_plan(plan)
 
-            logging.debug(f"Selected text: {text_line}")
+            # Add the final bounding boxes to the plan for the label file
+            plan["bboxes"] = bboxes
 
-            # Select font with health awareness
-            if args.font_name:
-                font_path = os.path.join(args.fonts_dir, args.font_name)
-                if not os.path.exists(font_path):
-                    logging.error(f"Error: Font file {args.font_name} not found in {args.fonts_dir}")
-                    continue
-                # Check if specified font is healthy
-                if font_health_manager and not font_health_manager.get_available_fonts([font_path]):
-                    logging.warning(f"Specified font {args.font_name} is unhealthy, skipping")
-                    continue
+            # Prepare file paths
+            image_path = output_path / f"{task.output_filename}.png"
+            label_path = output_path / f"{task.output_filename}.json"
+
+            if use_parallel_io:
+                # Add to batch for parallel saving
+                save_tasks.append((image, plan, image_path, label_path))
+
+                # Save batch when full or at end
+                is_last = (i == remaining_tasks[-1][0])
+                if len(save_tasks) >= batch_size or is_last:
+                    try:
+                        io_pool.map(save_image_and_label, save_tasks)
+                        images_completed += len(save_tasks)
+                    except Exception as e:
+                        logger.error(f"I/O pool.map() failed in sequential mode: {type(e).__name__}: {e}")
+                        logger.warning(f"Skipping {len(save_tasks)} images in failed I/O batch")
+                    finally:
+                        save_tasks = []
+                    # Save checkpoint after each batch
+                    checkpoint_manager.save_checkpoint(completed_images=images_completed)
             else:
-                # Select from healthy fonts only
-                if font_health_manager:
-                    healthy_fonts = font_health_manager.get_available_fonts(font_files)
-                    if not healthy_fonts:
-                        logging.error("No healthy fonts available")
-                        break
-                    font_path = font_health_manager.select_font_weighted(healthy_fonts)
-                else:
-                    font_path = random.choice(sorted(font_files))
-            logging.debug(f"Selected font: {font_path}")
+                # Sequential mode (backwards compatible)
+                image.save(image_path)
+                with open(label_path, 'w', encoding='utf-8') as f:
+                    json.dump(plan, f, indent=4, cls=NumpyEncoder)
+                images_completed += 1
 
-            # Generate font size
-            font_size = random.randint(28, 40)
+                # Save checkpoint every 10 images in sequential mode
+                if images_completed % 10 == 0:
+                    checkpoint_manager.save_checkpoint(completed_images=images_completed)
 
-            # Parse custom colors
-            custom_colors = None
-            if args.custom_colors:
-                try:
-                    custom_colors = [
-                        tuple(map(int, color.split(',')))
-                        for color in args.custom_colors.split(';')
-                    ]
-                except ValueError:
-                    logging.warning(f"Invalid format for --custom-colors: {args.custom_colors}")
+            # Log progress every 10 images
+            if images_completed % 10 == 0:
+                logger.info(f"Progress: {images_completed}/{len(tasks)} images generated")
 
-            try:
-                # Generate image with augmentations and canvas placement
-                final_image, metadata, text, augmentations_applied = generator.generate_image(
-                    text_line, font_path, font_size, args.text_direction,
-                    seed=args.seed,
-                    curve_type='none',  # Not specified in CLI args for standard mode
-                    curve_intensity=0.0,  # Not specified in CLI args for standard mode
-                    overlap_intensity=args.overlap_intensity,
-                    ink_bleed_intensity=args.ink_bleed_intensity,
-                    effect_type=args.effect_type,
-                    effect_depth=args.effect_depth,
-                    light_azimuth=args.light_azimuth,
-                    light_elevation=args.light_elevation,
-                    text_color_mode=args.text_color_mode,
-                    color_palette=args.color_palette,
-                    custom_colors=custom_colors,
-                    background_color=args.background_color,
-                    canvas_enabled=True,
-                    canvas_min_padding=10,
-                    canvas_placement='weighted_random',
-                    canvas_max_megapixels=12.0
-                )
+        # Clean up I/O pool if used in sequential generation mode
+        if use_parallel_io:
+            io_pool.close()
+            io_pool.join()
+            logger.debug("Closed I/O pool")
 
-                # Save image
-                image_filename = f'image_{image_counter:05d}.png'
-                image_path = os.path.join(args.output_dir, image_filename)
-                final_image.save(image_path)
-                logging.debug(f"Saved image to {image_path}")
-
-                # Create generation_params dictionary for standard mode
-                generation_params = {
-                    'seed': args.seed,
-                    'text': text,
-                    'font_path': font_path,
-                    'font_size': font_size,
-                    'text_direction': args.text_direction,
-                    'curve_type': 'none',
-                    'curve_intensity': 0.0,
-                    'overlap_intensity': args.overlap_intensity,
-                    'ink_bleed_intensity': args.ink_bleed_intensity,
-                    'effect_type': args.effect_type,
-                    'effect_depth': args.effect_depth,
-                    'light_azimuth': args.light_azimuth,
-                    'light_elevation': args.light_elevation,
-                    'text_color_mode': args.text_color_mode,
-                    'color_palette': args.color_palette,
-                    'custom_colors': custom_colors,
-                    'background_color': args.background_color,
-                    'augmentations': augmentations_applied
-                }
-
-                # Save JSON label
-                from canvas_placement import save_label_json
-                json_filename = f'image_{image_counter:05d}.json'
-                json_path = os.path.join(args.output_dir, json_filename)
-                save_label_json(json_path, image_filename, text, metadata, generation_params)
-                logging.debug(f"Saved label to {json_path}")
-
-                # Record success in font health manager
-                if font_health_manager:
-                    font_health_manager.record_success(font_path, text_line)
-
-                image_counter += 1
-
-            except Exception as e:
-                # Record failure in font health manager
-                if font_health_manager:
-                    reason = "render_error" if "render" in str(e).lower() else type(e).__name__
-                    font_health_manager.record_failure(font_path, reason=reason)
-                logging.error(f"Failed to generate image: {e}")
-                continue
-
-        if image_counter > 0:
-            logging.info(f"Successfully generated {image_counter} images with JSON labels in {args.output_dir}")
-        else:
-            logging.error("Failed to generate any images. The corpus may be too small for the specified text length.")
-            sys.exit(1)
-
-    # Save final font health state and report
-    if font_health_manager:
-        font_health_manager.save_state()
-        report = font_health_manager.get_summary_report()
-        logging.info(f"Final font health report: {report}")
-
-    logging.info("Script finished.")
-    print(f"Run Finished: {time.strftime('%Y-%m-%d_%H-%M-%S')}")
-
+    logger.info(f"Generation complete. Generated {len(tasks)} images to {output_path}")
+    print("Generation complete.")
 
 if __name__ == "__main__":
     main()
