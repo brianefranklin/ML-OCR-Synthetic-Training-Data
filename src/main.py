@@ -12,6 +12,9 @@ from typing import Dict, List, Any, Tuple, Optional
 import numpy as np
 from PIL import Image
 
+# Set a new limit for image size to handle large backgrounds (e.g., 100MP) and avoid DecompressionBombWarning.
+Image.MAX_IMAGE_PIXELS = 100000001
+
 from src.batch_config import BatchConfig
 from src.corpus_manager import CorpusManager
 from src.font_health_manager import FontHealthManager

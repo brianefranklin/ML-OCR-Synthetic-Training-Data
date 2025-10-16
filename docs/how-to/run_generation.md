@@ -390,7 +390,7 @@ batch_config = BatchConfig.from_yaml("batch_config.yaml")
 # Initialize managers
 background_manager = BackgroundImageManager(dir_weights={"./backgrounds": 1.0})
 corpus_map = {f.name: str(f) for f in Path("./corpus").rglob('*.txt')}
-all_fonts = [str(p) for p in Path("./fonts").rglob('*.ttf')]
+all_fonts = [str(p) for p in Path("./fonts").rglob('*.ttf')] 
 
 # Create orchestrator to get tasks
 orchestrator = GenerationOrchestrator(
@@ -436,3 +436,9 @@ for i, plan in enumerate(plans):
 3. **Debugging**: Inspect exact parameters before committing compute resources
 4. **Analysis**: Export plans for statistical analysis of parameter distributions
 5. **Reproducibility**: Save plans to regenerate exact images later
+
+## Troubleshooting
+
+### `DecompressionBombWarning` with Large Backgrounds
+
+If you use very large background images (e.g., > 90 megapixels), you may encounter a `DecompressionBombWarning` from the Pillow library. This is a security feature to prevent memory exhaustion. The current limit in the script is set to handle images just over 100 megapixels. If you need to use even larger images, you will need to edit `src/main.py` and increase the `Image.MAX_IMAGE_PIXELS` value defined at the top of the file.
