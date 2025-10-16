@@ -405,3 +405,63 @@ def test_validation_error_message_is_clear():
     error = ValidationError("Test error message")
     assert str(error) == "Test error message"
     assert isinstance(error, Exception)
+
+def test_invalid_min_max_pairs_fails(tmp_path):
+    """Test that invalid min/max pairs trigger a validation error."""
+    corpus_dir = tmp_path / "corpus"
+    corpus_dir.mkdir()
+    (corpus_dir / "test.txt").write_text("content")
+
+    font_dir = tmp_path / "fonts"
+    font_dir.mkdir()
+    (font_dir / "test.ttf").write_text("fake font")
+
+    bg_dir = tmp_path / "backgrounds"
+    bg_dir.mkdir()
+
+    config = {
+        "total_images": 1,
+        "specifications": [
+            {
+                "name": "test_spec_invalid_min_max",
+                "proportion": 1.0,
+                "corpus_files": ["test.txt"],
+                "min_text_length": 100,
+                "max_text_length": 10,
+            }
+        ]
+    }
+
+    validator = BatchValidator(
+        config=config,
+        corpus_dir=str(corpus_dir),
+        font_dir=str(font_dir),
+        background_dir=str(bg_dir)
+    )
+
+    with pytest.raises(ValidationError) as exc_info:
+        validator.validate()
+
+    assert "min_text_length" in str(exc_info.value)
+    assert "cannot be greater than" in str(exc_info.value)
+    assert "max_text_length" in str(exc_info.value)
+
+    # Test another pair
+    config["specifications"][0]["min_text_length"] = 10
+    config["specifications"][0]["max_text_length"] = 100
+    config["specifications"][0]["font_size_min"] = 50
+    config["specifications"][0]["font_size_max"] = 20
+
+    validator = BatchValidator(
+        config=config,
+        corpus_dir=str(corpus_dir),
+        font_dir=str(font_dir),
+        background_dir=str(bg_dir)
+    )
+
+    with pytest.raises(ValidationError) as exc_info:
+        validator.validate()
+    
+    assert "font_size_min" in str(exc_info.value)
+    assert "cannot be greater than" in str(exc_info.value)
+    assert "font_size_max" in str(exc_info.value)

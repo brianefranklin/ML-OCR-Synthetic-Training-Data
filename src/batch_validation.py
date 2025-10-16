@@ -213,6 +213,9 @@ class BatchValidator:
         # Validate corpus files
         self._validate_corpus_files(spec, spec_name)
 
+        # Validate min/max pairs
+        self._validate_min_max_pairs(spec, spec_name)
+
         # Validate config section if present
         if "config" in spec:
             config = spec["config"]
@@ -228,6 +231,45 @@ class BatchValidator:
             # Validate direction settings
             if "direction" in config:
                 self._validate_direction_config(config["direction"], spec_name)
+
+    def _validate_min_max_pairs(self, spec: Dict[str, Any], spec_name: str) -> None:
+        """Validate that min values are not greater than max values."""
+        min_max_pairs = [
+            ("min_text_length", "max_text_length"),
+            ("glyph_overlap_intensity_min", "glyph_overlap_intensity_max"),
+            ("ink_bleed_radius_min", "ink_bleed_radius_max"),
+            ("rotation_angle_min", "rotation_angle_max"),
+            ("perspective_warp_magnitude_min", "perspective_warp_magnitude_max"),
+            ("elastic_distortion_alpha_min", "elastic_distortion_alpha_max"),
+            ("elastic_distortion_sigma_min", "elastic_distortion_sigma_max"),
+            ("grid_distortion_steps_min", "grid_distortion_steps_max"),
+            ("grid_distortion_limit_min", "grid_distortion_limit_max"),
+            ("optical_distortion_limit_min", "optical_distortion_limit_max"),
+            ("noise_amount_min", "noise_amount_max"),
+            ("blur_radius_min", "blur_radius_max"),
+            ("brightness_factor_min", "brightness_factor_max"),
+            ("contrast_factor_min", "contrast_factor_max"),
+            ("erosion_dilation_kernel_min", "erosion_dilation_kernel_max"),
+            ("cutout_width_min", "cutout_width_max"),
+            ("cutout_height_min", "cutout_height_max"),
+            ("arc_radius_min", "arc_radius_max"),
+            ("sine_amplitude_min", "sine_amplitude_max"),
+            ("sine_frequency_min", "sine_frequency_max"),
+            ("sine_phase_min", "sine_phase_max"),
+            ("per_glyph_palette_size_min", "per_glyph_palette_size_max"),
+            ("font_size_min", "font_size_max"),
+        ]
+
+        for min_key, max_key in min_max_pairs:
+            min_val = spec.get(min_key)
+            max_val = spec.get(max_key)
+
+            if min_val is not None and max_val is not None:
+                if min_val > max_val:
+                    raise ValidationError(
+                        f"Specification '{spec_name}': {min_key} ({min_val}) cannot be greater than "
+                        f"{max_key} ({max_val})"
+                    )
 
     def _validate_corpus_files(self, spec: Dict[str, Any], spec_name: str) -> None:
         """Validate that corpus files exist.
