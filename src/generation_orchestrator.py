@@ -20,6 +20,7 @@ class GenerationTask:
     This is a simple data structure to hold the results of the orchestration
     process before they are passed to the final planning and generation stage.
     """
+    index: int
     source_spec: BatchSpecification
     text: str
     font_path: str
@@ -60,13 +61,14 @@ class GenerationOrchestrator:
                     raise FileNotFoundError(f"Corpus file '{corpus_file_name}' not found in corpus_map.")
                 self._corpus_managers[corpus_file_name] = CorpusManager.from_file(full_path)
 
-    def create_task_list(self, min_text_len: int, max_text_len: int, unique_filenames: List[str]) -> List[GenerationTask]:
+    def create_task_list(self, min_text_len: int, max_text_len: int, unique_filenames: List[str], start_index: int = 0) -> List[GenerationTask]:
         """Creates a complete list of GenerationTask objects for the entire batch.
 
         Args:
             min_text_len: The minimum length of text segments to extract.
             max_text_len: The maximum length of text segments to extract.
             unique_filenames: A list of unique filenames (one per image) to use for output.
+            start_index: The global index to start creating tasks from (for resuming).
 
         Returns:
             A list of GenerationTask objects.
@@ -74,7 +76,7 @@ class GenerationOrchestrator:
         Raises:
             RuntimeError: If no healthy fonts or backgrounds are available.
         """
-        full_task_list: List[GenerationTask] = []
+        tasks_to_run: List[GenerationTask] = []
 
         # Get the interleaved list of which batch spec to use for each image.
         spec_list = self.batch_manager.task_list()
@@ -89,8 +91,12 @@ class GenerationOrchestrator:
             # It's okay to not have backgrounds, we can use a transparent canvas.
             print("Warning: No available backgrounds found.")
 
+        # If resuming, only process the specs for the remaining images.
+        specs_to_process = spec_list[start_index:]
+
         # For each spec in the interleaved list, create a concrete task.
-        for i, spec in enumerate(spec_list):
+        for i, spec in enumerate(specs_to_process):
+            global_index = start_index + i
             # Filter fonts if a filter is specified in the batch
             if spec.font_filter:
                 available_fonts_for_spec = [f for f in available_fonts if fnmatch.fnmatch(f, spec.font_filter)]
@@ -108,12 +114,13 @@ class GenerationOrchestrator:
             background_path = self.background_manager.select_background()
 
             task = GenerationTask(
+                index=global_index,
                 source_spec=spec,
                 text=text,
                 font_path=font_path,
                 background_path=background_path,
-                output_filename=unique_filenames[i]
+                output_filename=unique_filenames[global_index]
             )
-            full_task_list.append(task)
+            tasks_to_run.append(task)
             
-        return full_task_list
+        return tasks_to_run

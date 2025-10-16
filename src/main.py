@@ -305,16 +305,15 @@ def main():
     )
 
     # Handle resume mode
-    completed_indices = set()
+    images_completed = 0
     if args.resume:
         logger.info("Resume mode enabled - checking for existing checkpoint...")
         checkpoint_data = checkpoint_manager.load_checkpoint()
         if checkpoint_data:
-            logger.info(f"Found checkpoint: {checkpoint_data['completed_images']} images previously completed")
-            completed_indices = checkpoint_manager.get_completed_indices()
-            logger.info(f"Scanned output directory: {len(completed_indices)} existing images found")
-            if len(completed_indices) > 0:
-                print(f"Resuming generation - skipping {len(completed_indices)} existing images")
+            images_completed = checkpoint_data.get('completed_images', 0)
+            logger.info(f"Found checkpoint: {images_completed} images previously completed")
+            if images_completed > 0:
+                print(f"Resuming generation - starting after {images_completed} completed images.")
         else:
             logger.info("No previous checkpoint found - starting fresh generation")
             print("No previous checkpoint found - starting fresh generation")
@@ -342,19 +341,22 @@ def main():
     generator = OCRDataGenerator()
     logger.debug("Initialized orchestrator and generator")
 
-    print(f"Generating {batch_config.total_images} images...")
+    total_images_to_generate = batch_config.total_images - images_completed
+    print(f"Generating {total_images_to_generate} images (from {images_completed} to {batch_config.total_images})...")
 
-    # Pre-generate a list of unique filenames for the entire batch using UUID4
-    # UUID4 has negligible collision probability (<10^-15 for 10k images)
-    unique_filenames = [str(uuid.uuid4()) for _ in range(batch_config.total_images)]
+    # Pre-generate a list of unique filenames for the entire batch using UUIDs
+    # This is crucial for allowing stateless, deterministic resume operations
+    # We use UUID(int=i) to create a deterministic sequence of UUIDs based on the index
+    unique_filenames = [str(uuid.UUID(int=i)) for i in range(batch_config.total_images)]
 
-    # Create the full list of generation tasks
-    tasks: List[GenerationTask] = orchestrator.create_task_list(
+    # Create the list of generation tasks to be done in this session
+    tasks_to_run: List[GenerationTask] = orchestrator.create_task_list(
         min_text_len=10,
         max_text_len=50,
-        unique_filenames=unique_filenames
+        unique_filenames=unique_filenames,
+        start_index=images_completed
     )
-    logger.info(f"Created {len(tasks)} generation tasks")
+    logger.info(f"Created {len(tasks_to_run)} generation tasks for this session")
 
     # Determine if we should use parallel generation
     use_parallel_generation = args.generation_workers > 1
@@ -362,13 +364,6 @@ def main():
 
     if use_parallel_generation:
         logger.info(f"Using streaming parallel generation with {args.generation_workers} workers, chunk size {args.chunk_size}")
-
-        # Filter out completed tasks in resume mode
-        if args.resume and len(completed_indices) > 0:
-            remaining_tasks = [(i, task) for i, task in enumerate(tasks) if i not in completed_indices]
-            logger.info(f"Resume mode: {len(remaining_tasks)} tasks remaining, {len(completed_indices)} already completed")
-        else:
-            remaining_tasks = list(enumerate(tasks))
 
         # Create pools
         gen_pool = multiprocessing.Pool(processes=args.generation_workers)
@@ -379,36 +374,29 @@ def main():
         else:
             logger.info("Using sequential I/O")
 
-        # Overall progress bar (total includes already completed)
-        total_images = len(tasks)
-        total_progress = tqdm(initial=len(completed_indices), total=total_images, desc="Processing Images")
-
-        # Track completed count for checkpointing
-        images_completed = len(completed_indices)
+        # Overall progress bar
+        total_progress = tqdm(initial=images_completed, total=batch_config.total_images, desc="Processing Images")
 
         try:
-            # Process remaining tasks in chunks
-            for chunk_offset in range(0, len(remaining_tasks), args.chunk_size):
-                chunk_end_offset = min(chunk_offset + args.chunk_size, len(remaining_tasks))
-                chunk_items = remaining_tasks[chunk_offset:chunk_end_offset]
+            # Process tasks in chunks
+            for chunk_offset in range(0, len(tasks_to_run), args.chunk_size):
+                chunk_end_offset = min(chunk_offset + args.chunk_size, len(tasks_to_run))
+                chunk_tasks = tasks_to_run[chunk_offset:chunk_end_offset]
 
-                # Extract indices and tasks
-                chunk_indices = [idx for idx, _ in chunk_items]
-                chunk_tasks = [task for _, task in chunk_items]
-
-                logger.debug(f"Processing chunk {chunk_offset}-{chunk_end_offset-1} ({len(chunk_tasks)} images)")
+                logger.debug(f"Processing chunk of {len(chunk_tasks)} images")
 
                 # Prepare arguments for this chunk
+                # The index for deterministic seeding is the global index from the original batch
                 chunk_args = [
-                    (task, idx, background_manager)
-                    for idx, task in zip(chunk_indices, chunk_tasks)
+                    (task, task.index, background_manager)
+                    for task in chunk_tasks
                 ]
 
                 # Generate chunk in parallel with error handling
                 try:
                     chunk_results = gen_pool.map(generate_image_from_task, chunk_args)
                 except Exception as e:
-                    logger.error(f"Generation pool.map() failed for chunk {chunk_offset}-{chunk_end_offset-1}: {type(e).__name__}: {e}")
+                    logger.error(f"Generation pool.map() failed for chunk: {type(e).__name__}: {e}")
                     logger.warning(f"Skipping {len(chunk_tasks)} images in failed chunk, continuing with next chunk")
                     total_progress.update(len(chunk_tasks))
                     continue
@@ -416,7 +404,7 @@ def main():
                 # Save chunk immediately, filtering out failed generations
                 chunk_saved_count = 0
                 chunk_failed_count = 0
-                if use_parallel_io:
+                if use_parallel_io and io_pool:
                     # Parallel I/O: batch saves within chunk
                     io_batch_size = args.io_batch_size
                     save_tasks: List[Tuple[Image.Image, Dict[str, Any], Path, Path]] = []
@@ -426,10 +414,14 @@ def main():
                             # Generation failed - log and skip
                             logger.warning(error)
                             chunk_failed_count += 1
-                            total_progress.update(1)
                             continue
 
-                        task = tasks[idx]
+                        # Find the original task from the index
+                        task = next((t for t in chunk_tasks if t.index == idx), None)
+                        if not task:
+                            logger.error(f"Could not find original task for index {idx} in chunk.")
+                            continue
+
                         image_path = output_path / f"{task.output_filename}.png"
                         label_path = output_path / f"{task.output_filename}.json"
                         save_tasks.append((image, plan, image_path, label_path))
@@ -439,12 +431,11 @@ def main():
                             try:
                                 io_pool.map(save_image_and_label, save_tasks)
                                 chunk_saved_count += len(save_tasks)
-                                total_progress.update(len(save_tasks))
                             except Exception as e:
                                 logger.error(f"I/O pool.map() failed for batch: {type(e).__name__}: {e}")
                                 logger.warning(f"Skipping {len(save_tasks)} images in failed I/O batch")
-                                total_progress.update(len(save_tasks))
                             finally:
+                                total_progress.update(len(save_tasks))
                                 save_tasks = []
 
                     # Save any remaining tasks at end of chunk
@@ -452,12 +443,11 @@ def main():
                         try:
                             io_pool.map(save_image_and_label, save_tasks)
                             chunk_saved_count += len(save_tasks)
-                            total_progress.update(len(save_tasks))
                         except Exception as e:
                             logger.error(f"I/O pool.map() failed for final batch: {type(e).__name__}: {e}")
                             logger.warning(f"Skipping {len(save_tasks)} images in failed I/O batch")
-                            total_progress.update(len(save_tasks))
                         finally:
+                            total_progress.update(len(save_tasks))
                             save_tasks = []
                 else:
                     # Sequential I/O
@@ -466,25 +456,24 @@ def main():
                             # Generation failed - log and skip
                             logger.warning(error)
                             chunk_failed_count += 1
-                            total_progress.update(1)
                             continue
 
-                        task = tasks[idx]
+                        task = next((t for t in chunk_tasks if t.index == idx), None)
                         image_path = output_path / f"{task.output_filename}.png"
                         label_path = output_path / f"{task.output_filename}.json"
                         image.save(image_path)
                         with open(label_path, 'w', encoding='utf-8') as f:
                             json.dump(plan, f, indent=4, cls=NumpyEncoder)
                         chunk_saved_count += 1
-                        total_progress.update(1)
 
-                # Update checkpoint after each chunk
+                # Update progress bar and checkpoint after each chunk
+                total_progress.update(chunk_saved_count)
                 images_completed += chunk_saved_count
                 checkpoint_manager.save_checkpoint(completed_images=images_completed)
                 if chunk_failed_count > 0:
-                    logger.info(f"Chunk complete: {chunk_saved_count} images saved, {chunk_failed_count} skipped due to errors, total {images_completed}/{total_images}")
+                    logger.info(f"Chunk complete: {chunk_saved_count} images saved, {chunk_failed_count} skipped due to errors, total {images_completed}/{batch_config.total_images}")
                 else:
-                    logger.debug(f"Chunk complete: {chunk_saved_count} images, total {images_completed}/{total_images}")
+                    logger.debug(f"Chunk complete: {chunk_saved_count} images, total {images_completed}/{batch_config.total_images}")
 
         finally:
             # Clean up progress bar and pools
@@ -499,28 +488,19 @@ def main():
         # Sequential generation mode
         logger.info("Using sequential image generation")
 
-        # Filter out completed tasks in resume mode
-        if args.resume and len(completed_indices) > 0:
-            remaining_tasks = [(i, task) for i, task in enumerate(tasks) if i not in completed_indices]
-            logger.info(f"Resume mode: {len(remaining_tasks)} tasks remaining, {len(completed_indices)} already completed")
-        else:
-            remaining_tasks = list(enumerate(tasks))
-
         if use_parallel_io:
             logger.info(f"Using parallel I/O with {args.workers} workers, batch size {args.io_batch_size}")
             io_pool = multiprocessing.Pool(processes=args.workers)
-            batch_size = args.io_batch_size
             save_tasks: List[Tuple[Image.Image, Dict[str, Any], Path, Path]] = []
         else:
             logger.info("Using sequential I/O")
+            io_pool = None  # Ensure io_pool is defined
 
-        # Track completed count for checkpointing
-        images_completed = len(completed_indices)
+        # In sequential mode, we just iterate through the tasks to run
+        progress = tqdm(tasks_to_run, desc="Generating Images")
 
-        # Sequential generation loop with progress bar
-        progress = tqdm(remaining_tasks, desc="Generating Images", initial=len(completed_indices), total=len(tasks))
-        for i, task in progress:
-            logger.debug(f"Generating image {i+1}/{len(tasks)} (spec: {task.source_spec.name})")
+        for i, task in enumerate(tasks_to_run):
+            logger.debug(f"Generating image {task.index + 1}/{batch_config.total_images} (spec: {task.source_spec.name})")
 
             # Generate a plan for this task
             plan: Dict[str, Any] = generator.plan_generation(
@@ -540,13 +520,13 @@ def main():
             image_path = output_path / f"{task.output_filename}.png"
             label_path = output_path / f"{task.output_filename}.json"
 
-            if use_parallel_io:
+            if use_parallel_io and io_pool:
                 # Add to batch for parallel saving
                 save_tasks.append((image, plan, image_path, label_path))
 
                 # Save batch when full or at end
-                is_last = (i == remaining_tasks[-1][0])
-                if len(save_tasks) >= batch_size or is_last:
+                is_last = (i == len(tasks_to_run) - 1)
+                if len(save_tasks) >= args.io_batch_size or is_last:
                     try:
                         io_pool.map(save_image_and_label, save_tasks)
                         images_completed += len(save_tasks)
@@ -555,25 +535,28 @@ def main():
                         logger.warning(f"Skipping {len(save_tasks)} images in failed I/O batch")
                     finally:
                         save_tasks = []
-                    # Save checkpoint after each batch
+                    # Save checkpoint after each I/O batch
                     checkpoint_manager.save_checkpoint(completed_images=images_completed)
             else:
-                # Sequential mode (backwards compatible)
+                # Sequential I/O mode
                 image.save(image_path)
                 with open(label_path, 'w', encoding='utf-8') as f:
                     json.dump(plan, f, indent=4, cls=NumpyEncoder)
                 images_completed += 1
 
-                # Save checkpoint every 10 images in sequential mode
+                # Save checkpoint every 10 images in pure sequential mode
                 if images_completed % 10 == 0:
                     checkpoint_manager.save_checkpoint(completed_images=images_completed)
 
-            # Log progress every 10 images
-            if images_completed % 10 == 0:
-                logger.info(f"Progress: {images_completed}/{len(tasks)} images generated")
+            progress.update(1)
 
-        # Clean up I/O pool if used in sequential generation mode
-        if use_parallel_io:
+            # Log progress every 100 images
+            if images_completed % 100 == 0:
+                logger.info(f"Progress: {images_completed}/{batch_config.total_images} images generated")
+
+        progress.close()
+        # Clean up I/O pool if used
+        if io_pool:
             io_pool.close()
             io_pool.join()
             logger.debug("Closed I/O pool")
