@@ -486,3 +486,273 @@ specifications:
     # Should not raise
     config = BatchConfig.from_yaml(str(yaml_file))
     assert len(config.specifications) == 2
+
+
+# =============================================================================
+# Tests for color parameters
+# =============================================================================
+
+def test_batch_specification_has_default_color_parameters():
+    """Tests that BatchSpecification has color parameters with correct defaults."""
+    spec = BatchSpecification(
+        name="test",
+        proportion=1.0,
+        text_direction="left_to_right",
+        corpus_file="test.txt"
+    )
+
+    # Default should be uniform mode with black text
+    assert hasattr(spec, 'color_mode')
+    assert spec.color_mode == "uniform"
+
+    # Uniform mode color range (default black)
+    assert hasattr(spec, 'text_color_min')
+    assert hasattr(spec, 'text_color_max')
+    assert spec.text_color_min == (0, 0, 0)
+    assert spec.text_color_max == (0, 0, 0)
+
+    # Per-glyph mode parameters
+    assert hasattr(spec, 'per_glyph_palette_size_min')
+    assert hasattr(spec, 'per_glyph_palette_size_max')
+    assert spec.per_glyph_palette_size_min == 2
+    assert spec.per_glyph_palette_size_max == 5
+
+    # Gradient mode parameters
+    assert hasattr(spec, 'gradient_start_color_min')
+    assert hasattr(spec, 'gradient_start_color_max')
+    assert hasattr(spec, 'gradient_end_color_min')
+    assert hasattr(spec, 'gradient_end_color_max')
+    assert spec.gradient_start_color_min == (0, 0, 0)
+    assert spec.gradient_start_color_max == (0, 0, 0)
+    assert spec.gradient_end_color_min == (0, 0, 0)
+    assert spec.gradient_end_color_max == (0, 0, 0)
+
+
+def test_batch_specification_accepts_uniform_color_parameters():
+    """Tests that uniform color mode parameters can be set."""
+    spec = BatchSpecification(
+        name="colored_uniform",
+        proportion=1.0,
+        text_direction="left_to_right",
+        corpus_file="test.txt",
+        color_mode="uniform",
+        text_color_min=(100, 50, 0),
+        text_color_max=(200, 150, 100)
+    )
+
+    assert spec.color_mode == "uniform"
+    assert spec.text_color_min == (100, 50, 0)
+    assert spec.text_color_max == (200, 150, 100)
+
+
+def test_batch_specification_accepts_per_glyph_color_parameters():
+    """Tests that per_glyph color mode parameters can be set."""
+    spec = BatchSpecification(
+        name="colored_per_glyph",
+        proportion=1.0,
+        text_direction="left_to_right",
+        corpus_file="test.txt",
+        color_mode="per_glyph",
+        text_color_min=(0, 0, 0),
+        text_color_max=(255, 255, 255),
+        per_glyph_palette_size_min=3,
+        per_glyph_palette_size_max=10
+    )
+
+    assert spec.color_mode == "per_glyph"
+    assert spec.per_glyph_palette_size_min == 3
+    assert spec.per_glyph_palette_size_max == 10
+
+
+def test_batch_specification_accepts_gradient_color_parameters():
+    """Tests that gradient color mode parameters can be set."""
+    spec = BatchSpecification(
+        name="colored_gradient",
+        proportion=1.0,
+        text_direction="left_to_right",
+        corpus_file="test.txt",
+        color_mode="gradient",
+        gradient_start_color_min=(0, 0, 0),
+        gradient_start_color_max=(50, 50, 50),
+        gradient_end_color_min=(200, 200, 200),
+        gradient_end_color_max=(255, 255, 255)
+    )
+
+    assert spec.color_mode == "gradient"
+    assert spec.gradient_start_color_min == (0, 0, 0)
+    assert spec.gradient_start_color_max == (50, 50, 50)
+    assert spec.gradient_end_color_min == (200, 200, 200)
+    assert spec.gradient_end_color_max == (255, 255, 255)
+
+
+def test_load_batch_config_with_uniform_color(tmp_path: Path):
+    """Tests that uniform color parameters can be loaded from YAML."""
+    yaml_content = """
+total_images: 10
+specifications:
+  - name: "uniform_colored"
+    proportion: 1.0
+    text_direction: "left_to_right"
+    corpus_file: "test.txt"
+    color_mode: "uniform"
+    text_color_min: [50, 100, 150]
+    text_color_max: [100, 150, 200]
+"""
+    yaml_file = tmp_path / "uniform_color.yaml"
+    yaml_file.write_text(yaml_content, encoding="utf-8")
+
+    config = BatchConfig.from_yaml(str(yaml_file))
+    spec = config.specifications[0]
+
+    assert spec.color_mode == "uniform"
+    assert spec.text_color_min == (50, 100, 150)
+    assert spec.text_color_max == (100, 150, 200)
+
+
+def test_load_batch_config_with_per_glyph_color(tmp_path: Path):
+    """Tests that per_glyph color parameters can be loaded from YAML."""
+    yaml_content = """
+total_images: 10
+specifications:
+  - name: "per_glyph_colored"
+    proportion: 1.0
+    text_direction: "left_to_right"
+    corpus_file: "test.txt"
+    color_mode: "per_glyph"
+    text_color_min: [0, 0, 0]
+    text_color_max: [255, 255, 255]
+    per_glyph_palette_size_min: 5
+    per_glyph_palette_size_max: 8
+"""
+    yaml_file = tmp_path / "per_glyph_color.yaml"
+    yaml_file.write_text(yaml_content, encoding="utf-8")
+
+    config = BatchConfig.from_yaml(str(yaml_file))
+    spec = config.specifications[0]
+
+    assert spec.color_mode == "per_glyph"
+    assert spec.per_glyph_palette_size_min == 5
+    assert spec.per_glyph_palette_size_max == 8
+
+
+def test_load_batch_config_with_gradient_color(tmp_path: Path):
+    """Tests that gradient color parameters can be loaded from YAML."""
+    yaml_content = """
+total_images: 10
+specifications:
+  - name: "gradient_colored"
+    proportion: 1.0
+    text_direction: "left_to_right"
+    corpus_file: "test.txt"
+    color_mode: "gradient"
+    gradient_start_color_min: [255, 0, 0]
+    gradient_start_color_max: [255, 50, 50]
+    gradient_end_color_min: [0, 0, 255]
+    gradient_end_color_max: [50, 50, 255]
+"""
+    yaml_file = tmp_path / "gradient_color.yaml"
+    yaml_file.write_text(yaml_content, encoding="utf-8")
+
+    config = BatchConfig.from_yaml(str(yaml_file))
+    spec = config.specifications[0]
+
+    assert spec.color_mode == "gradient"
+    assert spec.gradient_start_color_min == (255, 0, 0)
+    assert spec.gradient_start_color_max == (255, 50, 50)
+    assert spec.gradient_end_color_min == (0, 0, 255)
+    assert spec.gradient_end_color_max == (50, 50, 255)
+
+
+def test_invalid_color_mode_raises_error(tmp_path: Path):
+    """Tests that invalid color_mode values raise ValueError."""
+    yaml_content = """
+total_images: 10
+specifications:
+  - name: "invalid_color_mode"
+    proportion: 1.0
+    text_direction: "left_to_right"
+    corpus_file: "test.txt"
+    color_mode: "rainbow"
+"""
+    yaml_file = tmp_path / "invalid_color_mode.yaml"
+    yaml_file.write_text(yaml_content, encoding="utf-8")
+
+    with pytest.raises(ValueError, match="Invalid color_mode"):
+        BatchConfig.from_yaml(str(yaml_file))
+
+
+def test_valid_color_modes_accepted(tmp_path: Path):
+    """Tests that all valid color modes are accepted."""
+    for color_mode in ["uniform", "per_glyph", "gradient"]:
+        yaml_content = f"""
+total_images: 10
+specifications:
+  - name: "test_{color_mode}"
+    proportion: 1.0
+    text_direction: "left_to_right"
+    corpus_file: "test.txt"
+    color_mode: "{color_mode}"
+"""
+        yaml_file = tmp_path / f"color_{color_mode}.yaml"
+        yaml_file.write_text(yaml_content, encoding="utf-8")
+
+        # Should not raise
+        config = BatchConfig.from_yaml(str(yaml_file))
+        assert config.specifications[0].color_mode == color_mode
+
+
+# =============================================================================
+# Tests for font size parameters
+# =============================================================================
+
+def test_batch_specification_has_default_font_size_parameters():
+    """Tests that BatchSpecification has font_size parameters with correct defaults."""
+    spec = BatchSpecification(
+        name="test",
+        proportion=1.0,
+        text_direction="left_to_right",
+        corpus_file="test.txt"
+    )
+
+    # Default should be 32 (current hardcoded value)
+    assert hasattr(spec, 'font_size_min')
+    assert hasattr(spec, 'font_size_max')
+    assert spec.font_size_min == 32
+    assert spec.font_size_max == 32
+
+
+def test_batch_specification_accepts_font_size_parameters():
+    """Tests that font_size parameters can be set."""
+    spec = BatchSpecification(
+        name="variable_font_size",
+        proportion=1.0,
+        text_direction="left_to_right",
+        corpus_file="test.txt",
+        font_size_min=24,
+        font_size_max=72
+    )
+
+    assert spec.font_size_min == 24
+    assert spec.font_size_max == 72
+
+
+def test_load_batch_config_with_font_size(tmp_path: Path):
+    """Tests that font_size parameters can be loaded from YAML."""
+    yaml_content = """
+total_images: 10
+specifications:
+  - name: "variable_fonts"
+    proportion: 1.0
+    text_direction: "left_to_right"
+    corpus_file: "test.txt"
+    font_size_min: 18
+    font_size_max: 96
+"""
+    yaml_file = tmp_path / "font_size.yaml"
+    yaml_file.write_text(yaml_content, encoding="utf-8")
+
+    config = BatchConfig.from_yaml(str(yaml_file))
+    spec = config.specifications[0]
+
+    assert spec.font_size_min == 18
+    assert spec.font_size_max == 96

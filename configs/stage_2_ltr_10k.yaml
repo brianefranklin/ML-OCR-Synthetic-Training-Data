@@ -14,7 +14,7 @@ specifications:
   # Spec 1: Rotated text with sans-serif - 25%
   - name: "stage2_rotated_sans"
     proportion: 0.25
-    text_direction: "ltr"
+    text_direction: "left_to_right"
     corpus_file: "ltr/gutenberg_11.txt"
     font_filter: "*Sans*.ttf"
 
@@ -23,9 +23,8 @@ specifications:
 
     text_color_min: [0, 0, 0]
     text_color_max: [0, 0, 0]
-    background_color_min: [255, 255, 255]
-    background_color_max: [255, 255, 255]
-    use_background_image: false
+
+
 
     font_size_min: 24
     font_size_max: 72
@@ -92,7 +91,7 @@ specifications:
   # Spec 2: Arc curves with serif fonts - 25%
   - name: "stage2_arc_serif"
     proportion: 0.25
-    text_direction: "ltr"
+    text_direction: "left_to_right"
     corpus_file: "ltr/gutenberg_1116.txt"
     font_filter: "*Serif*.ttf"
 
@@ -101,9 +100,8 @@ specifications:
 
     text_color_min: [0, 0, 0]
     text_color_max: [0, 0, 0]
-    background_color_min: [255, 255, 255]
-    background_color_max: [255, 255, 255]
-    use_background_image: false
+
+
 
     font_size_min: 24
     font_size_max: 72
@@ -162,7 +160,7 @@ specifications:
   # Spec 3: Sine waves with Bold fonts - 25%
   - name: "stage2_sine_bold"
     proportion: 0.25
-    text_direction: "ltr"
+    text_direction: "left_to_right"
     corpus_file: "ltr/gutenberg_15.txt"
     font_filter: "*Bold.ttf"
 
@@ -171,9 +169,8 @@ specifications:
 
     text_color_min: [0, 0, 0]
     text_color_max: [0, 0, 0]
-    background_color_min: [255, 255, 255]
-    background_color_max: [255, 255, 255]
-    use_background_image: false
+
+
 
     font_size_min: 24
     font_size_max: 72
@@ -234,7 +231,7 @@ specifications:
   # Spec 4: Mixed - rotation + curves with Regular fonts - 25%
   - name: "stage2_mixed_regular"
     proportion: 0.25
-    text_direction: "ltr"
+    text_direction: "left_to_right"
     corpus_file: "ltr/gutenberg_41445.txt"
     font_filter: "*Regular.ttf"
 
@@ -243,9 +240,8 @@ specifications:
 
     text_color_min: [0, 0, 0]
     text_color_max: [0, 0, 0]
-    background_color_min: [255, 255, 255]
-    background_color_max: [255, 255, 255]
-    use_background_image: false
+
+
 
     font_size_min: 24
     font_size_max: 72

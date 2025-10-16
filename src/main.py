@@ -322,7 +322,7 @@ def main():
     logger.debug("Initialized font health manager and background manager")
 
     # Create a map of corpus file names to their full paths
-    corpus_map: Dict[str, str] = {f.name: str(f) for f in Path(args.corpus_dir).rglob('*.txt')}
+    corpus_map: Dict[str, str] = {str(f.relative_to(args.corpus_dir)): str(f) for f in Path(args.corpus_dir).rglob('*.txt')}
     logger.info(f"Found {len(corpus_map)} corpus files in {args.corpus_dir}")
 
     # Get a list of all available fonts

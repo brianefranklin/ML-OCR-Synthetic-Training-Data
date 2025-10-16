@@ -16,6 +16,7 @@ T = TypeVar('T')
 VALID_DISTRIBUTIONS = {"uniform", "normal", "exponential", "beta", "lognormal", "truncated_normal"}
 VALID_CURVE_TYPES = {"none", "arc", "sine"}
 VALID_TEXT_DIRECTIONS = {"left_to_right", "right_to_left", "top_to_bottom", "bottom_to_top"}
+VALID_COLOR_MODES = {"uniform", "per_glyph", "gradient"}
 
 @dataclass
 class BatchSpecification:
@@ -94,6 +95,15 @@ class BatchSpecification:
         sine_phase_min (float): The minimum phase offset for sine wave curves.
         sine_phase_max (float): The maximum phase offset for sine wave curves.
         sine_phase_distribution (str): Distribution type (default: "uniform").
+        color_mode (str): Text color mode - "uniform" (single color), "per_glyph" (different color per character), or "gradient" (smooth color transition).
+        text_color_min (Tuple[int, int, int]): Minimum RGB values for text color in uniform mode (default: black).
+        text_color_max (Tuple[int, int, int]): Maximum RGB values for text color in uniform mode (default: black).
+        per_glyph_palette_size_min (int): Minimum number of colors in per-glyph palette.
+        per_glyph_palette_size_max (int): Maximum number of colors in per-glyph palette.
+        gradient_start_color_min (Tuple[int, int, int]): Minimum RGB for gradient start color.
+        gradient_start_color_max (Tuple[int, int, int]): Maximum RGB for gradient start color.
+        gradient_end_color_min (Tuple[int, int, int]): Minimum RGB for gradient end color.
+        gradient_end_color_max (Tuple[int, int, int]): Maximum RGB for gradient end color.
 
     Note on Distribution Types:
         - "uniform": Equal probability across entire range (default for discrete parameters)
@@ -170,6 +180,35 @@ class BatchSpecification:
     sine_phase_min: float = 0.0
     sine_phase_max: float = 0.0
     sine_phase_distribution: DistributionType = "uniform"
+    # Color parameters - always present for consistent ML feature vectors
+    color_mode: str = "uniform"
+    text_color_min: Tuple[int, int, int] = (0, 0, 0)
+    text_color_max: Tuple[int, int, int] = (0, 0, 0)
+    per_glyph_palette_size_min: int = 2
+    per_glyph_palette_size_max: int = 5
+    gradient_start_color_min: Tuple[int, int, int] = (0, 0, 0)
+    gradient_start_color_max: Tuple[int, int, int] = (0, 0, 0)
+    gradient_end_color_min: Tuple[int, int, int] = (0, 0, 0)
+    gradient_end_color_max: Tuple[int, int, int] = (0, 0, 0)
+    # Font size parameters
+    font_size_min: int = 32
+    font_size_max: int = 32
+
+    def __post_init__(self):
+        """Convert color lists to tuples if loaded from YAML."""
+        # YAML loads lists, but we want tuples for hashability and type consistency
+        if isinstance(self.text_color_min, list):
+            self.text_color_min = tuple(self.text_color_min)
+        if isinstance(self.text_color_max, list):
+            self.text_color_max = tuple(self.text_color_max)
+        if isinstance(self.gradient_start_color_min, list):
+            self.gradient_start_color_min = tuple(self.gradient_start_color_min)
+        if isinstance(self.gradient_start_color_max, list):
+            self.gradient_start_color_max = tuple(self.gradient_start_color_max)
+        if isinstance(self.gradient_end_color_min, list):
+            self.gradient_end_color_min = tuple(self.gradient_end_color_min)
+        if isinstance(self.gradient_end_color_max, list):
+            self.gradient_end_color_max = tuple(self.gradient_end_color_max)
 
 @dataclass
 class BatchConfig:
@@ -262,6 +301,13 @@ class BatchConfig:
             errors.append(
                 f"Invalid text_direction '{spec.text_direction}'. "
                 f"Must be one of: {VALID_TEXT_DIRECTIONS}"
+            )
+
+        # Validate color_mode
+        if spec.color_mode not in VALID_COLOR_MODES:
+            errors.append(
+                f"Invalid color_mode '{spec.color_mode}'. "
+                f"Must be one of: {VALID_COLOR_MODES}"
             )
 
         # Validate curve_type consistency with curve parameters

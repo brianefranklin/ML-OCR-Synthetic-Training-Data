@@ -13,7 +13,7 @@ specifications:
   # Spec 1: Colored text on background images - 30%
   - name: "stage3_colored_backgrounds"
     proportion: 0.30
-    text_direction: "ltr"
+    text_direction: "left_to_right"
     corpus_file: "ltr/gutenberg_11.txt"
     font_filter: null  # Allow all fonts
 
@@ -25,9 +25,8 @@ specifications:
     text_color_max: [255, 255, 255]
 
     # Background images enabled
-    use_background_image: true
-    background_color_min: [200, 200, 200]  # Fallback if no bg image
-    background_color_max: [255, 255, 255]
+
+
 
     font_size_min: 20
     font_size_max: 96
@@ -97,7 +96,7 @@ specifications:
   # Spec 2: High contrast colored text on backgrounds - 25%
   - name: "stage3_high_contrast"
     proportion: 0.25
-    text_direction: "ltr"
+    text_direction: "left_to_right"
     corpus_file: "ltr/gutenberg_1116.txt"
     font_filter: "*Bold.ttf"  # Bold for better visibility
 
@@ -108,9 +107,8 @@ specifications:
     text_color_min: [0, 0, 0]
     text_color_max: [100, 100, 100]  # Darker text
 
-    use_background_image: true
-    background_color_min: [150, 150, 150]
-    background_color_max: [255, 255, 255]
+
+
 
     font_size_min: 24
     font_size_max: 96
@@ -170,7 +168,7 @@ specifications:
   # Spec 3: Light colored text on dark backgrounds - 20%
   - name: "stage3_light_on_dark"
     proportion: 0.20
-    text_direction: "ltr"
+    text_direction: "left_to_right"
     corpus_file: "ltr/gutenberg_15.txt"
     font_filter: null
 
@@ -181,9 +179,8 @@ specifications:
     text_color_min: [150, 150, 150]
     text_color_max: [255, 255, 255]
 
-    use_background_image: true
-    background_color_min: [0, 0, 0]  # Dark fallback
-    background_color_max: [100, 100, 100]
+
+
 
     font_size_min: 20
     font_size_max: 80
@@ -240,7 +237,7 @@ specifications:
   # Spec 4: Extreme augmentations - challenging cases - 15%
   - name: "stage3_extreme"
     proportion: 0.15
-    text_direction: "ltr"
+    text_direction: "left_to_right"
     corpus_file: "ltr/gutenberg_41445.txt"
     font_filter: null
 
@@ -251,9 +248,8 @@ specifications:
     text_color_min: [0, 0, 0]
     text_color_max: [255, 255, 255]
 
-    use_background_image: true
-    background_color_min: [0, 0, 0]
-    background_color_max: [255, 255, 255]
+
+
 
     font_size_min: 18
     font_size_max: 120
@@ -315,7 +311,7 @@ specifications:
   # Spec 5: Medium difficulty mix - balanced approach - 10%
   - name: "stage3_balanced"
     proportion: 0.10
-    text_direction: "ltr"
+    text_direction: "left_to_right"
     corpus_file: "ltr/gutenberg_42671.txt"
     font_filter: "*Regular.ttf"
 
@@ -326,9 +322,8 @@ specifications:
     text_color_min: [50, 50, 50]
     text_color_max: [205, 205, 205]
 
-    use_background_image: true
-    background_color_min: [100, 100, 100]
-    background_color_max: [200, 200, 200]
+
+
 
     font_size_min: 24
     font_size_max: 72

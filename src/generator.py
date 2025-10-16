@@ -42,6 +42,65 @@ class OCRDataGenerator:
         """Initializes the OCRDataGenerator."""
         pass
 
+    def _generate_color_palette(self, spec: BatchSpecification, text: str) -> Optional[List]:
+        """Generates a color palette based on the specification's color mode.
+
+        Args:
+            spec: The BatchSpecification defining color parameters.
+            text: The text string (used for per_glyph mode to determine palette size).
+
+        Returns:
+            - None for uniform mode with black text (backward compatible)
+            - Single-element list with RGB tuple for uniform mode with color
+            - List of RGB tuples (one per character) for per_glyph mode
+            - List of two RGB tuples [start, end] for gradient mode
+
+        Examples:
+            >>> spec = BatchSpecification(...)
+            >>> generator._generate_color_palette(spec, "hello")
+            # Returns palette based on spec.color_mode
+        """
+        if spec.color_mode == "uniform":
+            # Sample a single color from the range
+            r = random.randint(spec.text_color_min[0], spec.text_color_max[0])
+            g = random.randint(spec.text_color_min[1], spec.text_color_max[1])
+            b = random.randint(spec.text_color_min[2], spec.text_color_max[2])
+            color = (r, g, b)
+
+            # Backward compatibility: return None for black text
+            if color == (0, 0, 0):
+                return None
+            return color
+
+        elif spec.color_mode == "per_glyph":
+            # Generate N random colors, one per character
+            palette_size = len(text)
+            palette = []
+            for _ in range(palette_size):
+                r = random.randint(spec.text_color_min[0], spec.text_color_max[0])
+                g = random.randint(spec.text_color_min[1], spec.text_color_max[1])
+                b = random.randint(spec.text_color_min[2], spec.text_color_max[2])
+                palette.append((r, g, b))
+            return palette
+
+        elif spec.color_mode == "gradient":
+            # Sample start and end colors
+            start_r = random.randint(spec.gradient_start_color_min[0], spec.gradient_start_color_max[0])
+            start_g = random.randint(spec.gradient_start_color_min[1], spec.gradient_start_color_max[1])
+            start_b = random.randint(spec.gradient_start_color_min[2], spec.gradient_start_color_max[2])
+            start_color = (start_r, start_g, start_b)
+
+            end_r = random.randint(spec.gradient_end_color_min[0], spec.gradient_end_color_max[0])
+            end_g = random.randint(spec.gradient_end_color_min[1], spec.gradient_end_color_max[1])
+            end_b = random.randint(spec.gradient_end_color_min[2], spec.gradient_end_color_max[2])
+            end_color = (end_r, end_g, end_b)
+
+            return [start_color, end_color]
+
+        else:
+            # Should never reach here due to validation, but provide fallback
+            return None
+
     def plan_generation(
         self, 
         spec: BatchSpecification, 
@@ -60,9 +119,12 @@ class OCRDataGenerator:
         Returns:
             A dictionary containing the complete plan for generating a single image.
         """
+        # Sample font size first (needed for canvas sizing)
+        font_size = random.randint(spec.font_size_min, spec.font_size_max)
+
         # Render a temporary surface to get the dimensions for canvas calculation.
         # Use straight text for canvas sizing regardless of curve type
-        text_surface, _ = self._render_text(text, font_path, spec.text_direction, 0.0, 'uniform', None, "none", 0.0, True, 0.0, 0.0, 0.0)
+        text_surface, _ = self._render_text(text, font_path, spec.text_direction, 0.0, 'uniform', None, "none", 0.0, True, 0.0, 0.0, 0.0, font_size)
         
         canvas_w, canvas_h = generate_random_canvas_size(text_surface.width, text_surface.height)
         placement_x, placement_y = calculate_text_placement(
@@ -93,8 +155,8 @@ class OCRDataGenerator:
             ),
             "drop_shadow_options": None, # Placeholder for more complex options
             "block_shadow_options": None, # Placeholder
-            "color_mode": 'uniform', # Placeholder
-            "color_palette": None, # Placeholder
+            "color_mode": spec.color_mode,
+            "color_palette": self._generate_color_palette(spec, text),
             "rotation_angle": sample_parameter(
                 spec.rotation_angle_min,
                 spec.rotation_angle_max,
@@ -202,6 +264,7 @@ class OCRDataGenerator:
                 spec.sine_phase_max,
                 spec.sine_phase_distribution
             ),
+            "font_size": font_size,
         }
 
     def plan_generation_batch(
@@ -269,6 +332,7 @@ class OCRDataGenerator:
             plan.get("sine_amplitude", 0.0),
             plan.get("sine_frequency", 0.0),
             plan.get("sine_phase", 0.0),
+            plan.get("font_size", 32),
         )
 
         # 2. Apply post-rendering text effects.
@@ -352,7 +416,8 @@ class OCRDataGenerator:
         arc_concave: bool = True,
         sine_amplitude: float = 0.0,
         sine_frequency: float = 0.0,
-        sine_phase: float = 0.0
+        sine_phase: float = 0.0,
+        font_size: int = 32
     ) -> Tuple[Image.Image, List[Dict[str, Any]]]:
         """Internal dispatcher for rendering text surfaces.
 
@@ -369,6 +434,7 @@ class OCRDataGenerator:
             sine_amplitude: Amplitude for sine wave (0.0 = straight).
             sine_frequency: Frequency for sine wave.
             sine_phase: Phase offset for sine wave.
+            font_size: Size of the font in pixels.
 
         Returns:
             Tuple of (image, bboxes).
@@ -378,23 +444,23 @@ class OCRDataGenerator:
         if curve_type == "arc" and arc_radius > 1.0:  # Changed from > 0 to > 1.0
             return self._render_arc_text(
                 text, font_path, direction, arc_radius, arc_concave,
-                glyph_overlap_intensity, color_mode, color_palette
+                glyph_overlap_intensity, color_mode, color_palette, font_size
             )
         elif curve_type == "sine" and sine_amplitude > 0.1:  # Small threshold
             return self._render_sine_text(
                 text, font_path, direction, sine_amplitude, sine_frequency, sine_phase,
-                glyph_overlap_intensity, color_mode, color_palette
+                glyph_overlap_intensity, color_mode, color_palette, font_size
             )
 
         # Fall back to straight text rendering
         if direction == "left_to_right":
-            return self._render_left_to_right(text, font_path, glyph_overlap_intensity, color_mode, color_palette)
+            return self._render_left_to_right(text, font_path, glyph_overlap_intensity, color_mode, color_palette, font_size)
         elif direction == "right_to_left":
-            return self._render_right_to_left(text, font_path, glyph_overlap_intensity, color_mode, color_palette)
+            return self._render_right_to_left(text, font_path, glyph_overlap_intensity, color_mode, color_palette, font_size)
         elif direction == "top_to_bottom":
-            return self._render_top_to_bottom(text, font_path, glyph_overlap_intensity, color_mode, color_palette)
+            return self._render_top_to_bottom(text, font_path, glyph_overlap_intensity, color_mode, color_palette, font_size)
         elif direction == "bottom_to_top":
-            return self._render_bottom_to_top(text, font_path, glyph_overlap_intensity, color_mode, color_palette)
+            return self._render_bottom_to_top(text, font_path, glyph_overlap_intensity, color_mode, color_palette, font_size)
         else:
             raise ValueError(f"Unsupported text direction: {direction}")
 
@@ -407,7 +473,8 @@ class OCRDataGenerator:
         arc_concave: bool,
         glyph_overlap_intensity: float,
         color_mode: str,
-        color_palette: Optional[list]
+        color_palette: Optional[list],
+        font_size: int = 32
     ) -> Tuple[Image.Image, List[Dict[str, Any]]]:
         """Renders text along a circular arc.
 
@@ -420,13 +487,13 @@ class OCRDataGenerator:
             glyph_overlap_intensity: Intensity of character overlap.
             color_mode: Color mode for rendering.
             color_palette: Optional color palette.
+            font_size: Size of the font in pixels.
 
         Returns:
             Tuple of (image, bboxes).
         """
         import math
 
-        font_size = 32
         font = ImageFont.truetype(font_path, font_size)
         ascent, descent = font.getmetrics()
         char_height = ascent + descent
@@ -608,7 +675,8 @@ class OCRDataGenerator:
         sine_phase: float,
         glyph_overlap_intensity: float,
         color_mode: str,
-        color_palette: Optional[list]
+        color_palette: Optional[list],
+        font_size: int = 32
     ) -> Tuple[Image.Image, List[Dict[str, Any]]]:
         """Renders text along a sine wave.
 
@@ -622,13 +690,13 @@ class OCRDataGenerator:
             glyph_overlap_intensity: Intensity of character overlap.
             color_mode: Color mode for rendering.
             color_palette: Optional color palette.
+            font_size: Size of the font in pixels.
 
         Returns:
             Tuple of (image, bboxes).
         """
         import math
 
-        font_size = 32
         font = ImageFont.truetype(font_path, font_size)
         ascent, descent = font.getmetrics()
         char_height = ascent + descent
@@ -802,26 +870,25 @@ class OCRDataGenerator:
 
         return image, bboxes
 
-    def _render_left_to_right(self, text: str, font_path: str, glyph_overlap_intensity: float, color_mode: str, color_palette: Optional[list]):
+    def _render_left_to_right(self, text: str, font_path: str, glyph_overlap_intensity: float, color_mode: str, color_palette: Optional[list], font_size: int = 32):
         """Renders left-to-right text."""
-        return self._render_text_surface(text, font_path, glyph_overlap_intensity, color_mode, color_palette)
+        return self._render_text_surface(text, font_path, glyph_overlap_intensity, color_mode, color_palette, font_size)
 
-    def _render_right_to_left(self, text: str, font_path: str, glyph_overlap_intensity: float, color_mode: str, color_palette: Optional[list]):
+    def _render_right_to_left(self, text: str, font_path: str, glyph_overlap_intensity: float, color_mode: str, color_palette: Optional[list], font_size: int = 32):
         """Renders right-to-left text after reshaping."""
         reshaped_text = bidi.algorithm.get_display(text)
-        return self._render_text_surface(reshaped_text, font_path, glyph_overlap_intensity, color_mode, color_palette)
+        return self._render_text_surface(reshaped_text, font_path, glyph_overlap_intensity, color_mode, color_palette, font_size)
 
-    def _render_top_to_bottom(self, text: str, font_path: str, glyph_overlap_intensity: float, color_mode: str, color_palette: Optional[list]):
+    def _render_top_to_bottom(self, text: str, font_path: str, glyph_overlap_intensity: float, color_mode: str, color_palette: Optional[list], font_size: int = 32):
         """Renders text vertically from top to bottom."""
-        return self._render_vertical_text(text, font_path, is_bottom_to_top=False, glyph_overlap_intensity=glyph_overlap_intensity, color_mode=color_mode, color_palette=color_palette)
+        return self._render_vertical_text(text, font_path, is_bottom_to_top=False, glyph_overlap_intensity=glyph_overlap_intensity, color_mode=color_mode, color_palette=color_palette, font_size=font_size)
 
-    def _render_bottom_to_top(self, text: str, font_path: str, glyph_overlap_intensity: float, color_mode: str, color_palette: Optional[list]):
+    def _render_bottom_to_top(self, text: str, font_path: str, glyph_overlap_intensity: float, color_mode: str, color_palette: Optional[list], font_size: int = 32):
         """Renders text vertically from bottom to top."""
-        return self._render_vertical_text(text, font_path, is_bottom_to_top=True, glyph_overlap_intensity=glyph_overlap_intensity, color_mode=color_mode, color_palette=color_palette)
+        return self._render_vertical_text(text, font_path, is_bottom_to_top=True, glyph_overlap_intensity=glyph_overlap_intensity, color_mode=color_mode, color_palette=color_palette, font_size=font_size)
 
-    def _render_vertical_text(self, text: str, font_path: str, is_bottom_to_top: bool, glyph_overlap_intensity: float, color_mode: str, color_palette: Optional[list]):
+    def _render_vertical_text(self, text: str, font_path: str, is_bottom_to_top: bool, glyph_overlap_intensity: float, color_mode: str, color_palette: Optional[list], font_size: int = 32):
         """Renders text vertically, either TTB or BTT."""
-        font_size = 32
         font = ImageFont.truetype(font_path, font_size)
         bboxes = []
         
@@ -910,12 +977,11 @@ class OCRDataGenerator:
 
         return image, bboxes
 
-    def _render_text_surface(self, text_to_render: str, font_path: str, glyph_overlap_intensity: float, color_mode: str, color_palette: Optional[list]):
+    def _render_text_surface(self, text_to_render: str, font_path: str, glyph_overlap_intensity: float, color_mode: str, color_palette: Optional[list], font_size: int = 32):
         """
         A common method to render a string of text onto a new image surface,
         calculating per-character bounding boxes.
         """
-        font_size = 32
         try:
             font = ImageFont.truetype(font_path, font_size)
         except (OSError, IOError) as e:

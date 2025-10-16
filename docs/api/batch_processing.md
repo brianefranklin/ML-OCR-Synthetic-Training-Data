@@ -12,7 +12,7 @@ This section describes the components responsible for managing and orchestrating
 - `name` (str): A unique identifier for the batch.
 - `proportion` (float): The proportion of the total images this batch should represent.
 - `text_direction` (str): The direction of the text rendering.
-- `corpus_file` (str): The filename of the corpus file to use.
+- `corpus_file` (str): The path to the corpus file, relative to the directory specified in `--corpus-dir`.
 - `font_filter` (Optional[str]): A glob pattern to filter the fonts to be used for this batch (e.g., `"*Bold.ttf"`).
 - `min_text_length` (int): The minimum length of text to generate.
 - `max_text_length` (int): The maximum length of text to generate.
@@ -58,6 +58,43 @@ For each randomizable parameter, there are three related fields:
 
 **Note on Curve Parameters:** All curve parameters are always present in `BatchSpecification` and in generated plans, even when `curve_type="none"`. This ensures consistent feature vectors for machine learning analysis. Zero values (`arc_radius=0.0`, `sine_amplitude=0.0`) explicitly represent straight-line text. See [Curved Text Rendering](../conceptual/curved_text.md) for details.
 
+##### Color Parameters
+- `color_mode` (str): Text color mode (`"uniform"`, `"per_glyph"`, or `"gradient"`). Default: `"uniform"`.
+
+**Uniform Mode** (single color for all text):
+- `text_color_min` (Tuple[int, int, int]): Minimum RGB values [0-255] for text color. Default: `(0, 0, 0)` (black).
+- `text_color_max` (Tuple[int, int, int]): Maximum RGB values [0-255] for text color. Default: `(0, 0, 0)` (black).
+
+**Per-Glyph Mode** (different color for each character):
+- `text_color_min` (Tuple[int, int, int]): Minimum RGB values for randomly sampled character colors.
+- `text_color_max` (Tuple[int, int, int]): Maximum RGB values for randomly sampled character colors.
+- `per_glyph_palette_size_min` (int): Minimum number of colors in the palette (typically equals text length). Default: 2.
+- `per_glyph_palette_size_max` (int): Maximum number of colors in the palette (typically equals text length). Default: 5.
+
+**Gradient Mode** (smooth color transition from start to end):
+- `gradient_start_color_min` (Tuple[int, int, int]): Minimum RGB values for gradient start color. Default: `(0, 0, 0)`.
+- `gradient_start_color_max` (Tuple[int, int, int]): Maximum RGB values for gradient start color. Default: `(0, 0, 0)`.
+- `gradient_end_color_min` (Tuple[int, int, int]): Minimum RGB values for gradient end color. Default: `(0, 0, 0)`.
+- `gradient_end_color_max` (Tuple[int, int, int]): Maximum RGB values for gradient end color. Default: `(0, 0, 0)`.
+
+**Note on Color Parameters:** All color parameters are always present in `BatchSpecification` and in generated plans, even when using `color_mode="uniform"` with black text. This ensures consistent feature vectors for machine learning analysis. The default black `(0, 0, 0)` maintains backward compatibility with existing configurations.
+
+**ML Considerations:**
+- **Uniform mode**: Simplest for OCR models to learn (consistent color per image)
+- **Gradient mode**: Medium complexity (smooth color variation within each image)
+- **Per-glyph mode**: Most complex (requires learning to handle arbitrary per-character color variations)
+
+##### Font Size Parameters
+- `font_size_min` (int): Minimum font size in pixels. Default: 32.
+- `font_size_max` (int): Maximum font size in pixels. Default: 32.
+
+Font size is sampled uniformly from the range `[font_size_min, font_size_max]`. Each generated image has a single font size value that applies to all characters. The font size directly affects the rendered text dimensions and is crucial for training models to recognize text at different scales.
+
+**ML Considerations:**
+- **Single size** (`min == max`): Simplest for initial training, all images at same scale
+- **Narrow range** (e.g., 28-36): Helps model learn minor scale variations
+- **Wide range** (e.g., 18-120): Forces model to learn scale-invariant features
+
 **Note on Distribution Types:** Distribution types control the probability of sampling values within the specified range. Six distribution types are supported:
 - `"uniform"`: Equal probability across entire range (default for discrete parameters)
 - `"normal"`: Bell curve centered at midpoint (for parameters with natural center like rotation)
@@ -85,6 +122,7 @@ See [Statistical Distributions](../conceptual/distributions.md) for detailed gui
    - If `curve_type="none"`, arc and sine parameters must be zero
    - Prevents misconfiguration where curve_type doesn't match curve parameters
 5. **Text Direction Validation**: `text_direction` must be one of: `"left_to_right"`, `"right_to_left"`, `"top_to_bottom"`, `"bottom_to_top"`
+6. **Color Mode Validation**: `color_mode` must be one of: `"uniform"`, `"per_glyph"`, `"gradient"`
 
 All validation errors are collected and reported together with clear error messages indicating which specification failed and why.
 
