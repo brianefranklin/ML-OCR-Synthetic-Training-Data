@@ -561,7 +561,7 @@ def main():
             io_pool.join()
             logger.debug("Closed I/O pool")
 
-    logger.info(f"Generation complete. Generated {len(tasks)} images to {output_path}")
+    logger.info(f"Generation complete. Generated {len(tasks_to_run)} images to {output_path}")
     print("Generation complete.")
 
 if __name__ == "__main__":
