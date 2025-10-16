@@ -87,6 +87,7 @@ def test_streaming_determinism_across_chunks():
 
     for idx in range(10):
         task = GenerationTask(
+            index=idx,
             source_spec=spec,
             text=f"Text{idx}",
             font_path=str(font_files[0]),
@@ -129,6 +130,7 @@ def test_streaming_chunk_boundary_indices():
 
     for idx in boundary_indices:
         task = GenerationTask(
+            index=idx,
             source_spec=spec,
             text=f"Boundary{idx}",
             font_path=str(font_files[0]),
@@ -164,6 +166,7 @@ def test_streaming_partial_final_chunk():
 
     for idx in range(50):
         task = GenerationTask(
+            index=idx,
             source_spec=spec,
             text=f"Partial{idx}",
             font_path=str(font_files[0]),
@@ -195,6 +198,7 @@ def test_streaming_maintains_order():
     tasks = []
     for idx in range(num_images):
         task = GenerationTask(
+            index=idx,
             source_spec=spec,
             text=f"Order{idx}",
             font_path=str(font_files[0]),
@@ -233,6 +237,7 @@ def test_streaming_with_different_texts():
     results = []
     for idx, text in enumerate(texts):
         task = GenerationTask(
+            index=idx,
             source_spec=spec,
             text=text,
             font_path=str(font_files[0]),
@@ -262,6 +267,7 @@ def test_streaming_produces_valid_images():
     # Generate a few images
     for idx in range(5):
         task = GenerationTask(
+            index=idx,
             source_spec=spec,
             text=f"Valid{idx}",
             font_path=str(font_files[0]),
@@ -300,6 +306,7 @@ def test_streaming_with_sequential_indices():
     # Simulate first chunk (indices 0-4)
     for idx in range(0, 5):
         task = GenerationTask(
+            index=idx,
             source_spec=spec,
             text=f"Chunk1_{idx}",
             font_path=str(font_files[0]),
@@ -312,6 +319,7 @@ def test_streaming_with_sequential_indices():
     # Simulate second chunk (indices 5-9)
     for idx in range(5, 10):
         task = GenerationTask(
+            index=idx,
             source_spec=spec,
             text=f"Chunk2_{idx}",
             font_path=str(font_files[0]),
@@ -347,13 +355,14 @@ def test_streaming_memory_efficiency_simulation():
         # Generate chunk
         for idx in range(chunk_start, chunk_end):
             task = GenerationTask(
+                index=idx,
                 source_spec=spec,
                 text=f"Chunk{idx}",
                 font_path=str(font_files[0]),
-                background_path=None
+                background_path=None,
+                output_filename=f"test_{idx}.png"
             )
-            result = generate_image_from_task((task, idx, None))
-            chunk_images.append(result)
+            chunk_images.append(task)
 
         # Verify chunk was generated correctly
         assert len(chunk_images) == (chunk_end - chunk_start)

@@ -83,6 +83,7 @@ def test_worker_function_is_deterministic(tmp_path):
         pytest.skip("No font files available for testing")
 
     task = GenerationTask(
+        index=0,
         source_spec=spec,
         text="Hello World",
         font_path=str(font_files[0]),
@@ -176,6 +177,7 @@ def test_worker_function_with_different_seeds_produces_different_images(tmp_path
         pytest.skip("No font files available for testing")
 
     task1 = GenerationTask(
+        index=0,
         source_spec=spec,
         text="Hello",
         font_path=str(font_files[0]),
@@ -184,6 +186,7 @@ def test_worker_function_with_different_seeds_produces_different_images(tmp_path
     )
 
     task2 = GenerationTask(
+        index=1,
         source_spec=spec,
         text="World",
         font_path=str(font_files[0]),
@@ -279,6 +282,7 @@ def test_parallel_vs_sequential_produces_same_results():
     tasks = []
     for i, text in enumerate(["Hello", "World", "Test", "Parallel"]):
         task = GenerationTask(
+            index=i,
             source_spec=spec,
             text=text,
             font_path=str(font_files[0]),
@@ -383,6 +387,7 @@ def test_worker_function_handles_numpy_types():
         pytest.skip("No font files available for testing")
 
     task = GenerationTask(
+        index=0,
         source_spec=spec,
         text="Test",
         font_path=str(font_files[0]),
@@ -464,6 +469,7 @@ def test_worker_function_preserves_task_index():
         pytest.skip("No font files available for testing")
 
     task = GenerationTask(
+        index=0, # The task's internal index can be static for this test
         source_spec=spec,
         text="Test",
         font_path=str(font_files[0]),
@@ -544,6 +550,7 @@ def test_worker_function_with_background_manager():
         pytest.skip("No font files available for testing")
 
     task = GenerationTask(
+        index=0,
         source_spec=spec,
         text="Test",
         font_path=str(font_files[0]),
