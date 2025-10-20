@@ -20,10 +20,13 @@ xcuserdata/
 gemini_persistent_history/
 claude_persistent_history/
 .claude/settings.local.json
+.claude/
 
 
 # Environment
 .env
+start_colima_container.sh
+update_ai.sh
 
 # Logs and temporary files
 *.log
