@@ -1,0 +1,173 @@
+# Stage 1 Demo: LTR Multi-Line Features - Basic
+# This configuration demonstrates:
+# 1. Backward compatibility (single-line mode using old code path)
+# 2. Basic multi-line with word breaking
+# 3. Basic multi-line with character breaking
+
+total_images: 150
+
+specifications:
+  # Spec 1: Single-line mode (backward compatibility test) - 33%
+  # This uses the OLD code path (no multi-line features)
+  - name: "ltr_single_line_compat"
+    proportion: 0.33
+    text_direction: "left_to_right"
+    corpus_file: "ltr/gutenberg_11.txt"
+    font_filter: "*Sans*.ttf"
+
+    # Single line (default, backward compatible)
+    min_text_length: 10
+    max_text_length: 30
+    min_lines: 1
+    max_lines: 1
+
+    # Standard font size
+    font_size_min: 32
+    font_size_max: 48
+
+    # No effects - clean images
+    rotation_angle_min: 0.0
+    rotation_angle_max: 0.0
+    curve_type: "none"
+    glyph_overlap_intensity_min: 0.0
+    glyph_overlap_intensity_max: 0.0
+    ink_bleed_radius_min: 0.0
+    ink_bleed_radius_max: 0.0
+    perspective_warp_magnitude_min: 0.0
+    perspective_warp_magnitude_max: 0.0
+    noise_amount_min: 0.0
+    noise_amount_max: 0.0
+    blur_radius_min: 0.0
+    blur_radius_max: 0.0
+    brightness_factor_min: 1.0
+    brightness_factor_max: 1.0
+    contrast_factor_min: 1.0
+    contrast_factor_max: 1.0
+    elastic_distortion_alpha_min: 0.0
+    elastic_distortion_alpha_max: 0.0
+    elastic_distortion_sigma_min: 0.0
+    elastic_distortion_sigma_max: 0.0
+    grid_distortion_steps_min: 0
+    grid_distortion_steps_max: 0
+    grid_distortion_limit_min: 0.0
+    grid_distortion_limit_max: 0.0
+    optical_distortion_limit_min: 0.0
+    optical_distortion_limit_max: 0.0
+    erosion_dilation_kernel_min: 0
+    erosion_dilation_kernel_max: 0
+    cutout_width_min: 0
+    cutout_width_max: 0
+    cutout_height_min: 0
+    cutout_height_max: 0
+
+  # Spec 2: Multi-line with word breaking - 33%
+  # Tests NEW multi-line code path with word mode
+  - name: "ltr_multiline_word"
+    proportion: 0.33
+    text_direction: "left_to_right"
+    corpus_file: "ltr/gutenberg_1116.txt"
+    font_filter: "*Serif*.ttf"
+
+    # Multi-line with word breaking
+    min_text_length: 30
+    max_text_length: 100
+    min_lines: 2
+    max_lines: 4
+    line_break_mode: "word"
+    line_spacing_min: 1.0
+    line_spacing_max: 1.5
+    text_alignment: "left"
+
+    font_size_min: 28
+    font_size_max: 40
+
+    # Clean images for easy visual verification
+    rotation_angle_min: 0.0
+    rotation_angle_max: 0.0
+    curve_type: "none"
+    glyph_overlap_intensity_min: 0.0
+    glyph_overlap_intensity_max: 0.0
+    ink_bleed_radius_min: 0.0
+    ink_bleed_radius_max: 0.0
+    perspective_warp_magnitude_min: 0.0
+    perspective_warp_magnitude_max: 0.0
+    noise_amount_min: 0.0
+    noise_amount_max: 0.0
+    blur_radius_min: 0.0
+    blur_radius_max: 0.0
+    brightness_factor_min: 1.0
+    brightness_factor_max: 1.0
+    contrast_factor_min: 1.0
+    contrast_factor_max: 1.0
+    elastic_distortion_alpha_min: 0.0
+    elastic_distortion_alpha_max: 0.0
+    elastic_distortion_sigma_min: 0.0
+    elastic_distortion_sigma_max: 0.0
+    grid_distortion_steps_min: 0
+    grid_distortion_steps_max: 0
+    grid_distortion_limit_min: 0.0
+    grid_distortion_limit_max: 0.0
+    optical_distortion_limit_min: 0.0
+    optical_distortion_limit_max: 0.0
+    erosion_dilation_kernel_min: 0
+    erosion_dilation_kernel_max: 0
+    cutout_width_min: 0
+    cutout_width_max: 0
+    cutout_height_min: 0
+    cutout_height_max: 0
+
+  # Spec 3: Multi-line with character breaking - 34%
+  # Tests NEW multi-line code path with character mode
+  - name: "ltr_multiline_char"
+    proportion: 0.34
+    text_direction: "left_to_right"
+    corpus_file: "ltr/gutenberg_15.txt"
+    font_filter: "*Regular.ttf"
+
+    # Multi-line with character breaking
+    min_text_length: 30
+    max_text_length: 80
+    min_lines: 3
+    max_lines: 5
+    line_break_mode: "character"
+    line_spacing_min: 1.2
+    line_spacing_max: 1.8
+    text_alignment: "center"
+
+    font_size_min: 24
+    font_size_max: 36
+
+    # Clean images
+    rotation_angle_min: 0.0
+    rotation_angle_max: 0.0
+    curve_type: "none"
+    glyph_overlap_intensity_min: 0.0
+    glyph_overlap_intensity_max: 0.0
+    ink_bleed_radius_min: 0.0
+    ink_bleed_radius_max: 0.0
+    perspective_warp_magnitude_min: 0.0
+    perspective_warp_magnitude_max: 0.0
+    noise_amount_min: 0.0
+    noise_amount_max: 0.0
+    blur_radius_min: 0.0
+    blur_radius_max: 0.0
+    brightness_factor_min: 1.0
+    brightness_factor_max: 1.0
+    contrast_factor_min: 1.0
+    contrast_factor_max: 1.0
+    elastic_distortion_alpha_min: 0.0
+    elastic_distortion_alpha_max: 0.0
+    elastic_distortion_sigma_min: 0.0
+    elastic_distortion_sigma_max: 0.0
+    grid_distortion_steps_min: 0
+    grid_distortion_steps_max: 0
+    grid_distortion_limit_min: 0.0
+    grid_distortion_limit_max: 0.0
+    optical_distortion_limit_min: 0.0
+    optical_distortion_limit_max: 0.0
+    erosion_dilation_kernel_min: 0
+    erosion_dilation_kernel_max: 0
+    cutout_width_min: 0
+    cutout_width_max: 0
+    cutout_height_min: 0
+    cutout_height_max: 0

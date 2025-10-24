@@ -38,7 +38,8 @@ Unlike generic data augmentation tools, this generator is specifically designed 
     *   Right-to-left (e.g., Arabic, Hebrew)
     *   Top-to-bottom (e.g., Chinese, Japanese)
     *   Bottom-to-top
-*   **Curved Text Rendering**: Simulate text on curved surfaces like bottles and labels by rendering text along circular arcs and sine waves.
+*   **Multi-Line Text Generation**: Create training data with text ranging from single characters to full paragraphs. Configure line count, line breaking mode (word or character), line spacing, and text alignment for any writing system.
+*   **Curved Text Rendering**: Simulate text on curved surfaces like bottles and labels by rendering text along circular arcs and sine waves. Works seamlessly with multi-line text.
 *   **Advanced Augmentations**: A rich pipeline of augmentations to simulate real-world conditions:
     *   **Geometric**: Rotation, perspective warp, elastic distortion, grid distortion, and optical (lens) distortion.
     *   **Effects**: Ink bleed, drop shadow, noise, blur, brightness/contrast adjustments, erosion/dilation, and cutouts.

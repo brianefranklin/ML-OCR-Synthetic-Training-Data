@@ -756,3 +756,265 @@ specifications:
 
     assert spec.font_size_min == 18
     assert spec.font_size_max == 96
+
+
+# =============================================================================
+# Tests for multi-line parameters
+# =============================================================================
+
+def test_batch_specification_has_default_multiline_parameters():
+    """Tests that BatchSpecification has multi-line parameters with correct defaults."""
+    spec = BatchSpecification(
+        name="test",
+        proportion=1.0,
+        text_direction="left_to_right",
+        corpus_file="test.txt"
+    )
+
+    # Defaults should be single-line for backward compatibility
+    assert hasattr(spec, 'min_lines')
+    assert hasattr(spec, 'max_lines')
+    assert spec.min_lines == 1
+    assert spec.max_lines == 1
+
+    # Line breaking mode
+    assert hasattr(spec, 'line_break_mode')
+    assert spec.line_break_mode == "word"
+
+    # Line spacing
+    assert hasattr(spec, 'line_spacing_min')
+    assert hasattr(spec, 'line_spacing_max')
+    assert spec.line_spacing_min == 1.0
+    assert spec.line_spacing_max == 1.0
+
+    # Text alignment
+    assert hasattr(spec, 'text_alignment')
+    assert spec.text_alignment == "left"
+
+
+def test_batch_specification_accepts_multiline_parameters():
+    """Tests that multi-line parameters can be set."""
+    spec = BatchSpecification(
+        name="multiline_test",
+        proportion=1.0,
+        text_direction="left_to_right",
+        corpus_file="test.txt",
+        min_lines=2,
+        max_lines=5,
+        line_break_mode="character",
+        line_spacing_min=1.2,
+        line_spacing_max=1.8,
+        text_alignment="center"
+    )
+
+    assert spec.min_lines == 2
+    assert spec.max_lines == 5
+    assert spec.line_break_mode == "character"
+    assert spec.line_spacing_min == 1.2
+    assert spec.line_spacing_max == 1.8
+    assert spec.text_alignment == "center"
+
+
+def test_load_batch_config_with_multiline_parameters(tmp_path: Path):
+    """Tests that multi-line parameters can be loaded from YAML."""
+    yaml_content = """
+total_images: 10
+specifications:
+  - name: "multiline_config"
+    proportion: 1.0
+    text_direction: "left_to_right"
+    corpus_file: "test.txt"
+    min_lines: 3
+    max_lines: 7
+    line_break_mode: "word"
+    line_spacing_min: 1.0
+    line_spacing_max: 2.0
+    text_alignment: "right"
+"""
+    yaml_file = tmp_path / "multiline.yaml"
+    yaml_file.write_text(yaml_content, encoding="utf-8")
+
+    config = BatchConfig.from_yaml(str(yaml_file))
+    spec = config.specifications[0]
+
+    assert spec.min_lines == 3
+    assert spec.max_lines == 7
+    assert spec.line_break_mode == "word"
+    assert spec.line_spacing_min == 1.0
+    assert spec.line_spacing_max == 2.0
+    assert spec.text_alignment == "right"
+
+
+def test_invalid_line_break_mode_raises_error(tmp_path: Path):
+    """Tests that invalid line_break_mode values raise ValueError."""
+    yaml_content = """
+total_images: 10
+specifications:
+  - name: "invalid_break_mode"
+    proportion: 1.0
+    text_direction: "left_to_right"
+    corpus_file: "test.txt"
+    line_break_mode: "invalid_mode"
+"""
+    yaml_file = tmp_path / "invalid_break_mode.yaml"
+    yaml_file.write_text(yaml_content, encoding="utf-8")
+
+    with pytest.raises(ValueError, match="Invalid line_break_mode"):
+        BatchConfig.from_yaml(str(yaml_file))
+
+
+def test_valid_line_break_modes_accepted(tmp_path: Path):
+    """Tests that all valid line break modes are accepted."""
+    for break_mode in ["word", "character"]:
+        yaml_content = f"""
+total_images: 10
+specifications:
+  - name: "test_{break_mode}"
+    proportion: 1.0
+    text_direction: "left_to_right"
+    corpus_file: "test.txt"
+    line_break_mode: "{break_mode}"
+"""
+        yaml_file = tmp_path / f"break_{break_mode}.yaml"
+        yaml_file.write_text(yaml_content, encoding="utf-8")
+
+        # Should not raise
+        config = BatchConfig.from_yaml(str(yaml_file))
+        assert config.specifications[0].line_break_mode == break_mode
+
+
+def test_invalid_text_alignment_raises_error(tmp_path: Path):
+    """Tests that invalid text_alignment values raise ValueError."""
+    yaml_content = """
+total_images: 10
+specifications:
+  - name: "invalid_alignment"
+    proportion: 1.0
+    text_direction: "left_to_right"
+    corpus_file: "test.txt"
+    text_alignment: "diagonal"
+"""
+    yaml_file = tmp_path / "invalid_alignment.yaml"
+    yaml_file.write_text(yaml_content, encoding="utf-8")
+
+    with pytest.raises(ValueError, match="Invalid text_alignment"):
+        BatchConfig.from_yaml(str(yaml_file))
+
+
+def test_valid_text_alignments_accepted(tmp_path: Path):
+    """Tests that all valid text alignments are accepted."""
+    for alignment in ["left", "center", "right", "top", "bottom"]:
+        yaml_content = f"""
+total_images: 10
+specifications:
+  - name: "test_{alignment}"
+    proportion: 1.0
+    text_direction: "left_to_right"
+    corpus_file: "test.txt"
+    text_alignment: "{alignment}"
+"""
+        yaml_file = tmp_path / f"alignment_{alignment}.yaml"
+        yaml_file.write_text(yaml_content, encoding="utf-8")
+
+        # Should not raise
+        config = BatchConfig.from_yaml(str(yaml_file))
+        assert config.specifications[0].text_alignment == alignment
+
+
+def test_min_lines_less_than_one_raises_error(tmp_path: Path):
+    """Tests that min_lines < 1 raises ValueError."""
+    yaml_content = """
+total_images: 10
+specifications:
+  - name: "invalid_min_lines"
+    proportion: 1.0
+    text_direction: "left_to_right"
+    corpus_file: "test.txt"
+    min_lines: 0
+"""
+    yaml_file = tmp_path / "invalid_min_lines.yaml"
+    yaml_file.write_text(yaml_content, encoding="utf-8")
+
+    with pytest.raises(ValueError, match="min_lines must be >= 1"):
+        BatchConfig.from_yaml(str(yaml_file))
+
+
+def test_max_lines_less_than_min_lines_raises_error(tmp_path: Path):
+    """Tests that max_lines < min_lines raises ValueError."""
+    yaml_content = """
+total_images: 10
+specifications:
+  - name: "inconsistent_lines"
+    proportion: 1.0
+    text_direction: "left_to_right"
+    corpus_file: "test.txt"
+    min_lines: 5
+    max_lines: 2
+"""
+    yaml_file = tmp_path / "inconsistent_lines.yaml"
+    yaml_file.write_text(yaml_content, encoding="utf-8")
+
+    with pytest.raises(ValueError, match="max_lines.*must be >= min_lines"):
+        BatchConfig.from_yaml(str(yaml_file))
+
+
+def test_line_spacing_min_zero_or_negative_raises_error(tmp_path: Path):
+    """Tests that line_spacing_min <= 0 raises ValueError."""
+    yaml_content = """
+total_images: 10
+specifications:
+  - name: "invalid_spacing"
+    proportion: 1.0
+    text_direction: "left_to_right"
+    corpus_file: "test.txt"
+    line_spacing_min: 0.0
+"""
+    yaml_file = tmp_path / "invalid_spacing.yaml"
+    yaml_file.write_text(yaml_content, encoding="utf-8")
+
+    with pytest.raises(ValueError, match="line_spacing_min must be > 0"):
+        BatchConfig.from_yaml(str(yaml_file))
+
+
+def test_line_spacing_max_less_than_min_raises_error(tmp_path: Path):
+    """Tests that line_spacing_max < line_spacing_min raises ValueError."""
+    yaml_content = """
+total_images: 10
+specifications:
+  - name: "inconsistent_spacing"
+    proportion: 1.0
+    text_direction: "left_to_right"
+    corpus_file: "test.txt"
+    line_spacing_min: 2.0
+    line_spacing_max: 1.0
+"""
+    yaml_file = tmp_path / "inconsistent_spacing.yaml"
+    yaml_file.write_text(yaml_content, encoding="utf-8")
+
+    with pytest.raises(ValueError, match="line_spacing_max.*must be >= line_spacing_min"):
+        BatchConfig.from_yaml(str(yaml_file))
+
+
+def test_multiline_with_vertical_text_direction(tmp_path: Path):
+    """Tests that multi-line works with vertical text directions."""
+    yaml_content = """
+total_images: 10
+specifications:
+  - name: "vertical_multiline"
+    proportion: 1.0
+    text_direction: "top_to_bottom"
+    corpus_file: "test.txt"
+    min_lines: 2
+    max_lines: 4
+    line_break_mode: "character"
+    text_alignment: "top"
+"""
+    yaml_file = tmp_path / "vertical_multiline.yaml"
+    yaml_file.write_text(yaml_content, encoding="utf-8")
+
+    # Should not raise - vertical text with multi-line is valid
+    config = BatchConfig.from_yaml(str(yaml_file))
+    spec = config.specifications[0]
+    assert spec.text_direction == "top_to_bottom"
+    assert spec.min_lines == 2
+    assert spec.max_lines == 4

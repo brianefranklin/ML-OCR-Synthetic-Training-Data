@@ -1,0 +1,157 @@
+# Stage 1 Demo: TTB (Top-to-Bottom) Multi-Line Features - Basic
+# Demonstrates multi-line features for vertical text
+
+total_images: 150
+
+specifications:
+  # Spec 1: Single-line vertical (backward compatibility)
+  - name: "ttb_single_line_compat"
+    proportion: 0.33
+    text_direction: "top_to_bottom"
+    corpus_file: "ltr/gutenberg_11.txt"
+
+    min_text_length: 5
+    max_text_length: 15
+    min_lines: 1
+    max_lines: 1
+
+    font_size_min: 32
+    font_size_max: 48
+
+    rotation_angle_min: 0.0
+    rotation_angle_max: 0.0
+    curve_type: "none"
+    glyph_overlap_intensity_min: 0.0
+    glyph_overlap_intensity_max: 0.0
+    ink_bleed_radius_min: 0.0
+    ink_bleed_radius_max: 0.0
+    perspective_warp_magnitude_min: 0.0
+    perspective_warp_magnitude_max: 0.0
+    noise_amount_min: 0.0
+    noise_amount_max: 0.0
+    blur_radius_min: 0.0
+    blur_radius_max: 0.0
+    brightness_factor_min: 1.0
+    brightness_factor_max: 1.0
+    contrast_factor_min: 1.0
+    contrast_factor_max: 1.0
+    elastic_distortion_alpha_min: 0.0
+    elastic_distortion_alpha_max: 0.0
+    elastic_distortion_sigma_min: 0.0
+    elastic_distortion_sigma_max: 0.0
+    grid_distortion_steps_min: 0
+    grid_distortion_steps_max: 0
+    grid_distortion_limit_min: 0.0
+    grid_distortion_limit_max: 0.0
+    optical_distortion_limit_min: 0.0
+    optical_distortion_limit_max: 0.0
+    erosion_dilation_kernel_min: 0
+    erosion_dilation_kernel_max: 0
+    cutout_width_min: 0
+    cutout_width_max: 0
+    cutout_height_min: 0
+    cutout_height_max: 0
+
+  # Spec 2: Multi-line vertical with word breaking
+  - name: "ttb_multiline_word"
+    proportion: 0.33
+    text_direction: "top_to_bottom"
+    corpus_file: "ltr/gutenberg_1116.txt"
+
+    min_text_length: 15
+    max_text_length: 50
+    min_lines: 2
+    max_lines: 4
+    line_break_mode: "word"  # Word mode configurable for vertical too
+    line_spacing_min: 1.2
+    line_spacing_max: 1.8
+    text_alignment: "top"  # Alignment for vertical text
+
+    font_size_min: 28
+    font_size_max: 40
+
+    rotation_angle_min: 0.0
+    rotation_angle_max: 0.0
+    curve_type: "none"
+    glyph_overlap_intensity_min: 0.0
+    glyph_overlap_intensity_max: 0.0
+    ink_bleed_radius_min: 0.0
+    ink_bleed_radius_max: 0.0
+    perspective_warp_magnitude_min: 0.0
+    perspective_warp_magnitude_max: 0.0
+    noise_amount_min: 0.0
+    noise_amount_max: 0.0
+    blur_radius_min: 0.0
+    blur_radius_max: 0.0
+    brightness_factor_min: 1.0
+    brightness_factor_max: 1.0
+    contrast_factor_min: 1.0
+    contrast_factor_max: 1.0
+    elastic_distortion_alpha_min: 0.0
+    elastic_distortion_alpha_max: 0.0
+    elastic_distortion_sigma_min: 0.0
+    elastic_distortion_sigma_max: 0.0
+    grid_distortion_steps_min: 0
+    grid_distortion_steps_max: 0
+    grid_distortion_limit_min: 0.0
+    grid_distortion_limit_max: 0.0
+    optical_distortion_limit_min: 0.0
+    optical_distortion_limit_max: 0.0
+    erosion_dilation_kernel_min: 0
+    erosion_dilation_kernel_max: 0
+    cutout_width_min: 0
+    cutout_width_max: 0
+    cutout_height_min: 0
+    cutout_height_max: 0
+
+  # Spec 3: Multi-line vertical with character breaking
+  - name: "ttb_multiline_char"
+    proportion: 0.34
+    text_direction: "top_to_bottom"
+    corpus_file: "ltr/gutenberg_15.txt"
+
+    min_text_length: 20
+    max_text_length: 60
+    min_lines: 3
+    max_lines: 5
+    line_break_mode: "character"
+    line_spacing_min: 1.3
+    line_spacing_max: 2.0
+    text_alignment: "center"
+
+    font_size_min: 24
+    font_size_max: 36
+
+    rotation_angle_min: 0.0
+    rotation_angle_max: 0.0
+    curve_type: "none"
+    glyph_overlap_intensity_min: 0.0
+    glyph_overlap_intensity_max: 0.0
+    ink_bleed_radius_min: 0.0
+    ink_bleed_radius_max: 0.0
+    perspective_warp_magnitude_min: 0.0
+    perspective_warp_magnitude_max: 0.0
+    noise_amount_min: 0.0
+    noise_amount_max: 0.0
+    blur_radius_min: 0.0
+    blur_radius_max: 0.0
+    brightness_factor_min: 1.0
+    brightness_factor_max: 1.0
+    contrast_factor_min: 1.0
+    contrast_factor_max: 1.0
+    elastic_distortion_alpha_min: 0.0
+    elastic_distortion_alpha_max: 0.0
+    elastic_distortion_sigma_min: 0.0
+    elastic_distortion_sigma_max: 0.0
+    grid_distortion_steps_min: 0
+    grid_distortion_steps_max: 0
+    grid_distortion_limit_min: 0.0
+    grid_distortion_limit_max: 0.0
+    optical_distortion_limit_min: 0.0
+    optical_distortion_limit_max: 0.0
+    erosion_dilation_kernel_min: 0
+    erosion_dilation_kernel_max: 0
+    cutout_width_min: 0
+    cutout_width_max: 0
+    cutout_height_min: 0
+    cutout_height_max: 0

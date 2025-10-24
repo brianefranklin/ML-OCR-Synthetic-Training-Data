@@ -1,0 +1,165 @@
+# Stage 3 Demo: RTL Multi-Line Features - Advanced
+
+total_images: 150
+
+specifications:
+  # Spec 1: Multi-line RTL with arc curves
+  - name: "rtl_multiline_curved_arc"
+    proportion: 0.33
+    text_direction: "right_to_left"
+    corpus_file: "ltr/gutenberg_11.txt"
+
+    min_text_length: 40
+    max_text_length: 100
+    min_lines: 2
+    max_lines: 4
+    line_break_mode: "word"
+    line_spacing_min: 1.3
+    line_spacing_max: 1.8
+    text_alignment: "right"
+
+    font_size_min: 28
+    font_size_max: 42
+
+    curve_type: "arc"
+    arc_radius_min: 100.0
+    arc_radius_max: 300.0
+    arc_concave: false
+
+    rotation_angle_min: 0.0
+    rotation_angle_max: 0.0
+    glyph_overlap_intensity_min: 0.0
+    glyph_overlap_intensity_max: 0.0
+    ink_bleed_radius_min: 0.0
+    ink_bleed_radius_max: 0.0
+    perspective_warp_magnitude_min: 0.0
+    perspective_warp_magnitude_max: 0.0
+    noise_amount_min: 0.0
+    noise_amount_max: 0.0
+    blur_radius_min: 0.0
+    blur_radius_max: 0.0
+    brightness_factor_min: 1.0
+    brightness_factor_max: 1.0
+    contrast_factor_min: 1.0
+    contrast_factor_max: 1.0
+    elastic_distortion_alpha_min: 0.0
+    elastic_distortion_alpha_max: 0.0
+    elastic_distortion_sigma_min: 0.0
+    elastic_distortion_sigma_max: 0.0
+    grid_distortion_steps_min: 0
+    grid_distortion_steps_max: 0
+    grid_distortion_limit_min: 0.0
+    grid_distortion_limit_max: 0.0
+    optical_distortion_limit_min: 0.0
+    optical_distortion_limit_max: 0.0
+    erosion_dilation_kernel_min: 0
+    erosion_dilation_kernel_max: 0
+    cutout_width_min: 0
+    cutout_width_max: 0
+    cutout_height_min: 0
+    cutout_height_max: 0
+
+  # Spec 2: Multi-line RTL with full augmentation
+  - name: "rtl_multiline_full_augmentation"
+    proportion: 0.33
+    text_direction: "right_to_left"
+    corpus_file: "ltr/gutenberg_1116.txt"
+
+    min_text_length: 50
+    max_text_length: 120
+    min_lines: 3
+    max_lines: 5
+    line_break_mode: "word"
+    line_spacing_min: 1.0
+    line_spacing_max: 1.5
+    text_alignment: "center"
+
+    font_size_min: 24
+    font_size_max: 36
+
+    rotation_angle_min: -10.0
+    rotation_angle_max: 10.0
+    noise_amount_min: 0.0
+    noise_amount_max: 0.15
+    blur_radius_min: 0.0
+    blur_radius_max: 1.0
+    perspective_warp_magnitude_min: 0.0
+    perspective_warp_magnitude_max: 0.08
+    brightness_factor_min: 0.8
+    brightness_factor_max: 1.2
+    contrast_factor_min: 0.9
+    contrast_factor_max: 1.1
+
+    curve_type: "none"
+    glyph_overlap_intensity_min: 0.0
+    glyph_overlap_intensity_max: 0.0
+    ink_bleed_radius_min: 0.0
+    ink_bleed_radius_max: 0.5
+    elastic_distortion_alpha_min: 0.0
+    elastic_distortion_alpha_max: 0.0
+    elastic_distortion_sigma_min: 0.0
+    elastic_distortion_sigma_max: 0.0
+    grid_distortion_steps_min: 0
+    grid_distortion_steps_max: 0
+    grid_distortion_limit_min: 0.0
+    grid_distortion_limit_max: 0.0
+    optical_distortion_limit_min: 0.0
+    optical_distortion_limit_max: 0.0
+    erosion_dilation_kernel_min: 0
+    erosion_dilation_kernel_max: 0
+    cutout_width_min: 0
+    cutout_width_max: 0
+    cutout_height_min: 0
+    cutout_height_max: 0
+
+  # Spec 3: Variable text length
+  - name: "rtl_multiline_variable_length"
+    proportion: 0.34
+    text_direction: "right_to_left"
+    corpus_file: "ltr/gutenberg_15.txt"
+
+    min_text_length: 1
+    max_text_length: 200
+    min_lines: 1
+    max_lines: 8
+    line_break_mode: "word"
+    line_spacing_min: 1.2
+    line_spacing_max: 1.6
+    text_alignment: "right"
+
+    font_size_min: 20
+    font_size_max: 40
+
+    rotation_angle_min: 0.0
+    rotation_angle_max: 0.0
+    curve_type: "none"
+    glyph_overlap_intensity_min: 0.0
+    glyph_overlap_intensity_max: 0.0
+    ink_bleed_radius_min: 0.0
+    ink_bleed_radius_max: 0.0
+    perspective_warp_magnitude_min: 0.0
+    perspective_warp_magnitude_max: 0.0
+    noise_amount_min: 0.0
+    noise_amount_max: 0.05
+    blur_radius_min: 0.0
+    blur_radius_max: 0.3
+    brightness_factor_min: 1.0
+    brightness_factor_max: 1.0
+    contrast_factor_min: 1.0
+    contrast_factor_max: 1.0
+    elastic_distortion_alpha_min: 0.0
+    elastic_distortion_alpha_max: 0.0
+    elastic_distortion_sigma_min: 0.0
+    elastic_distortion_sigma_max: 0.0
+    grid_distortion_steps_min: 0
+    grid_distortion_steps_max: 0
+    grid_distortion_limit_min: 0.0
+    grid_distortion_limit_max: 0.0
+    optical_distortion_limit_min: 0.0
+    optical_distortion_limit_max: 0.0
+    erosion_dilation_kernel_min: 0
+    erosion_dilation_kernel_max: 0
+    cutout_width_min: 0
+    cutout_width_max: 0
+    cutout_height_min: 0
+    cutout_height_max: 0
