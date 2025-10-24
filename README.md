@@ -1,6 +1,35 @@
 # Synthetic Training Data for OCR
 
+[![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
+[![Python 3.8+](https://img.shields.io/badge/python-3.8+-blue.svg)](https://www.python.org/downloads/)
+
 This project is a powerful, language-agnostic, and highly configurable synthetic data generation tool for Optical Character Recognition (OCR). It is designed to create diverse and realistic training data for any writing system, with a focus on universality and performance.
+
+## Table of Contents
+
+- [Why Use This?](#why-use-this)
+- [Key Features](#key-features)
+- [Getting Started](#getting-started)
+  - [Prerequisites](#prerequisites)
+  - [Installation](#installation)
+  - [Running a Generation Job](#running-a-generation-job)
+- [Performance](#performance)
+- [Documentation](#documentation)
+- [Contributing](#contributing)
+- [License](#license)
+
+## Why Use This?
+
+This tool is ideal for machine learning practitioners and researchers who need high-quality synthetic training data for OCR systems. Use this tool when you need to:
+
+- **Train OCR models from scratch** - Generate thousands or millions of labeled images for any language or writing system
+- **Augment existing datasets** - Add diversity and edge cases to improve model robustness
+- **Test OCR systems** - Create challenging test cases with specific distortions, effects, or writing systems
+- **Support underrepresented languages** - Generate training data for languages with limited real-world OCR datasets
+- **Simulate real-world conditions** - Apply realistic distortions like perspective warping, blur, noise, and curved text to match your deployment environment
+- **Ensure reproducibility** - Every generated image can be perfectly recreated from its JSON metadata, making experiments repeatable
+
+Unlike generic data augmentation tools, this generator is specifically designed for text and OCR, with sophisticated text rendering, language-agnostic support, and OCR-specific augmentations like ink bleed, perspective warp, and curved text.
 
 ## Key Features
 
@@ -32,8 +61,8 @@ This project is a powerful, language-agnostic, and highly configurable synthetic
 
 1.  Clone the repository:
     ```bash
-    git clone https://github.com/your-username/your-repo-name.git
-    cd your-repo-name
+    git clone https://github.com/brianefranklin/ML-OCR-Synthetic-Training-Data.git
+    cd ML-OCR-Synthetic-Training-Data
     ```
 2.  Install the required Python packages:
     ```bash
@@ -77,7 +106,7 @@ This project is documentation-driven. The `docs` directory contains detailed inf
 
 ## Contributing
 
-We welcome contributions! Please see our [contributing guidelines](./GEMINI.md) for more information on our development workflow, coding standards, and how to submit pull requests.
+We welcome contributions! Please see our [contributing guidelines](./CLAUDE.md) for more information on our development workflow, coding standards, and how to submit pull requests.
 
 ## License
 
