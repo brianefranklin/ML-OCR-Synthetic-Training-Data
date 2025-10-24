@@ -81,4 +81,6 @@ We welcome contributions! Please see our [contributing guidelines](./GEMINI.md) 
 
 ## License
 
-Copyright (c) 2025 Brian E. Franklin. All rights reserved.
+This project is licensed under the Apache License 2.0. See the [LICENSE](./LICENSE) file for details.
+
+Copyright 2025 Brian E. Franklin

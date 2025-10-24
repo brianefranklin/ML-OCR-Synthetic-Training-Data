@@ -58,3 +58,4 @@ src/__pycache__
 *.pyc
 /logs
 /data.nosync
+start_colima_container.sh
