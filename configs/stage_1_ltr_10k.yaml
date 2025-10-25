@@ -10,7 +10,7 @@
 total_images: 10000
 
 specifications:
-  # Spec 1: Sans-serif fonts - 40%
+  # Spec 1: Sans-serif fonts with multi-line - 40%
   - name: "stage1_sans_serif"
     proportion: 0.40
     text_direction: "left_to_right"
@@ -20,6 +20,14 @@ specifications:
     # Text length - keep it short for stage 1
     min_text_length: 5
     max_text_length: 20
+
+    # Multi-line text parameters (basic multi-line features)
+    min_lines: 2
+    max_lines: 4
+    line_break_mode: "word"
+    line_spacing_min: 1.2
+    line_spacing_max: 1.8
+    text_alignment: "left"
 
     # Colors - pure black on white
     text_color_min: [0, 0, 0]

@@ -1108,7 +1108,19 @@ class OCRDataGenerator:
     def _render_right_to_left(self, text: str, font_path: str, glyph_overlap_intensity: float, color_mode: str, color_palette: Optional[list], font_size: int = 32):
         """Renders right-to-left text after reshaping."""
         reshaped_text = bidi.algorithm.get_display(text)
-        return self._render_text_surface(reshaped_text, font_path, glyph_overlap_intensity, color_mode, color_palette, font_size)
+        image, bboxes = self._render_text_surface(reshaped_text, font_path, glyph_overlap_intensity, color_mode, color_palette, font_size)
+
+        # Bboxes are currently in reshaped (visual) order, but should be in original text order
+        # For RTL, reverse the bboxes to match original text order
+        # Also update the char field to match the original text
+        reversed_bboxes = []
+        for i, bbox in enumerate(reversed(bboxes)):
+            # Update bbox to use character from original text
+            bbox_copy = bbox.copy()
+            bbox_copy["char"] = text[i]
+            reversed_bboxes.append(bbox_copy)
+
+        return image, reversed_bboxes
 
     def _render_top_to_bottom(self, text: str, font_path: str, glyph_overlap_intensity: float, color_mode: str, color_palette: Optional[list], font_size: int = 32):
         """Renders text vertically from top to bottom."""
@@ -1158,19 +1170,19 @@ class OCRDataGenerator:
         image = Image.new("RGBA", (image_width, image_height), (0, 0, 0, 0))
 
         if is_bottom_to_top:
+            # For bottom-to-top, start at the bottom and render characters upward
+            # First character appears at bottom, last character at top
             current_y = image_height - margin
-            char_list = list(enumerate(reversed(text)))
-            for i, char in char_list:
-                char_index = len(text) - 1 - i
-                char_height = char_heights[char_index]
-                char_width = char_widths[char_index]
+            for i, char in enumerate(text):
+                char_height = char_heights[i]
+                char_width = char_widths[i]
                 current_y -= char_height * (1 - glyph_overlap_intensity)
                 x_pos = (image_width - char_width) / 2
                 fill = "black" # Default
                 if color_mode == 'per_glyph' and color_palette:
-                    fill = color_palette[char_index]
+                    fill = color_palette[i]
                 elif color_mode == 'gradient' and color_palette:
-                    t = char_index / (len(text) - 1) if len(text) > 1 else 0
+                    t = i / (len(text) - 1) if len(text) > 1 else 0
                     start_color = np.array(color_palette[0])
                     end_color = np.array(color_palette[1])
                     fill = tuple((start_color + t * (end_color - start_color)).astype(int))
@@ -1181,7 +1193,6 @@ class OCRDataGenerator:
                 image.paste(char_image, (int(x_pos), int(current_y)), char_image)
 
                 bboxes.append({"char": char, "x0": int(x_pos), "y0": int(current_y), "x1": int(x_pos + char_width), "y1": int(current_y + char_height)})
-            bboxes.reverse() # Bboxes should be in original text order
         else:
             current_y = margin
             for i, char in enumerate(text):
