@@ -88,17 +88,34 @@ def place_on_canvas(
         A tuple containing the final canvas image and the adjusted bounding boxes.
     """
     if background_path:
-        # If a background is provided, load and crop it to the canvas size.
+        # If a background is provided, load and constrain canvas to background size
         bg_image = Image.open(background_path)
         # Convert to RGBA only if necessary (avoids redundant conversions)
         if bg_image.mode != "RGBA":
             bg_image = bg_image.convert("RGBA")
-        # A simple crop from the top-left is used for now.
-        canvas = bg_image.crop((0, 0, canvas_w, canvas_h))
+
+        bg_w, bg_h = bg_image.size
+
+        # Constrain canvas to background size
+        actual_canvas_w = min(canvas_w, bg_w)
+        actual_canvas_h = min(canvas_h, bg_h)
+
+        # Adjust placement if canvas was constrained
+        # Center the text if it doesn't fit
+        if actual_canvas_w < canvas_w or actual_canvas_h < canvas_h:
+            # Recalculate placement to center text in constrained canvas
+            text_w, text_h = text_image.size
+            max_x = max(0, actual_canvas_w - text_w)
+            max_y = max(0, actual_canvas_h - text_h)
+            placement_x = min(placement_x, max_x)
+            placement_y = min(placement_y, max_y)
+
+        # Crop background to actual canvas size
+        canvas = bg_image.crop((0, 0, actual_canvas_w, actual_canvas_h))
     else:
         # If no background, create a new transparent canvas.
         canvas = Image.new("RGBA", (canvas_w, canvas_h), (0, 0, 0, 0))
-    
+
     # Paste the text image onto the canvas.
     # The text_image itself is used as the mask to handle its own transparency.
     canvas.paste(text_image, (placement_x, placement_y), text_image)
@@ -112,5 +129,5 @@ def place_on_canvas(
         adj_bbox["x1"] += placement_x
         adj_bbox["y1"] += placement_y
         adjusted_bboxes.append(adj_bbox)
-        
+
     return canvas, adjusted_bboxes

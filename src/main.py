@@ -344,10 +344,10 @@ def main():
     total_images_to_generate = batch_config.total_images - images_completed
     print(f"Generating {total_images_to_generate} images (from {images_completed} to {batch_config.total_images})...")
 
-    # Pre-generate a list of unique filenames for the entire batch using UUIDs
-    # This is crucial for allowing stateless, deterministic resume operations
-    # We use UUID(int=i) to create a deterministic sequence of UUIDs based on the index
-    unique_filenames = [str(uuid.UUID(int=i)) for i in range(batch_config.total_images)]
+    # Pre-generate a list of unique filenames for the entire batch using random UUIDs
+    # UUID4 provides extremely low collision probability even with multiple processes
+    # writing to the same directory. Image determinism is ensured by the seed in truth data.
+    unique_filenames = [str(uuid.uuid4()) for _ in range(batch_config.total_images)]
 
     # Create the list of generation tasks to be done in this session
     tasks_to_run: List[GenerationTask] = orchestrator.create_task_list(
