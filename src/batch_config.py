@@ -90,6 +90,28 @@ class BatchSpecification:
         cutout_height_min (int): The minimum height for cutout.
         cutout_height_max (int): The maximum height for cutout.
         cutout_height_distribution (str): Distribution type (default: "uniform").
+        drop_shadow_offset_x_min (int): Minimum X offset for drop shadow (0 = no shadow).
+        drop_shadow_offset_x_max (int): Maximum X offset for drop shadow.
+        drop_shadow_offset_x_distribution (str): Distribution type (default: "uniform").
+        drop_shadow_offset_y_min (int): Minimum Y offset for drop shadow (0 = no shadow).
+        drop_shadow_offset_y_max (int): Maximum Y offset for drop shadow.
+        drop_shadow_offset_y_distribution (str): Distribution type (default: "uniform").
+        drop_shadow_radius_min (float): Minimum blur radius for drop shadow.
+        drop_shadow_radius_max (float): Maximum blur radius for drop shadow.
+        drop_shadow_radius_distribution (str): Distribution type (default: "exponential").
+        drop_shadow_color_min (Tuple[int, int, int, int]): Minimum RGBA for drop shadow color.
+        drop_shadow_color_max (Tuple[int, int, int, int]): Maximum RGBA for drop shadow color.
+        block_shadow_offset_x_min (int): Minimum X offset for block shadow (0 = no shadow).
+        block_shadow_offset_x_max (int): Maximum X offset for block shadow.
+        block_shadow_offset_x_distribution (str): Distribution type (default: "uniform").
+        block_shadow_offset_y_min (int): Minimum Y offset for block shadow (0 = no shadow).
+        block_shadow_offset_y_max (int): Maximum Y offset for block shadow.
+        block_shadow_offset_y_distribution (str): Distribution type (default: "uniform").
+        block_shadow_radius_min (float): Minimum blur radius for block shadow.
+        block_shadow_radius_max (float): Maximum blur radius for block shadow.
+        block_shadow_radius_distribution (str): Distribution type (default: "exponential").
+        block_shadow_color_min (Tuple[int, int, int, int]): Minimum RGBA for block shadow color.
+        block_shadow_color_max (Tuple[int, int, int, int]): Maximum RGBA for block shadow color.
         curve_type (str): The type of curve to apply ("none", "arc", "sine").
         arc_radius_min (float): The minimum radius for arc curves (0.0 = straight line).
         arc_radius_max (float): The maximum radius for arc curves.
@@ -183,6 +205,29 @@ class BatchSpecification:
     cutout_height_min: int = 0
     cutout_height_max: int = 0
     cutout_height_distribution: DistributionType = "uniform"
+    # Shadow parameters
+    drop_shadow_offset_x_min: int = 0
+    drop_shadow_offset_x_max: int = 0
+    drop_shadow_offset_x_distribution: DistributionType = "uniform"
+    drop_shadow_offset_y_min: int = 0
+    drop_shadow_offset_y_max: int = 0
+    drop_shadow_offset_y_distribution: DistributionType = "uniform"
+    drop_shadow_radius_min: float = 0.0
+    drop_shadow_radius_max: float = 0.0
+    drop_shadow_radius_distribution: DistributionType = "exponential"
+    drop_shadow_color_min: Tuple[int, int, int, int] = (0, 0, 0, 128)
+    drop_shadow_color_max: Tuple[int, int, int, int] = (0, 0, 0, 128)
+    block_shadow_offset_x_min: int = 0
+    block_shadow_offset_x_max: int = 0
+    block_shadow_offset_x_distribution: DistributionType = "uniform"
+    block_shadow_offset_y_min: int = 0
+    block_shadow_offset_y_max: int = 0
+    block_shadow_offset_y_distribution: DistributionType = "uniform"
+    block_shadow_radius_min: float = 0.0
+    block_shadow_radius_max: float = 0.0
+    block_shadow_radius_distribution: DistributionType = "exponential"
+    block_shadow_color_min: Tuple[int, int, int, int] = (0, 0, 0, 128)
+    block_shadow_color_max: Tuple[int, int, int, int] = (0, 0, 0, 128)
     # Curve parameters - always present for consistent ML feature vectors
     curve_type: str = "none"
     arc_radius_min: float = 0.0
@@ -227,6 +272,14 @@ class BatchSpecification:
             self.gradient_end_color_min = tuple(self.gradient_end_color_min)
         if isinstance(self.gradient_end_color_max, list):
             self.gradient_end_color_max = tuple(self.gradient_end_color_max)
+        if isinstance(self.drop_shadow_color_min, list):
+            self.drop_shadow_color_min = tuple(self.drop_shadow_color_min)
+        if isinstance(self.drop_shadow_color_max, list):
+            self.drop_shadow_color_max = tuple(self.drop_shadow_color_max)
+        if isinstance(self.block_shadow_color_min, list):
+            self.block_shadow_color_min = tuple(self.block_shadow_color_min)
+        if isinstance(self.block_shadow_color_max, list):
+            self.block_shadow_color_max = tuple(self.block_shadow_color_max)
 
 @dataclass
 class BatchConfig:

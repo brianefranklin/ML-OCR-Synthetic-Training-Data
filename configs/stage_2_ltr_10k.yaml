@@ -37,6 +37,16 @@ specifications:
     font_size_min: 24
     font_size_max: 72
 
+    # Moderate drop shadow
+    drop_shadow_offset_x_min: 2
+    drop_shadow_offset_x_max: 4
+    drop_shadow_offset_y_min: 2
+    drop_shadow_offset_y_max: 4
+    drop_shadow_radius_min: 1.0
+    drop_shadow_radius_max: 2.5
+    drop_shadow_color_min: [0, 0, 0, 140]
+    drop_shadow_color_max: [0, 0, 0, 180]
+
     # Allow rotation up to 15 degrees
     rotation_angle_min: -15.0
     rotation_angle_max: 15.0
@@ -113,6 +123,11 @@ specifications:
 
     font_size_min: 24
     font_size_max: 72
+
+    # Per-glyph color with small palette
+    color_mode: "per_glyph"
+    per_glyph_palette_size_min: 2
+    per_glyph_palette_size_max: 3
 
     # Minimal rotation (curves provide the angle)
     rotation_angle_min: -5.0

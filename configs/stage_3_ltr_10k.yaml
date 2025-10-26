@@ -39,6 +39,16 @@ specifications:
     font_size_min: 20
     font_size_max: 96
 
+    # Strong drop shadow
+    drop_shadow_offset_x_min: 3
+    drop_shadow_offset_x_max: 7
+    drop_shadow_offset_y_min: 3
+    drop_shadow_offset_y_max: 7
+    drop_shadow_radius_min: 2.0
+    drop_shadow_radius_max: 4.5
+    drop_shadow_color_min: [0, 0, 0, 170]
+    drop_shadow_color_max: [40, 40, 40, 210]
+
     # Full rotation range
     rotation_angle_min: -25.0
     rotation_angle_max: 25.0
@@ -121,6 +131,11 @@ specifications:
     font_size_min: 24
     font_size_max: 96
 
+    # Varied per-glyph palette
+    color_mode: "per_glyph"
+    per_glyph_palette_size_min: 3
+    per_glyph_palette_size_max: 5
+
     rotation_angle_min: -20.0
     rotation_angle_max: 20.0
 
@@ -200,6 +215,16 @@ specifications:
 
     font_size_min: 20
     font_size_max: 80
+
+    # Block shadow for variation
+    block_shadow_offset_x_min: 2
+    block_shadow_offset_x_max: 5
+    block_shadow_offset_y_min: 2
+    block_shadow_offset_y_max: 5
+    block_shadow_radius_min: 1.5
+    block_shadow_radius_max: 3.5
+    block_shadow_color_min: [70, 70, 70, 110]
+    block_shadow_color_max: [160, 160, 160, 170]
 
     rotation_angle_min: -30.0
     rotation_angle_max: 30.0

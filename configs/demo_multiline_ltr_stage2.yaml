@@ -25,6 +25,16 @@ specifications:
     font_size_min: 28
     font_size_max: 48
 
+    # Drop shadow for depth
+    drop_shadow_offset_x_min: 2
+    drop_shadow_offset_x_max: 5
+    drop_shadow_offset_y_min: 2
+    drop_shadow_offset_y_max: 5
+    drop_shadow_radius_min: 1.0
+    drop_shadow_radius_max: 3.0
+    drop_shadow_color_min: [0, 0, 0, 150]
+    drop_shadow_color_max: [0, 0, 0, 200]
+
     # Add some effects (applied uniformly to all lines)
     noise_amount_min: 0.0
     noise_amount_max: 0.1
@@ -81,6 +91,13 @@ specifications:
     font_size_min: 24
     font_size_max: 40
 
+    # Per-glyph color palette with 2-3 colors cycling through text
+    color_mode: "per_glyph"
+    per_glyph_palette_size_min: 2
+    per_glyph_palette_size_max: 3
+    text_color_min: [20, 20, 20]
+    text_color_max: [80, 80, 80]
+
     # Different effects
     ink_bleed_radius_min: 0.0
     ink_bleed_radius_max: 1.0
@@ -134,6 +151,16 @@ specifications:
 
     font_size_min: 32
     font_size_max: 52
+
+    # Block shadow for subtle effect
+    block_shadow_offset_x_min: 1
+    block_shadow_offset_x_max: 3
+    block_shadow_offset_y_min: 1
+    block_shadow_offset_y_max: 3
+    block_shadow_radius_min: 0.5
+    block_shadow_radius_max: 2.0
+    block_shadow_color_min: [100, 100, 100, 100]
+    block_shadow_color_max: [150, 150, 150, 150]
 
     # Perspective warp (uniform across all lines)
     perspective_warp_magnitude_min: 0.0

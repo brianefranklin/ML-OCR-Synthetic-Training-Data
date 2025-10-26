@@ -21,6 +21,16 @@ specifications:
     font_size_min: 28
     font_size_max: 42
 
+    # Prominent drop shadow
+    drop_shadow_offset_x_min: 3
+    drop_shadow_offset_x_max: 8
+    drop_shadow_offset_y_min: 3
+    drop_shadow_offset_y_max: 8
+    drop_shadow_radius_min: 2.0
+    drop_shadow_radius_max: 5.0
+    drop_shadow_color_min: [0, 0, 0, 180]
+    drop_shadow_color_max: [50, 50, 50, 220]
+
     curve_type: "arc"
     arc_radius_min: 100.0
     arc_radius_max: 300.0
@@ -77,6 +87,13 @@ specifications:
     font_size_min: 24
     font_size_max: 36
 
+    # Varied per-glyph palette
+    color_mode: "per_glyph"
+    per_glyph_palette_size_min: 3
+    per_glyph_palette_size_max: 5
+    text_color_min: [10, 10, 10]
+    text_color_max: [120, 120, 120]
+
     rotation_angle_min: -10.0
     rotation_angle_max: 10.0
     noise_amount_min: 0.0
@@ -129,6 +146,16 @@ specifications:
 
     font_size_min: 20
     font_size_max: 40
+
+    # Prominent block shadow
+    block_shadow_offset_x_min: 2
+    block_shadow_offset_x_max: 6
+    block_shadow_offset_y_min: 2
+    block_shadow_offset_y_max: 6
+    block_shadow_radius_min: 1.5
+    block_shadow_radius_max: 4.0
+    block_shadow_color_min: [80, 80, 80, 120]
+    block_shadow_color_max: [180, 180, 180, 180]
 
     rotation_angle_min: 0.0
     rotation_angle_max: 0.0

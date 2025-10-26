@@ -77,8 +77,9 @@ class OCRDataGenerator:
             return color
 
         elif spec.color_mode == "per_glyph":
-            # Generate N random colors, one per character
-            palette_size = len(text)
+            # Generate N random colors based on palette size config
+            # Colors will be cycled through the text (e.g., palette_size=2 for "HELLO" -> [color1, color2, color1, color2, color1])
+            palette_size = random.randint(spec.per_glyph_palette_size_min, spec.per_glyph_palette_size_max)
             palette = []
             for _ in range(palette_size):
                 r = random.randint(spec.text_color_min[0], spec.text_color_max[0])
@@ -104,6 +105,51 @@ class OCRDataGenerator:
         else:
             # Should never reach here due to validation, but provide fallback
             return None
+
+    def _generate_shadow_options(
+        self,
+        offset_x_min: int, offset_x_max: int, offset_x_dist: str,
+        offset_y_min: int, offset_y_max: int, offset_y_dist: str,
+        radius_min: float, radius_max: float, radius_dist: str,
+        color_min: Tuple[int, int, int, int], color_max: Tuple[int, int, int, int]
+    ) -> Optional[Dict[str, Any]]:
+        """Generates shadow options if shadow is enabled (non-zero offsets).
+
+        Args:
+            offset_x_min/max: X offset range for shadow.
+            offset_x_dist: Distribution type for X offset.
+            offset_y_min/max: Y offset range for shadow.
+            offset_y_dist: Distribution type for Y offset.
+            radius_min/max: Blur radius range for shadow.
+            radius_dist: Distribution type for blur radius.
+            color_min/max: RGBA color range for shadow (4-tuple).
+
+        Returns:
+            None if shadow is disabled (both offsets are 0), otherwise a dictionary
+            with keys: "offset" (tuple), "radius" (float), "color" (4-tuple RGBA).
+        """
+        # Sample shadow parameters
+        offset_x = int(sample_parameter(offset_x_min, offset_x_max, offset_x_dist))
+        offset_y = int(sample_parameter(offset_y_min, offset_y_max, offset_y_dist))
+
+        # If both offsets are 0, shadow is disabled
+        if offset_x == 0 and offset_y == 0:
+            return None
+
+        radius = sample_parameter(radius_min, radius_max, radius_dist)
+
+        # Sample RGBA color
+        r = random.randint(color_min[0], color_max[0])
+        g = random.randint(color_min[1], color_max[1])
+        b = random.randint(color_min[2], color_max[2])
+        a = random.randint(color_min[3], color_max[3])
+        color = (r, g, b, a)
+
+        return {
+            "offset": (offset_x, offset_y),
+            "radius": radius,
+            "color": color
+        }
 
     def plan_generation(
         self, 
@@ -184,8 +230,18 @@ class OCRDataGenerator:
                 spec.ink_bleed_radius_max,
                 spec.ink_bleed_radius_distribution
             ),
-            "drop_shadow_options": None, # Placeholder for more complex options
-            "block_shadow_options": None, # Placeholder
+            "drop_shadow_options": self._generate_shadow_options(
+                spec.drop_shadow_offset_x_min, spec.drop_shadow_offset_x_max, spec.drop_shadow_offset_x_distribution,
+                spec.drop_shadow_offset_y_min, spec.drop_shadow_offset_y_max, spec.drop_shadow_offset_y_distribution,
+                spec.drop_shadow_radius_min, spec.drop_shadow_radius_max, spec.drop_shadow_radius_distribution,
+                spec.drop_shadow_color_min, spec.drop_shadow_color_max
+            ),
+            "block_shadow_options": self._generate_shadow_options(
+                spec.block_shadow_offset_x_min, spec.block_shadow_offset_x_max, spec.block_shadow_offset_x_distribution,
+                spec.block_shadow_offset_y_min, spec.block_shadow_offset_y_max, spec.block_shadow_offset_y_distribution,
+                spec.block_shadow_radius_min, spec.block_shadow_radius_max, spec.block_shadow_radius_distribution,
+                spec.block_shadow_color_min, spec.block_shadow_color_max
+            ),
             "color_mode": spec.color_mode,
             "color_palette": self._generate_color_palette(spec, text),
             "rotation_angle": sample_parameter(
@@ -802,7 +858,7 @@ class OCRDataGenerator:
             # Determine fill color
             fill = "black"
             if color_mode == 'per_glyph' and color_palette:
-                fill = color_palette[original_idx]
+                fill = color_palette[original_idx % len(color_palette)]
             elif color_mode == 'gradient' and color_palette:
                 t = original_idx / (len(text) - 1) if len(text) > 1 else 0
                 start_color = np.array(color_palette[0])
@@ -991,7 +1047,7 @@ class OCRDataGenerator:
             # Determine fill color
             fill = "black"
             if color_mode == 'per_glyph' and color_palette:
-                fill = color_palette[original_idx]
+                fill = color_palette[original_idx % len(color_palette)]
             elif color_mode == 'gradient' and color_palette:
                 t = original_idx / (len(text) - 1) if len(text) > 1 else 0
                 start_color = np.array(color_palette[0])
@@ -1180,7 +1236,7 @@ class OCRDataGenerator:
                 x_pos = (image_width - char_width) / 2
                 fill = "black" # Default
                 if color_mode == 'per_glyph' and color_palette:
-                    fill = color_palette[i]
+                    fill = color_palette[i % len(color_palette)]
                 elif color_mode == 'gradient' and color_palette:
                     t = i / (len(text) - 1) if len(text) > 1 else 0
                     start_color = np.array(color_palette[0])
@@ -1202,7 +1258,7 @@ class OCRDataGenerator:
                 
                 fill = "black" # Default
                 if color_mode == 'per_glyph' and color_palette:
-                    fill = color_palette[i]
+                    fill = color_palette[i % len(color_palette)]
                 elif color_mode == 'gradient' and color_palette:
                     t = i / (len(text) - 1) if len(text) > 1 else 0
                     start_color = np.array(color_palette[0])
@@ -1268,7 +1324,7 @@ class OCRDataGenerator:
 
             fill = "black" # Default
             if color_mode == 'per_glyph' and color_palette:
-                fill = color_palette[i]
+                fill = color_palette[i % len(color_palette)]
             elif color_mode == 'gradient' and color_palette:
                 # Horizontal gradient
                 t = i / (len(text_to_render) - 1) if len(text_to_render) > 1 else 0

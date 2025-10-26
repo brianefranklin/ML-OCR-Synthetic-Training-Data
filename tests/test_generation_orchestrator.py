@@ -5,6 +5,7 @@ from typing import List, Dict
 from src.batch_config import BatchConfig, BatchSpecification
 from src.generation_orchestrator import GenerationOrchestrator, GenerationTask
 from src.background_manager import BackgroundImageManager
+from src.font_health_manager import FontHealthManager
 
 @pytest.fixture
 def corpus_map(tmp_path: Path) -> Dict[str, str]:
@@ -42,12 +43,14 @@ def background_manager(tmp_path: Path) -> BackgroundImageManager:
 def test_create_generation_tasks_with_font_filter(batch_config: BatchConfig, corpus_map: Dict[str, str], background_manager: BackgroundImageManager):
     """Tests that the GenerationOrchestrator correctly filters fonts based on the spec."""
     all_fonts = ["/fonts/font_a_Bold.ttf", "/fonts/font_b_Regular.ttf"]
+    font_health_manager = FontHealthManager()
 
     orchestrator = GenerationOrchestrator(
         batch_config=batch_config,
         corpus_map=corpus_map,
         all_fonts=all_fonts,
-        background_manager=background_manager
+        background_manager=background_manager,
+        font_health_manager=font_health_manager
     )
 
     # Generate unique filenames (using simple counter for tests)

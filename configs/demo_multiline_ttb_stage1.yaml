@@ -70,6 +70,13 @@ specifications:
     font_size_min: 28
     font_size_max: 40
 
+    # Subtle per-glyph color variation
+    color_mode: "per_glyph"
+    per_glyph_palette_size_min: 2
+    per_glyph_palette_size_max: 2
+    text_color_min: [0, 0, 0]
+    text_color_max: [40, 40, 40]
+
     rotation_angle_min: 0.0
     rotation_angle_max: 0.0
     curve_type: "none"
@@ -121,6 +128,16 @@ specifications:
 
     font_size_min: 24
     font_size_max: 36
+
+    # Subtle drop shadow
+    drop_shadow_offset_x_min: 1
+    drop_shadow_offset_x_max: 2
+    drop_shadow_offset_y_min: 1
+    drop_shadow_offset_y_max: 2
+    drop_shadow_radius_min: 0.5
+    drop_shadow_radius_max: 1.5
+    drop_shadow_color_min: [0, 0, 0, 120]
+    drop_shadow_color_max: [0, 0, 0, 160]
 
     rotation_angle_min: 0.0
     rotation_angle_max: 0.0

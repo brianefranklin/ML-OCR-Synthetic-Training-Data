@@ -21,7 +21,17 @@ specifications:
     font_size_min: 28
     font_size_max: 48
 
-    # Effects applied uniformly
+    # Drop shadow for depth
+    drop_shadow_offset_x_min: 2
+    drop_shadow_offset_x_max: 5
+    drop_shadow_offset_y_min: 2
+    drop_shadow_offset_y_max: 5
+    drop_shadow_radius_min: 1.0
+    drop_shadow_radius_max: 3.0
+    drop_shadow_color_min: [0, 0, 0, 150]
+    drop_shadow_color_max: [0, 0, 0, 200]
+
+ffects applied uniformly
     noise_amount_min: 0.0
     noise_amount_max: 0.1
     blur_radius_min: 0.0
@@ -127,6 +137,16 @@ specifications:
 
     font_size_min: 32
     font_size_max: 52
+
+    # Block shadow for subtle effect
+    block_shadow_offset_x_min: 1
+    block_shadow_offset_x_max: 3
+    block_shadow_offset_y_min: 1
+    block_shadow_offset_y_max: 3
+    block_shadow_radius_min: 0.5
+    block_shadow_radius_max: 2.0
+    block_shadow_color_min: [100, 100, 100, 100]
+    block_shadow_color_max: [150, 150, 150, 150]
 
     perspective_warp_magnitude_min: 0.0
     perspective_warp_magnitude_max: 0.05
