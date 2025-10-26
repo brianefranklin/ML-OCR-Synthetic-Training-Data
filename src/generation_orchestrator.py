@@ -34,8 +34,9 @@ class GenerationOrchestrator:
     BackgroundImageManager to create a definitive list of tasks for the entire
     batch, with all resources pre-selected.
     """
-    def __init__(self, batch_config: BatchConfig, corpus_map: Dict[str, str], 
-                 all_fonts: List[str], background_manager: BackgroundImageManager):
+    def __init__(self, batch_config: BatchConfig, corpus_map: Dict[str, str],
+                 all_fonts: List[str], background_manager: BackgroundImageManager,
+                 font_health_manager: FontHealthManager):
         """Initializes the GenerationOrchestrator.
 
         Args:
@@ -43,12 +44,13 @@ class GenerationOrchestrator:
             corpus_map: A map from corpus file names to their full paths.
             all_fonts: A list of all available font paths.
             background_manager: An initialized background manager.
+            font_health_manager: An initialized font health manager.
         """
         self.batch_config = batch_config
         self.all_fonts = all_fonts
-        
+
         self.batch_manager = BatchManager(batch_config)
-        self.font_health_manager = FontHealthManager()
+        self.font_health_manager = font_health_manager
         self.background_manager = background_manager
         
         # Create a dictionary of CorpusManager instances, one for each unique corpus file.

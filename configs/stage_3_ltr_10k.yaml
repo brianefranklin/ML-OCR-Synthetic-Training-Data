@@ -10,7 +10,7 @@
 total_images: 10000
 
 specifications:
-  # Spec 1: Colored text on background images - 30%
+  # Spec 1: Colored text on background images (multi-line) - 30%
   - name: "stage3_colored_backgrounds"
     proportion: 0.30
     text_direction: "left_to_right"
@@ -19,6 +19,14 @@ specifications:
 
     min_text_length: 5
     max_text_length: 100
+
+    # Multi-line text parameters (advanced features)
+    min_lines: 1
+    max_lines: 8
+    line_break_mode: "word"
+    line_spacing_min: 1.0
+    line_spacing_max: 3.0
+    text_alignment: "left"
 
     # Full color range for text
     text_color_min: [0, 0, 0]
@@ -30,6 +38,16 @@ specifications:
 
     font_size_min: 20
     font_size_max: 96
+
+    # Strong drop shadow
+    drop_shadow_offset_x_min: 3
+    drop_shadow_offset_x_max: 7
+    drop_shadow_offset_y_min: 3
+    drop_shadow_offset_y_max: 7
+    drop_shadow_radius_min: 2.0
+    drop_shadow_radius_max: 4.5
+    drop_shadow_color_min: [0, 0, 0, 170]
+    drop_shadow_color_max: [40, 40, 40, 210]
 
     # Full rotation range
     rotation_angle_min: -25.0
@@ -113,6 +131,11 @@ specifications:
     font_size_min: 24
     font_size_max: 96
 
+    # Varied per-glyph palette
+    color_mode: "per_glyph"
+    per_glyph_palette_size_min: 3
+    per_glyph_palette_size_max: 5
+
     rotation_angle_min: -20.0
     rotation_angle_max: 20.0
 
@@ -165,7 +188,7 @@ specifications:
     cutout_height_min: 0
     cutout_height_max: 12
 
-  # Spec 3: Light colored text on dark backgrounds - 20%
+  # Spec 3: Light colored text on dark backgrounds (multi-line) - 20%
   - name: "stage3_light_on_dark"
     proportion: 0.20
     text_direction: "left_to_right"
@@ -174,6 +197,14 @@ specifications:
 
     min_text_length: 10
     max_text_length: 80
+
+    # Multi-line text parameters (advanced features with character breaking)
+    min_lines: 1
+    max_lines: 6
+    line_break_mode: "character"
+    line_spacing_min: 1.2
+    line_spacing_max: 2.8
+    text_alignment: "center"
 
     # Light text colors
     text_color_min: [150, 150, 150]
@@ -184,6 +215,16 @@ specifications:
 
     font_size_min: 20
     font_size_max: 80
+
+    # Block shadow for variation
+    block_shadow_offset_x_min: 2
+    block_shadow_offset_x_max: 5
+    block_shadow_offset_y_min: 2
+    block_shadow_offset_y_max: 5
+    block_shadow_radius_min: 1.5
+    block_shadow_radius_max: 3.5
+    block_shadow_color_min: [70, 70, 70, 110]
+    block_shadow_color_max: [160, 160, 160, 170]
 
     rotation_angle_min: -30.0
     rotation_angle_max: 30.0

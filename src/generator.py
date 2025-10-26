@@ -29,6 +29,10 @@ from src.augmentations import (
 from src.batch_config import BatchSpecification
 from src.background_manager import BackgroundImageManager
 from src.distributions import sample_parameter
+from src.text_layout import (
+    break_into_lines,
+    calculate_multiline_dimensions
+)
 
 class OCRDataGenerator:
     """Orchestrates the entire image generation pipeline.
@@ -73,8 +77,9 @@ class OCRDataGenerator:
             return color
 
         elif spec.color_mode == "per_glyph":
-            # Generate N random colors, one per character
-            palette_size = len(text)
+            # Generate N random colors based on palette size config
+            # Colors will be cycled through the text (e.g., palette_size=2 for "HELLO" -> [color1, color2, color1, color2, color1])
+            palette_size = random.randint(spec.per_glyph_palette_size_min, spec.per_glyph_palette_size_max)
             palette = []
             for _ in range(palette_size):
                 r = random.randint(spec.text_color_min[0], spec.text_color_max[0])
@@ -101,6 +106,51 @@ class OCRDataGenerator:
             # Should never reach here due to validation, but provide fallback
             return None
 
+    def _generate_shadow_options(
+        self,
+        offset_x_min: int, offset_x_max: int, offset_x_dist: str,
+        offset_y_min: int, offset_y_max: int, offset_y_dist: str,
+        radius_min: float, radius_max: float, radius_dist: str,
+        color_min: Tuple[int, int, int, int], color_max: Tuple[int, int, int, int]
+    ) -> Optional[Dict[str, Any]]:
+        """Generates shadow options if shadow is enabled (non-zero offsets).
+
+        Args:
+            offset_x_min/max: X offset range for shadow.
+            offset_x_dist: Distribution type for X offset.
+            offset_y_min/max: Y offset range for shadow.
+            offset_y_dist: Distribution type for Y offset.
+            radius_min/max: Blur radius range for shadow.
+            radius_dist: Distribution type for blur radius.
+            color_min/max: RGBA color range for shadow (4-tuple).
+
+        Returns:
+            None if shadow is disabled (both offsets are 0), otherwise a dictionary
+            with keys: "offset" (tuple), "radius" (float), "color" (4-tuple RGBA).
+        """
+        # Sample shadow parameters
+        offset_x = int(sample_parameter(offset_x_min, offset_x_max, offset_x_dist))
+        offset_y = int(sample_parameter(offset_y_min, offset_y_max, offset_y_dist))
+
+        # If both offsets are 0, shadow is disabled
+        if offset_x == 0 and offset_y == 0:
+            return None
+
+        radius = sample_parameter(radius_min, radius_max, radius_dist)
+
+        # Sample RGBA color
+        r = random.randint(color_min[0], color_max[0])
+        g = random.randint(color_min[1], color_max[1])
+        b = random.randint(color_min[2], color_max[2])
+        a = random.randint(color_min[3], color_max[3])
+        color = (r, g, b, a)
+
+        return {
+            "offset": (offset_x, offset_y),
+            "radius": radius,
+            "color": color
+        }
+
     def plan_generation(
         self, 
         spec: BatchSpecification, 
@@ -122,13 +172,35 @@ class OCRDataGenerator:
         # Sample font size first (needed for canvas sizing)
         font_size = random.randint(spec.font_size_min, spec.font_size_max)
 
-        # Render a temporary surface to get the dimensions for canvas calculation.
-        # Use straight text for canvas sizing regardless of curve type
-        text_surface, _ = self._render_text(text, font_path, spec.text_direction, 0.0, 'uniform', None, "none", 0.0, True, 0.0, 0.0, 0.0, font_size)
-        
-        canvas_w, canvas_h = generate_random_canvas_size(text_surface.width, text_surface.height)
+        # Sample multi-line parameters
+        num_lines = random.randint(spec.min_lines, spec.max_lines)
+        line_spacing = sample_parameter(
+            spec.line_spacing_min,
+            spec.line_spacing_max,
+            spec.line_spacing_distribution
+        )
+
+        # Break text into lines if multi-line mode
+        if num_lines > 1:
+            # Calculate approximate chars per line for line breaking
+            max_chars_per_line = max(1, len(text) // num_lines)
+            lines = break_into_lines(text, max_chars_per_line, num_lines, spec.line_break_mode)
+
+            # Calculate dimensions for multi-line text
+            font = ImageFont.truetype(font_path, font_size)
+            text_width, text_height = calculate_multiline_dimensions(
+                lines, font, line_spacing, spec.text_direction, 0.0
+            )
+        else:
+            lines = [text]
+            # Render a temporary surface to get the dimensions for canvas calculation.
+            # Use straight text for canvas sizing regardless of curve type
+            text_surface, _ = self._render_text(text, font_path, spec.text_direction, 0.0, 'uniform', None, "none", 0.0, True, 0.0, 0.0, 0.0, font_size)
+            text_width, text_height = text_surface.width, text_surface.height
+
+        canvas_w, canvas_h = generate_random_canvas_size(text_width, text_height)
         placement_x, placement_y = calculate_text_placement(
-            canvas_w, canvas_h, text_surface.width, text_surface.height, "uniform_random"
+            canvas_w, canvas_h, text_width, text_height, "uniform_random"
         )
 
         background_path = background_manager.select_background() if background_manager else None
@@ -136,6 +208,11 @@ class OCRDataGenerator:
         # Build the final plan dictionary
         return {
             "text": text,
+            "lines": lines,  # Text broken into lines
+            "num_lines": num_lines,
+            "line_spacing": line_spacing,
+            "line_break_mode": spec.line_break_mode,
+            "text_alignment": spec.text_alignment,
             "font_path": font_path,
             "direction": spec.text_direction,
             "seed": random.randint(0, 2**32 - 1),
@@ -153,8 +230,18 @@ class OCRDataGenerator:
                 spec.ink_bleed_radius_max,
                 spec.ink_bleed_radius_distribution
             ),
-            "drop_shadow_options": None, # Placeholder for more complex options
-            "block_shadow_options": None, # Placeholder
+            "drop_shadow_options": self._generate_shadow_options(
+                spec.drop_shadow_offset_x_min, spec.drop_shadow_offset_x_max, spec.drop_shadow_offset_x_distribution,
+                spec.drop_shadow_offset_y_min, spec.drop_shadow_offset_y_max, spec.drop_shadow_offset_y_distribution,
+                spec.drop_shadow_radius_min, spec.drop_shadow_radius_max, spec.drop_shadow_radius_distribution,
+                spec.drop_shadow_color_min, spec.drop_shadow_color_max
+            ),
+            "block_shadow_options": self._generate_shadow_options(
+                spec.block_shadow_offset_x_min, spec.block_shadow_offset_x_max, spec.block_shadow_offset_x_distribution,
+                spec.block_shadow_offset_y_min, spec.block_shadow_offset_y_max, spec.block_shadow_offset_y_distribution,
+                spec.block_shadow_radius_min, spec.block_shadow_radius_max, spec.block_shadow_radius_distribution,
+                spec.block_shadow_color_min, spec.block_shadow_color_max
+            ),
             "color_mode": spec.color_mode,
             "color_palette": self._generate_color_palette(spec, text),
             "rotation_angle": sample_parameter(
@@ -319,21 +406,47 @@ class OCRDataGenerator:
         random.seed(plan["seed"])
 
         # 1. Render the basic text surface with all text-level effects.
-        text_surface, bboxes = self._render_text(
-            plan["text"],
-            plan["font_path"],
-            plan["direction"],
-            plan.get("glyph_overlap_intensity", 0.0),
-            plan.get("color_mode", 'uniform'),
-            plan.get("color_palette"),
-            plan.get("curve_type", "none"),
-            plan.get("arc_radius", 0.0),
-            plan.get("arc_concave", True),
-            plan.get("sine_amplitude", 0.0),
-            plan.get("sine_frequency", 0.0),
-            plan.get("sine_phase", 0.0),
-            plan.get("font_size", 32),
-        )
+        num_lines = plan.get("num_lines", 1)
+
+        if num_lines > 1:
+            # Multi-line rendering
+            text_surface, bboxes = self._render_multiline_text(
+                plan["lines"],
+                plan["font_path"],
+                plan["direction"],
+                plan.get("line_spacing", 1.0),
+                plan.get("text_alignment", "left"),
+                plan.get("glyph_overlap_intensity", 0.0),
+                plan.get("color_mode", 'uniform'),
+                plan.get("color_palette"),
+                plan.get("curve_type", "none"),
+                plan.get("arc_radius", 0.0),
+                plan.get("arc_concave", True),
+                plan.get("sine_amplitude", 0.0),
+                plan.get("sine_frequency", 0.0),
+                plan.get("sine_phase", 0.0),
+                plan.get("font_size", 32),
+            )
+        else:
+            # Single-line rendering
+            text_surface, bboxes = self._render_text(
+                plan["text"],
+                plan["font_path"],
+                plan["direction"],
+                plan.get("glyph_overlap_intensity", 0.0),
+                plan.get("color_mode", 'uniform'),
+                plan.get("color_palette"),
+                plan.get("curve_type", "none"),
+                plan.get("arc_radius", 0.0),
+                plan.get("arc_concave", True),
+                plan.get("sine_amplitude", 0.0),
+                plan.get("sine_frequency", 0.0),
+                plan.get("sine_phase", 0.0),
+                plan.get("font_size", 32),
+            )
+            # Add line_index: 0 to all bboxes for consistency with multi-line format
+            for bbox in bboxes:
+                bbox["line_index"] = 0
 
         # 2. Apply post-rendering text effects.
         ink_bleed_radius = plan.get("ink_bleed_radius", 0.0)
@@ -402,6 +515,180 @@ class OCRDataGenerator:
             final_image = apply_brightness_contrast(final_image, brightness_factor, contrast_factor)
 
         return final_image, final_bboxes
+
+    def _render_multiline_text(
+        self,
+        lines: List[str],
+        font_path: str,
+        direction: str,
+        line_spacing: float,
+        alignment: str,
+        glyph_overlap_intensity: float = 0.0,
+        color_mode: str = 'uniform',
+        color_palette: Optional[list] = None,
+        curve_type: str = "none",
+        arc_radius: float = 0.0,
+        arc_concave: bool = True,
+        sine_amplitude: float = 0.0,
+        sine_frequency: float = 0.0,
+        sine_phase: float = 0.0,
+        font_size: int = 32
+    ) -> Tuple[Image.Image, List[Dict[str, Any]]]:
+        """Renders multiple lines of text with proper spacing and alignment.
+
+        Args:
+            lines: List of text strings (one per line).
+            font_path: Path to the font file.
+            direction: Text direction.
+            line_spacing: Line spacing multiplier.
+            alignment: Text alignment.
+            glyph_overlap_intensity: Intensity of character overlap.
+            color_mode: Color mode for rendering.
+            color_palette: Optional color palette.
+            curve_type: Type of curve.
+            arc_radius: Radius for arc curves.
+            arc_concave: Whether arc curves concavely.
+            sine_amplitude: Amplitude for sine wave.
+            sine_frequency: Frequency for sine wave.
+            sine_phase: Phase offset for sine wave.
+            font_size: Size of the font in pixels.
+
+        Returns:
+            Tuple of (combined_image, bboxes) where bboxes include line_index.
+        """
+        if not lines:
+            # Return empty image
+            return Image.new("RGBA", (1, 1), (0, 0, 0, 0)), []
+
+        # Render each line separately
+        line_images = []
+        line_bboxes_list = []
+        char_offset = 0  # Track character position in original text
+
+        for line_idx, line_text in enumerate(lines):
+            if not line_text:
+                # Empty line - skip but track offset
+                line_images.append(None)
+                line_bboxes_list.append([])
+                char_offset += 0
+                continue
+
+            # Determine color palette for this line
+            line_color_palette = None
+            if color_mode == 'per_glyph' and color_palette:
+                # Extract colors for this line's characters
+                line_color_palette = color_palette[char_offset:char_offset + len(line_text)]
+            elif color_mode == 'gradient' and color_palette:
+                # Use same gradient for all lines
+                line_color_palette = color_palette
+            elif color_mode == 'uniform' and color_palette:
+                line_color_palette = color_palette
+
+            # Render this line
+            line_img, line_bboxes = self._render_text(
+                line_text,
+                font_path,
+                direction,
+                glyph_overlap_intensity,
+                color_mode,
+                line_color_palette,
+                curve_type,
+                arc_radius,
+                arc_concave,
+                sine_amplitude,
+                sine_frequency,
+                sine_phase,
+                font_size
+            )
+
+            line_images.append(line_img)
+            line_bboxes_list.append(line_bboxes)
+            char_offset += len(line_text) + 1  # +1 for space/newline between lines
+
+        # Calculate total dimensions and positions for combining lines
+        font = ImageFont.truetype(font_path, font_size)
+        ascent, descent = font.getmetrics()
+        line_height = int((ascent + descent) * line_spacing)
+
+        if direction in ["left_to_right", "right_to_left"]:
+            # Horizontal text: stack lines vertically
+            max_width = max((img.width if img else 0) for img in line_images)
+            total_height = line_height * len(lines)
+            combined_image = Image.new("RGBA", (max_width, total_height), (0, 0, 0, 0))
+
+            combined_bboxes = []
+            for line_idx, (line_img, line_bboxes) in enumerate(zip(line_images, line_bboxes_list)):
+                if line_img is None:
+                    continue
+
+                y_offset = line_idx * line_height
+
+                # Calculate x offset based on alignment
+                if alignment == "left":
+                    x_offset = 0
+                elif alignment == "center":
+                    x_offset = (max_width - line_img.width) // 2
+                elif alignment == "right":
+                    x_offset = max_width - line_img.width
+                else:
+                    x_offset = 0
+
+                # Paste line onto combined image
+                combined_image.paste(line_img, (x_offset, y_offset), line_img)
+
+                # Adjust bounding boxes and add line_index
+                for bbox in line_bboxes:
+                    adjusted_bbox = {
+                        "char": bbox["char"],
+                        "x0": bbox["x0"] + x_offset,
+                        "y0": bbox["y0"] + y_offset,
+                        "x1": bbox["x1"] + x_offset,
+                        "y1": bbox["y1"] + y_offset,
+                        "line_index": line_idx
+                    }
+                    combined_bboxes.append(adjusted_bbox)
+
+        else:  # vertical text
+            # Vertical text: stack lines horizontally
+            char_width = int(font.size * 0.6)
+            line_offset = int(char_width * line_spacing * 2)
+            max_height = max((img.height if img else 0) for img in line_images)
+            total_width = line_offset * len(lines)
+            combined_image = Image.new("RGBA", (total_width, max_height), (0, 0, 0, 0))
+
+            combined_bboxes = []
+            for line_idx, (line_img, line_bboxes) in enumerate(zip(line_images, line_bboxes_list)):
+                if line_img is None:
+                    continue
+
+                x_offset = line_idx * line_offset
+
+                # Calculate y offset based on alignment
+                if alignment == "top":
+                    y_offset = 0
+                elif alignment == "center":
+                    y_offset = (max_height - line_img.height) // 2
+                elif alignment == "bottom":
+                    y_offset = max_height - line_img.height
+                else:
+                    y_offset = 0
+
+                # Paste line onto combined image
+                combined_image.paste(line_img, (x_offset, y_offset), line_img)
+
+                # Adjust bounding boxes and add line_index
+                for bbox in line_bboxes:
+                    adjusted_bbox = {
+                        "char": bbox["char"],
+                        "x0": bbox["x0"] + x_offset,
+                        "y0": bbox["y0"] + y_offset,
+                        "x1": bbox["x1"] + x_offset,
+                        "y1": bbox["y1"] + y_offset,
+                        "line_index": line_idx
+                    }
+                    combined_bboxes.append(adjusted_bbox)
+
+        return combined_image, combined_bboxes
 
     def _render_text(
         self,
@@ -571,7 +858,7 @@ class OCRDataGenerator:
             # Determine fill color
             fill = "black"
             if color_mode == 'per_glyph' and color_palette:
-                fill = color_palette[original_idx]
+                fill = color_palette[original_idx % len(color_palette)]
             elif color_mode == 'gradient' and color_palette:
                 t = original_idx / (len(text) - 1) if len(text) > 1 else 0
                 start_color = np.array(color_palette[0])
@@ -760,7 +1047,7 @@ class OCRDataGenerator:
             # Determine fill color
             fill = "black"
             if color_mode == 'per_glyph' and color_palette:
-                fill = color_palette[original_idx]
+                fill = color_palette[original_idx % len(color_palette)]
             elif color_mode == 'gradient' and color_palette:
                 t = original_idx / (len(text) - 1) if len(text) > 1 else 0
                 start_color = np.array(color_palette[0])
@@ -877,7 +1164,19 @@ class OCRDataGenerator:
     def _render_right_to_left(self, text: str, font_path: str, glyph_overlap_intensity: float, color_mode: str, color_palette: Optional[list], font_size: int = 32):
         """Renders right-to-left text after reshaping."""
         reshaped_text = bidi.algorithm.get_display(text)
-        return self._render_text_surface(reshaped_text, font_path, glyph_overlap_intensity, color_mode, color_palette, font_size)
+        image, bboxes = self._render_text_surface(reshaped_text, font_path, glyph_overlap_intensity, color_mode, color_palette, font_size)
+
+        # Bboxes are currently in reshaped (visual) order, but should be in original text order
+        # For RTL, reverse the bboxes to match original text order
+        # Also update the char field to match the original text
+        reversed_bboxes = []
+        for i, bbox in enumerate(reversed(bboxes)):
+            # Update bbox to use character from original text
+            bbox_copy = bbox.copy()
+            bbox_copy["char"] = text[i]
+            reversed_bboxes.append(bbox_copy)
+
+        return image, reversed_bboxes
 
     def _render_top_to_bottom(self, text: str, font_path: str, glyph_overlap_intensity: float, color_mode: str, color_palette: Optional[list], font_size: int = 32):
         """Renders text vertically from top to bottom."""
@@ -927,19 +1226,19 @@ class OCRDataGenerator:
         image = Image.new("RGBA", (image_width, image_height), (0, 0, 0, 0))
 
         if is_bottom_to_top:
+            # For bottom-to-top, start at the bottom and render characters upward
+            # First character appears at bottom, last character at top
             current_y = image_height - margin
-            char_list = list(enumerate(reversed(text)))
-            for i, char in char_list:
-                char_index = len(text) - 1 - i
-                char_height = char_heights[char_index]
-                char_width = char_widths[char_index]
+            for i, char in enumerate(text):
+                char_height = char_heights[i]
+                char_width = char_widths[i]
                 current_y -= char_height * (1 - glyph_overlap_intensity)
                 x_pos = (image_width - char_width) / 2
                 fill = "black" # Default
                 if color_mode == 'per_glyph' and color_palette:
-                    fill = color_palette[char_index]
+                    fill = color_palette[i % len(color_palette)]
                 elif color_mode == 'gradient' and color_palette:
-                    t = char_index / (len(text) - 1) if len(text) > 1 else 0
+                    t = i / (len(text) - 1) if len(text) > 1 else 0
                     start_color = np.array(color_palette[0])
                     end_color = np.array(color_palette[1])
                     fill = tuple((start_color + t * (end_color - start_color)).astype(int))
@@ -950,7 +1249,6 @@ class OCRDataGenerator:
                 image.paste(char_image, (int(x_pos), int(current_y)), char_image)
 
                 bboxes.append({"char": char, "x0": int(x_pos), "y0": int(current_y), "x1": int(x_pos + char_width), "y1": int(current_y + char_height)})
-            bboxes.reverse() # Bboxes should be in original text order
         else:
             current_y = margin
             for i, char in enumerate(text):
@@ -960,7 +1258,7 @@ class OCRDataGenerator:
                 
                 fill = "black" # Default
                 if color_mode == 'per_glyph' and color_palette:
-                    fill = color_palette[i]
+                    fill = color_palette[i % len(color_palette)]
                 elif color_mode == 'gradient' and color_palette:
                     t = i / (len(text) - 1) if len(text) > 1 else 0
                     start_color = np.array(color_palette[0])
@@ -1026,7 +1324,7 @@ class OCRDataGenerator:
 
             fill = "black" # Default
             if color_mode == 'per_glyph' and color_palette:
-                fill = color_palette[i]
+                fill = color_palette[i % len(color_palette)]
             elif color_mode == 'gradient' and color_palette:
                 # Horizontal gradient
                 t = i / (len(text_to_render) - 1) if len(text_to_render) > 1 else 0

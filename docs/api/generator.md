@@ -66,12 +66,56 @@ Deterministically generates an image based on a plan dictionary.
 
 ### Internal Rendering Methods
 
-- **`_render_text(...)`**: A dispatcher that calls the correct rendering function based on the text `direction` and `curve_type`. When curve parameters exceed threshold values (arc_radius > 1.0 or sine_amplitude > 0.1), dispatches to curved text renderers.
+- **`_render_multiline_text(...)`**: Renders multiple lines of text with proper spacing and alignment. Breaks text into lines, renders each line individually, and combines them into a single image. Applies effects uniformly across all lines. Returns bounding boxes with `line_index` field for multi-line awareness. Supports all text directions, curve types, and alignment options.
+
+- **`_render_text(...)`**: A dispatcher that calls the correct rendering function for single-line text based on the text `direction` and `curve_type`. When curve parameters exceed threshold values (arc_radius > 1.0 or sine_amplitude > 0.1), dispatches to curved text renderers.
+
 - **`_render_arc_text(...)`**: Renders text along a circular arc. Characters are positioned on a circle and rotated tangent to the curve. Uses transform-based bounding box calculation. Works with all 4 text directions.
+
 - **`_render_sine_text(...)`**: Renders text along a sine wave pattern. Characters oscillate vertically (horizontal text) or horizontally (vertical text) following a sine function. Characters are rotated according to the wave's tangent. Works with all 4 text directions.
+
 - **`_render_left_to_right(...)`**: Renders straight left-to-right text.
 - **`_render_right_to_left(...)`**: Renders straight right-to-left text after BiDi reshaping.
 - **`_render_top_to_bottom(...)`**: Renders straight vertical text from top to bottom.
 - **`_render_bottom_to_top(...)`**: Renders straight vertical text from bottom to top.
 - **`_render_text_surface(...)`**: Common helper for rendering horizontal straight text.
 - **`_render_vertical_text(...)`**: Common helper for rendering vertical straight text.
+
+## Multi-Line Text Generation
+
+The generator supports multi-line text generation for creating training data with text ranging from single characters to full paragraphs. When `num_lines > 1` in the generation plan, the system automatically uses multi-line rendering.
+
+### Multi-Line Parameters in Plan
+
+Plans for multi-line generation include these additional fields:
+
+- **`num_lines`**: Number of lines to generate
+- **`lines`**: List of text strings (one per line)
+- **`line_spacing`**: Line spacing multiplier
+- **`line_break_mode`**: "word" or "character"
+- **`text_alignment`**: Text alignment ("left", "center", "right" for horizontal; "top", "center", "bottom" for vertical)
+
+### Bounding Box Format for Multi-Line
+
+Multi-line text includes a `line_index` field in each character bounding box:
+
+```python
+{
+    "char": "H",
+    "x0": 10,
+    "y0": 5,
+    "x1": 25,
+    "y1": 35,
+    "line_index": 0  # Which line this character belongs to
+}
+```
+
+Single-line mode (backward compatible) does not include the `line_index` field.
+
+### Effects Application in Multi-Line Mode
+
+- **Text-level effects** (glyph overlap, ink bleed, shadows): Applied before line composition
+- **Curves**: Applied to each line individually with the same parameters
+- **Image-level effects** (blur, noise, brightness, etc.): Applied uniformly to the entire multi-line image
+
+See `docs/how-to/multiline_text.md` for detailed usage guide.

@@ -258,6 +258,12 @@ class BatchValidator:
             ("sine_phase_min", "sine_phase_max"),
             ("per_glyph_palette_size_min", "per_glyph_palette_size_max"),
             ("font_size_min", "font_size_max"),
+            ("drop_shadow_offset_x_min", "drop_shadow_offset_x_max"),
+            ("drop_shadow_offset_y_min", "drop_shadow_offset_y_max"),
+            ("drop_shadow_radius_min", "drop_shadow_radius_max"),
+            ("block_shadow_offset_x_min", "block_shadow_offset_x_max"),
+            ("block_shadow_offset_y_min", "block_shadow_offset_y_max"),
+            ("block_shadow_radius_min", "block_shadow_radius_max"),
         ]
 
         for min_key, max_key in min_max_pairs:

@@ -17,6 +17,8 @@ VALID_DISTRIBUTIONS = {"uniform", "normal", "exponential", "beta", "lognormal", 
 VALID_CURVE_TYPES = {"none", "arc", "sine"}
 VALID_TEXT_DIRECTIONS = {"left_to_right", "right_to_left", "top_to_bottom", "bottom_to_top"}
 VALID_COLOR_MODES = {"uniform", "per_glyph", "gradient"}
+VALID_LINE_BREAK_MODES = {"word", "character"}
+VALID_TEXT_ALIGNMENTS = {"left", "center", "right", "top", "bottom"}
 
 @dataclass
 class BatchSpecification:
@@ -31,8 +33,15 @@ class BatchSpecification:
         text_direction (str): The direction of the text rendering (e.g., 'left_to_right').
         corpus_file (str): The filename of the corpus file to use for this batch.
         font_filter (Optional[str]): A glob pattern to filter the fonts to be used.
-        min_text_length (int): The minimum length of text to generate.
-        max_text_length (int): The maximum length of text to generate.
+        min_text_length (int): The minimum length of text to generate (total characters).
+        max_text_length (int): The maximum length of text to generate (total characters).
+        min_lines (int): The minimum number of text lines to generate (default: 1 for single line).
+        max_lines (int): The maximum number of text lines to generate (default: 1 for single line).
+        line_break_mode (str): How to break text into lines - "word" or "character" (default: "word").
+        line_spacing_min (float): Minimum line spacing multiplier (e.g., 1.0 = single spacing, 1.5 = 1.5x spacing).
+        line_spacing_max (float): Maximum line spacing multiplier.
+        line_spacing_distribution (str): Distribution type for line spacing (default: "uniform").
+        text_alignment (str): Text alignment - "left", "center", "right" for horizontal; "top", "center", "bottom" for vertical (default: "left").
         glyph_overlap_intensity_min (float): The minimum intensity for glyph overlap.
         glyph_overlap_intensity_max (float): The maximum intensity for glyph overlap.
         glyph_overlap_intensity_distribution (str): Distribution type (default: "half_normal").
@@ -81,6 +90,28 @@ class BatchSpecification:
         cutout_height_min (int): The minimum height for cutout.
         cutout_height_max (int): The maximum height for cutout.
         cutout_height_distribution (str): Distribution type (default: "uniform").
+        drop_shadow_offset_x_min (int): Minimum X offset for drop shadow (0 = no shadow).
+        drop_shadow_offset_x_max (int): Maximum X offset for drop shadow.
+        drop_shadow_offset_x_distribution (str): Distribution type (default: "uniform").
+        drop_shadow_offset_y_min (int): Minimum Y offset for drop shadow (0 = no shadow).
+        drop_shadow_offset_y_max (int): Maximum Y offset for drop shadow.
+        drop_shadow_offset_y_distribution (str): Distribution type (default: "uniform").
+        drop_shadow_radius_min (float): Minimum blur radius for drop shadow.
+        drop_shadow_radius_max (float): Maximum blur radius for drop shadow.
+        drop_shadow_radius_distribution (str): Distribution type (default: "exponential").
+        drop_shadow_color_min (Tuple[int, int, int, int]): Minimum RGBA for drop shadow color.
+        drop_shadow_color_max (Tuple[int, int, int, int]): Maximum RGBA for drop shadow color.
+        block_shadow_offset_x_min (int): Minimum X offset for block shadow (0 = no shadow).
+        block_shadow_offset_x_max (int): Maximum X offset for block shadow.
+        block_shadow_offset_x_distribution (str): Distribution type (default: "uniform").
+        block_shadow_offset_y_min (int): Minimum Y offset for block shadow (0 = no shadow).
+        block_shadow_offset_y_max (int): Maximum Y offset for block shadow.
+        block_shadow_offset_y_distribution (str): Distribution type (default: "uniform").
+        block_shadow_radius_min (float): Minimum blur radius for block shadow.
+        block_shadow_radius_max (float): Maximum blur radius for block shadow.
+        block_shadow_radius_distribution (str): Distribution type (default: "exponential").
+        block_shadow_color_min (Tuple[int, int, int, int]): Minimum RGBA for block shadow color.
+        block_shadow_color_max (Tuple[int, int, int, int]): Maximum RGBA for block shadow color.
         curve_type (str): The type of curve to apply ("none", "arc", "sine").
         arc_radius_min (float): The minimum radius for arc curves (0.0 = straight line).
         arc_radius_max (float): The maximum radius for arc curves.
@@ -117,6 +148,15 @@ class BatchSpecification:
     font_filter: Optional[str] = None
     min_text_length: int = 10
     max_text_length: int = 50
+    # Multi-line parameters - defaults to single line for backward compatibility
+    min_lines: int = 1
+    max_lines: int = 1
+    line_break_mode: str = "word"
+    line_spacing_min: float = 1.0
+    line_spacing_max: float = 1.0
+    line_spacing_distribution: DistributionType = "uniform"
+    text_alignment: str = "left"
+    # Effect parameters
     glyph_overlap_intensity_min: float = 0.0
     glyph_overlap_intensity_max: float = 0.0
     glyph_overlap_intensity_distribution: DistributionType = "exponential"
@@ -165,6 +205,29 @@ class BatchSpecification:
     cutout_height_min: int = 0
     cutout_height_max: int = 0
     cutout_height_distribution: DistributionType = "uniform"
+    # Shadow parameters
+    drop_shadow_offset_x_min: int = 0
+    drop_shadow_offset_x_max: int = 0
+    drop_shadow_offset_x_distribution: DistributionType = "uniform"
+    drop_shadow_offset_y_min: int = 0
+    drop_shadow_offset_y_max: int = 0
+    drop_shadow_offset_y_distribution: DistributionType = "uniform"
+    drop_shadow_radius_min: float = 0.0
+    drop_shadow_radius_max: float = 0.0
+    drop_shadow_radius_distribution: DistributionType = "exponential"
+    drop_shadow_color_min: Tuple[int, int, int, int] = (0, 0, 0, 128)
+    drop_shadow_color_max: Tuple[int, int, int, int] = (0, 0, 0, 128)
+    block_shadow_offset_x_min: int = 0
+    block_shadow_offset_x_max: int = 0
+    block_shadow_offset_x_distribution: DistributionType = "uniform"
+    block_shadow_offset_y_min: int = 0
+    block_shadow_offset_y_max: int = 0
+    block_shadow_offset_y_distribution: DistributionType = "uniform"
+    block_shadow_radius_min: float = 0.0
+    block_shadow_radius_max: float = 0.0
+    block_shadow_radius_distribution: DistributionType = "exponential"
+    block_shadow_color_min: Tuple[int, int, int, int] = (0, 0, 0, 128)
+    block_shadow_color_max: Tuple[int, int, int, int] = (0, 0, 0, 128)
     # Curve parameters - always present for consistent ML feature vectors
     curve_type: str = "none"
     arc_radius_min: float = 0.0
@@ -209,6 +272,14 @@ class BatchSpecification:
             self.gradient_end_color_min = tuple(self.gradient_end_color_min)
         if isinstance(self.gradient_end_color_max, list):
             self.gradient_end_color_max = tuple(self.gradient_end_color_max)
+        if isinstance(self.drop_shadow_color_min, list):
+            self.drop_shadow_color_min = tuple(self.drop_shadow_color_min)
+        if isinstance(self.drop_shadow_color_max, list):
+            self.drop_shadow_color_max = tuple(self.drop_shadow_color_max)
+        if isinstance(self.block_shadow_color_min, list):
+            self.block_shadow_color_min = tuple(self.block_shadow_color_min)
+        if isinstance(self.block_shadow_color_max, list):
+            self.block_shadow_color_max = tuple(self.block_shadow_color_max)
 
 @dataclass
 class BatchConfig:
@@ -308,6 +379,39 @@ class BatchConfig:
             errors.append(
                 f"Invalid color_mode '{spec.color_mode}'. "
                 f"Must be one of: {VALID_COLOR_MODES}"
+            )
+
+        # Validate line_break_mode
+        if spec.line_break_mode not in VALID_LINE_BREAK_MODES:
+            errors.append(
+                f"Invalid line_break_mode '{spec.line_break_mode}'. "
+                f"Must be one of: {VALID_LINE_BREAK_MODES}"
+            )
+
+        # Validate text_alignment
+        if spec.text_alignment not in VALID_TEXT_ALIGNMENTS:
+            errors.append(
+                f"Invalid text_alignment '{spec.text_alignment}'. "
+                f"Must be one of: {VALID_TEXT_ALIGNMENTS}"
+            )
+
+        # Validate line count ranges
+        if spec.min_lines < 1:
+            errors.append(f"min_lines must be >= 1, got {spec.min_lines}")
+
+        if spec.max_lines < spec.min_lines:
+            errors.append(
+                f"max_lines ({spec.max_lines}) must be >= min_lines ({spec.min_lines})"
+            )
+
+        # Validate line spacing ranges
+        if spec.line_spacing_min <= 0:
+            errors.append(f"line_spacing_min must be > 0, got {spec.line_spacing_min}")
+
+        if spec.line_spacing_max < spec.line_spacing_min:
+            errors.append(
+                f"line_spacing_max ({spec.line_spacing_max}) must be >= "
+                f"line_spacing_min ({spec.line_spacing_min})"
             )
 
         # Validate curve_type consistency with curve parameters

@@ -1,230 +1,191 @@
-# Stage 1: Clean, horizontal, black-on-white text for initial OCR training
-# This is the easiest stage with:
-# - White backgrounds only (no background images)
-# - Black text only
-# - No rotation, curves, or angle variations
-# - Minimal augmentations/effects
-# - Readable fonts only (filtered to exclude decorative/emoji fonts)
-# - Shorter text lengths (5-20 characters)
+# Stage 3 Demo: BTT Multi-Line Features - Advanced
 
-total_images: 10000
+total_images: 150
 
 specifications:
-  # Spec 1: Sans-serif fonts with multi-line - 40%
-  - name: "stage1_sans_serif"
-    proportion: 0.40
-    text_direction: "left_to_right"
+  # Spec 1: Multi-line BTT with arc curves
+  - name: "btt_multiline_curved_arc"
+    proportion: 0.33
+    text_direction: "bottom_to_top"
     corpus_file: "ltr/gutenberg_11.txt"
-    font_filter: "*Sans*.ttf"
 
-    # Text length - keep it short for stage 1
-    min_text_length: 5
-    max_text_length: 20
-
-    # Multi-line text parameters (basic multi-line features)
+    min_text_length: 20
+    max_text_length: 50
     min_lines: 2
     max_lines: 4
+    line_break_mode: "character"
+    line_spacing_min: 1.5
+    line_spacing_max: 2.0
+    text_alignment: "bottom"
+
+    font_size_min: 28
+    font_size_max: 42
+
+    # Prominent drop shadow
+    drop_shadow_offset_x_min: 3
+    drop_shadow_offset_x_max: 8
+    drop_shadow_offset_y_min: 3
+    drop_shadow_offset_y_max: 8
+    drop_shadow_radius_min: 2.0
+    drop_shadow_radius_max: 5.0
+    drop_shadow_color_min: [0, 0, 0, 180]
+    drop_shadow_color_max: [50, 50, 50, 220]
+
+    curve_type: "arc"
+    arc_radius_min: 100.0
+    arc_radius_max: 300.0
+    arc_concave: false
+
+    rotation_angle_min: 0.0
+    rotation_angle_max: 0.0
+    glyph_overlap_intensity_min: 0.0
+    glyph_overlap_intensity_max: 0.0
+    ink_bleed_radius_min: 0.0
+    ink_bleed_radius_max: 0.0
+    perspective_warp_magnitude_min: 0.0
+    perspective_warp_magnitude_max: 0.0
+    noise_amount_min: 0.0
+    noise_amount_max: 0.0
+    blur_radius_min: 0.0
+    blur_radius_max: 0.0
+    brightness_factor_min: 1.0
+    brightness_factor_max: 1.0
+    contrast_factor_min: 1.0
+    contrast_factor_max: 1.0
+    elastic_distortion_alpha_min: 0.0
+    elastic_distortion_alpha_max: 0.0
+    elastic_distortion_sigma_min: 0.0
+    elastic_distortion_sigma_max: 0.0
+    grid_distortion_steps_min: 0
+    grid_distortion_steps_max: 0
+    grid_distortion_limit_min: 0.0
+    grid_distortion_limit_max: 0.0
+    optical_distortion_limit_min: 0.0
+    optical_distortion_limit_max: 0.0
+    erosion_dilation_kernel_min: 0
+    erosion_dilation_kernel_max: 0
+    cutout_width_min: 0
+    cutout_width_max: 0
+    cutout_height_min: 0
+    cutout_height_max: 0
+
+  # Spec 2: Multi-line BTT with full augmentation
+  - name: "btt_multiline_full_augmentation"
+    proportion: 0.33
+    text_direction: "bottom_to_top"
+    corpus_file: "ltr/gutenberg_1116.txt"
+
+    min_text_length: 25
+    max_text_length: 60
+    min_lines: 3
+    max_lines: 5
     line_break_mode: "word"
     line_spacing_min: 1.2
     line_spacing_max: 1.8
-    text_alignment: "left"
+    text_alignment: "center"
 
-    # Colors - pure black on white
-    text_color_min: [0, 0, 0]
-    text_color_max: [0, 0, 0]
-
-    # Font size - standard range
     font_size_min: 24
-    font_size_max: 72
+    font_size_max: 36
 
-    # NO rotation - perfectly horizontal
-    rotation_angle_min: 0.0
-    rotation_angle_max: 0.0
+    # Varied per-glyph palette
+    color_mode: "per_glyph"
+    per_glyph_palette_size_min: 3
+    per_glyph_palette_size_max: 5
+    text_color_min: [10, 10, 10]
+    text_color_max: [120, 120, 120]
 
-    # NO curves
+    rotation_angle_min: -10.0
+    rotation_angle_max: 10.0
+    noise_amount_min: 0.0
+    noise_amount_max: 0.15
+    blur_radius_min: 0.0
+    blur_radius_max: 1.0
+    perspective_warp_magnitude_min: 0.0
+    perspective_warp_magnitude_max: 0.08
+    brightness_factor_min: 0.8
+    brightness_factor_max: 1.2
+    contrast_factor_min: 0.9
+    contrast_factor_max: 1.1
+
     curve_type: "none"
-
-    # NO glyph overlap - clear character boundaries
     glyph_overlap_intensity_min: 0.0
     glyph_overlap_intensity_max: 0.0
-
-    # NO ink bleed
     ink_bleed_radius_min: 0.0
-    ink_bleed_radius_max: 0.0
-
-    # Minimal perspective warp
-    perspective_warp_magnitude_min: 0.0
-    perspective_warp_magnitude_max: 0.0
-
-    # Minimal noise
-    noise_amount_min: 0.0
-    noise_amount_max: 0.02
-
-    # Minimal blur
-    blur_radius_min: 0.0
-    blur_radius_max: 0.3
-
-    # Standard brightness/contrast
-    brightness_factor_min: 1.0
-    brightness_factor_max: 1.0
-    contrast_factor_min: 1.0
-    contrast_factor_max: 1.0
-
-    # NO elastic distortion
+    ink_bleed_radius_max: 0.5
     elastic_distortion_alpha_min: 0.0
     elastic_distortion_alpha_max: 0.0
     elastic_distortion_sigma_min: 0.0
     elastic_distortion_sigma_max: 0.0
-
-    # NO grid distortion
     grid_distortion_steps_min: 0
     grid_distortion_steps_max: 0
     grid_distortion_limit_min: 0.0
     grid_distortion_limit_max: 0.0
-
-    # NO optical distortion
     optical_distortion_limit_min: 0.0
     optical_distortion_limit_max: 0.0
-
-    # NO morphological operations
     erosion_dilation_kernel_min: 0
     erosion_dilation_kernel_max: 0
-
-    # NO cutout
     cutout_width_min: 0
     cutout_width_max: 0
     cutout_height_min: 0
     cutout_height_max: 0
 
-  # Spec 2: Serif fonts - 30%
-  - name: "stage1_serif"
-    proportion: 0.30
-    text_direction: "left_to_right"
-    corpus_file: "ltr/gutenberg_1116.txt"
-    font_filter: "*Serif*.ttf"
-
-    min_text_length: 5
-    max_text_length: 20
-
-    text_color_min: [0, 0, 0]
-    text_color_max: [0, 0, 0]
-
-    font_size_min: 24
-    font_size_max: 72
-
-    rotation_angle_min: 0.0
-    rotation_angle_max: 0.0
-
-    curve_type: "none"
-
-    glyph_overlap_intensity_min: 0.0
-    glyph_overlap_intensity_max: 0.0
-
-    ink_bleed_radius_min: 0.0
-    ink_bleed_radius_max: 0.0
-
-    perspective_warp_magnitude_min: 0.0
-    perspective_warp_magnitude_max: 0.0
-
-    noise_amount_min: 0.0
-    noise_amount_max: 0.02
-
-    blur_radius_min: 0.0
-    blur_radius_max: 0.3
-
-    brightness_factor_min: 1.0
-    brightness_factor_max: 1.0
-    contrast_factor_min: 1.0
-    contrast_factor_max: 1.0
-
-    elastic_distortion_alpha_min: 0.0
-    elastic_distortion_alpha_max: 0.0
-    elastic_distortion_sigma_min: 0.0
-    elastic_distortion_sigma_max: 0.0
-
-    grid_distortion_steps_min: 0
-    grid_distortion_steps_max: 0
-    grid_distortion_limit_min: 0.0
-    grid_distortion_limit_max: 0.0
-
-    optical_distortion_limit_min: 0.0
-    optical_distortion_limit_max: 0.0
-
-    erosion_dilation_kernel_min: 0
-    erosion_dilation_kernel_max: 0
-
-    cutout_width_min: 0
-    cutout_width_max: 0
-    cutout_height_min: 0
-    cutout_height_max: 0
-
-  # Spec 3: Regular/Normal weight fonts - 30%
-  - name: "stage1_regular"
-    proportion: 0.30
-    text_direction: "left_to_right"
+  # Spec 3: Variable text length
+  - name: "btt_multiline_variable_length"
+    proportion: 0.34
+    text_direction: "bottom_to_top"
     corpus_file: "ltr/gutenberg_15.txt"
-    font_filter: "*Regular.ttf"
 
-    min_text_length: 5
-    max_text_length: 20
+    min_text_length: 1
+    max_text_length: 100
+    min_lines: 1
+    max_lines: 6
+    line_break_mode: "character"
+    line_spacing_min: 1.3
+    line_spacing_max: 1.7
+    text_alignment: "bottom"
 
-    text_color_min: [0, 0, 0]
-    text_color_max: [0, 0, 0]
+    font_size_min: 20
+    font_size_max: 40
 
-    font_size_min: 24
-    font_size_max: 72
-
-    # Very subtle drop shadow
-    drop_shadow_offset_x_min: 1
-    drop_shadow_offset_x_max: 2
-    drop_shadow_offset_y_min: 1
-    drop_shadow_offset_y_max: 2
-    drop_shadow_radius_min: 0.5
-    drop_shadow_radius_max: 1.0
-    drop_shadow_color_min: [0, 0, 0, 100]
-    drop_shadow_color_max: [0, 0, 0, 140]
+    # Prominent block shadow
+    block_shadow_offset_x_min: 2
+    block_shadow_offset_x_max: 6
+    block_shadow_offset_y_min: 2
+    block_shadow_offset_y_max: 6
+    block_shadow_radius_min: 1.5
+    block_shadow_radius_max: 4.0
+    block_shadow_color_min: [80, 80, 80, 120]
+    block_shadow_color_max: [180, 180, 180, 180]
 
     rotation_angle_min: 0.0
     rotation_angle_max: 0.0
-
     curve_type: "none"
-
     glyph_overlap_intensity_min: 0.0
     glyph_overlap_intensity_max: 0.0
-
     ink_bleed_radius_min: 0.0
     ink_bleed_radius_max: 0.0
-
     perspective_warp_magnitude_min: 0.0
     perspective_warp_magnitude_max: 0.0
-
     noise_amount_min: 0.0
-    noise_amount_max: 0.02
-
+    noise_amount_max: 0.05
     blur_radius_min: 0.0
     blur_radius_max: 0.3
-
     brightness_factor_min: 1.0
     brightness_factor_max: 1.0
     contrast_factor_min: 1.0
     contrast_factor_max: 1.0
-
     elastic_distortion_alpha_min: 0.0
     elastic_distortion_alpha_max: 0.0
     elastic_distortion_sigma_min: 0.0
     elastic_distortion_sigma_max: 0.0
-
     grid_distortion_steps_min: 0
     grid_distortion_steps_max: 0
     grid_distortion_limit_min: 0.0
     grid_distortion_limit_max: 0.0
-
     optical_distortion_limit_min: 0.0
     optical_distortion_limit_max: 0.0
-
     erosion_dilation_kernel_min: 0
     erosion_dilation_kernel_max: 0
-
     cutout_width_min: 0
     cutout_width_max: 0
     cutout_height_min: 0

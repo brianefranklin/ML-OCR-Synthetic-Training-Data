@@ -11,7 +11,7 @@
 total_images: 10000
 
 specifications:
-  # Spec 1: Rotated text with sans-serif - 25%
+  # Spec 1: Rotated text with sans-serif (multi-line) - 25%
   - name: "stage2_rotated_sans"
     proportion: 0.25
     text_direction: "left_to_right"
@@ -21,6 +21,14 @@ specifications:
     min_text_length: 10
     max_text_length: 40
 
+    # Multi-line text parameters (intermediate features)
+    min_lines: 2
+    max_lines: 4
+    line_break_mode: "word"
+    line_spacing_min: 1.5
+    line_spacing_max: 2.5
+    text_alignment: "left"
+
     text_color_min: [0, 0, 0]
     text_color_max: [0, 0, 0]
 
@@ -28,6 +36,16 @@ specifications:
 
     font_size_min: 24
     font_size_max: 72
+
+    # Moderate drop shadow
+    drop_shadow_offset_x_min: 2
+    drop_shadow_offset_x_max: 4
+    drop_shadow_offset_y_min: 2
+    drop_shadow_offset_y_max: 4
+    drop_shadow_radius_min: 1.0
+    drop_shadow_radius_max: 2.5
+    drop_shadow_color_min: [0, 0, 0, 140]
+    drop_shadow_color_max: [0, 0, 0, 180]
 
     # Allow rotation up to 15 degrees
     rotation_angle_min: -15.0
@@ -106,6 +124,11 @@ specifications:
     font_size_min: 24
     font_size_max: 72
 
+    # Per-glyph color with small palette
+    color_mode: "per_glyph"
+    per_glyph_palette_size_min: 2
+    per_glyph_palette_size_max: 3
+
     # Minimal rotation (curves provide the angle)
     rotation_angle_min: -5.0
     rotation_angle_max: 5.0
@@ -157,7 +180,7 @@ specifications:
     cutout_height_min: 0
     cutout_height_max: 0
 
-  # Spec 3: Sine waves with Bold fonts - 25%
+  # Spec 3: Sine waves with Bold fonts (multi-line) - 25%
   - name: "stage2_sine_bold"
     proportion: 0.25
     text_direction: "left_to_right"
@@ -166,6 +189,14 @@ specifications:
 
     min_text_length: 10
     max_text_length: 40
+
+    # Multi-line text parameters (intermediate features with center alignment)
+    min_lines: 2
+    max_lines: 4
+    line_break_mode: "word"
+    line_spacing_min: 1.5
+    line_spacing_max: 2.5
+    text_alignment: "center"
 
     text_color_min: [0, 0, 0]
     text_color_max: [0, 0, 0]
