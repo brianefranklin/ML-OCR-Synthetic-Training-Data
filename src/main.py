@@ -336,7 +336,8 @@ def main():
         batch_config=batch_config,
         corpus_map=corpus_map,
         all_fonts=all_fonts,
-        background_manager=background_manager
+        background_manager=background_manager,
+        font_health_manager=font_health_manager
     )
     generator = OCRDataGenerator()
     logger.debug("Initialized orchestrator and generator")
@@ -410,17 +411,25 @@ def main():
                     save_tasks: List[Tuple[Image.Image, Dict[str, Any], Path, Path]] = []
 
                     for idx, image, plan, error in chunk_results:
-                        if error is not None:
-                            # Generation failed - log and skip
-                            logger.warning(error)
-                            chunk_failed_count += 1
-                            continue
-
-                        # Find the original task from the index
+                        # Find the original task from the index (needed for both success and failure)
                         task = next((t for t in chunk_tasks if t.index == idx), None)
                         if not task:
                             logger.error(f"Could not find original task for index {idx} in chunk.")
                             continue
+
+                        if error is not None:
+                            # Generation failed - record failure and skip
+                            logger.warning(error)
+                            font_health_manager.record_failure(task.font_path)
+                            if task.background_path:
+                                background_manager.record_failure(task.background_path)
+                            chunk_failed_count += 1
+                            continue
+
+                        # Generation succeeded - record success and queue for saving
+                        font_health_manager.record_success(task.font_path)
+                        if task.background_path:
+                            background_manager.record_success(task.background_path)
 
                         image_path = output_path / f"{task.output_filename}.png"
                         label_path = output_path / f"{task.output_filename}.json"
@@ -452,13 +461,26 @@ def main():
                 else:
                     # Sequential I/O
                     for idx, image, plan, error in chunk_results:
+                        # Find the original task from the index (needed for both success and failure)
+                        task = next((t for t in chunk_tasks if t.index == idx), None)
+                        if not task:
+                            logger.error(f"Could not find original task for index {idx} in chunk.")
+                            continue
+
                         if error is not None:
-                            # Generation failed - log and skip
+                            # Generation failed - record failure and skip
                             logger.warning(error)
+                            font_health_manager.record_failure(task.font_path)
+                            if task.background_path:
+                                background_manager.record_failure(task.background_path)
                             chunk_failed_count += 1
                             continue
 
-                        task = next((t for t in chunk_tasks if t.index == idx), None)
+                        # Generation succeeded - record success and save
+                        font_health_manager.record_success(task.font_path)
+                        if task.background_path:
+                            background_manager.record_success(task.background_path)
+
                         image_path = output_path / f"{task.output_filename}.png"
                         label_path = output_path / f"{task.output_filename}.json"
                         image.save(image_path)
